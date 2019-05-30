@@ -1,7 +1,7 @@
 #include "../PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "../PCMSim/Trace/pcm_sim_trace.hh"
 
-#include "eDRAM_Cache_Side/eDRAM_cache.hh"
+#include "src/eDRAM_cache.hh"
 
 #include <iostream>
 

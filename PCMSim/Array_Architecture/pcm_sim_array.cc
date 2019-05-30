@@ -91,6 +91,8 @@ unsigned Array::read(std::list<Request>::iterator &req)
 {
     unsigned lat = arr_info.tRCD + arr_info.tData +
                    arr_info.nclks_bit_rd;
-    return lat;
+
+    return 10; // tmp hack
+    // return lat;
 }
 }

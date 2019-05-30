@@ -12,6 +12,8 @@ PCMSimMemorySystem::PCMSimMemorySystem(const std::string cfg_file)
 
     init(cfgs);
     blkSize = cfgs.blkSize;
+
+    std::cout << "PCM System (" << cfgs.sizeInGB() << " GB): \n";
     std::cout << "Number of Channels: " << cfgs.num_of_channels << "\n";
     std::cout << "Number of Ranks: " << cfgs.num_of_ranks << "\n";
     std::cout << "Number of Banks: " << cfgs.num_of_banks << "\n";

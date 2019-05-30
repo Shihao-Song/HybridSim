@@ -36,7 +36,7 @@ class Controller
                                   scheduled(0) {}
     ~Controller() { delete channel; }
 
-    int getQueueSize() { return r_w_q.size(); }
+    int getQueueSize() { return r_w_q.size() + r_w_pending_queue.size(); }
     
     bool enqueue(Request& req)
     {

@@ -6,6 +6,7 @@ namespace eDRAMSimulator
 eDRAMCache::eDRAMCache(PCMSimMemorySystem *_pcm)
     : cur_clk(0),
       write_only(Constants::WRITE_ONLY),
+      pcm_tick_period(Constants::TICKS_PER_NS / pcm->nclks_per_ns),
       mshr_cb_func(std::bind(&eDRAMCache::MSHRComplete, this,
                              std::placeholders::_1)),
       wb_cb_func(std::bind(&eDRAMCache::WBComplete, this,
@@ -19,11 +20,16 @@ eDRAMCache::eDRAMCache(PCMSimMemorySystem *_pcm)
       num_evicts(0),
       num_read_hits(0),
       num_write_hits(0)
-{}
+{
+    std::cout << "eDRAM System (" << Constants::SIZE / 1024 / 1024
+              << " MB): \n";
+    std::cout << "Write-only mode: " << Constants::WRITE_ONLY << "\n\n";
+}
 
 void eDRAMCache::tick()
 {
     cur_clk++; 
+
     // Step one: serve pending request
     servePendingHits();
 
@@ -31,10 +37,6 @@ void eDRAMCache::tick()
     sendDeferredReq();
 
     // Step three: tick the PCM system
-    // Let's assume the CPU side including eDRAM ticks every ns (1 GHz)
-    // so the PCM should be ticked every 1/pcm_ticks_per_ns
-    float pcm_ticks_per_ns = pcm->nclks_per_ns;
-    unsigned pcm_tick_period = 1 / pcm_ticks_per_ns;
     if (cur_clk % pcm_tick_period == 0)
     {
         pcm->tick();
@@ -44,26 +46,26 @@ void eDRAMCache::tick()
 void eDRAMCache::sendDeferredReq()
 {
     Addr mshr_entry = MaxAddr;
-    bool mshr_entry_valid = mshrs->getEntry(mshr_entry);
+    bool mshr_entry_valid = mshrs->getEntry(mshr_entry, cur_clk);
 
     Addr wb_entry = MaxAddr;
-    bool wb_entry_valid = wb_queue->getEntry(wb_entry);
+    bool wb_entry_valid = wb_queue->getEntry(wb_entry, cur_clk);
 
     if (wb_entry_valid && (wb_queue->isFull() || !mshr_entry_valid))
     {
+        // Make sure write-back address is correct
         assert(wb_entry != MaxAddr);
-        if (wb_queue->isReady(wb_entry, cur_clk))
-        {
-            sendWBReq(wb_entry);
-        }
+        // Make sure the tag lookup latency has been resolved
+        assert(wb_queue->isReady(wb_entry, cur_clk));
+        sendWBReq(wb_entry);
     }
     else if (mshr_entry_valid)
     {
+        // Make sure mshr address is correct
         assert(mshr_entry != MaxAddr);
-        if (mshrs->isReady(mshr_entry, cur_clk))
-        {
-            sendMSHRReq(mshr_entry);
-        }
+        // Make sure tag lookup latency has been resolved
+        assert(mshrs->isReady(mshr_entry, cur_clk));
+        sendMSHRReq(mshr_entry);
     }
 }
 
@@ -77,6 +79,7 @@ bool eDRAMCache::access(Request &req)
         // insert to pending queue
         req.begin_exe = cur_clk;
         req.end_exe = cur_clk + Constants::TAG_LOOKUP_LATENCY;
+        pending_queue_for_hits.push_back(req);
 
         if (req.req_type == Request::Request_Type::WRITE)
         {
@@ -88,6 +91,21 @@ bool eDRAMCache::access(Request &req)
         }
 
         return true;
+    }
+
+    // Hit on MSHR queue, return true.
+    // (1) A read followed by a write, can get data directly;
+    // (2) A write followed by a write, update the data (in buffer) directly;
+    if (mshrs->isInQueue(req.addr))
+    {
+        return true;
+    }
+
+    // Hit on wb queue, bring back the entry.
+    if (wb_queue->isInQueueNotOnBoard(req.addr))
+    {
+        wb_queue->deAllocate(req.addr, false);
+        allocateBlock(req);
     }
 
     if (write_only && req.req_type == Request::Request_Type::WRITE && !blocked() ||
@@ -123,11 +141,13 @@ bool eDRAMCache::access(Request &req)
     assert(write_only);
     if (req.req_type == Request::Request_Type::READ)
     {
-        //std::cout << cur_clk << ": Read miss detected and forwarding to PCM...\n";
         return pcm->send(req);
     }
    
-    //std::cout << cur_clk << ": A Write miss detected but eDRAM is busy now... \n"; 
+    // At this point, we know the request must be a write request.
+    // Let's also make sure that the eDRAM must be in BLOCKED state. 
+    assert(blocked());
+ 
     return false;
 }
 

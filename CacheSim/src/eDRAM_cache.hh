@@ -48,6 +48,7 @@ class eDRAMCache
 
   private:
     const bool write_only; // Does this cache only cache writes?
+    const unsigned pcm_tick_period; // Tick PCM every this period
 
   private:
     std::deque<Request> pending_queue_for_hits; // for read/write hits
