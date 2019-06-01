@@ -1,18 +1,17 @@
-#include "eDRAM_cache_fa_tags.hh"
-#include "../replacement_policies/eDRAM_cache_fa_lru.hh"
+#include "fa_tags.hh"
+#include "../replacement_policies/fa_lru.hh"
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
-eDRAMCacheFATags::eDRAMCacheFATags()
-    : eDRAMCacheTagsWithFABlk()
+FATags::FATags(int level, Config &cfg) : TagsWithFABlk(level, cfg)
 {
-    blks = new eDRAMCacheFABlk[numBlocks];
-    policy = new eDRAMCacheFALRU();
+    blks = new FABlk[numBlocks];
+    policy = new FALRU();
 
     tagsInit();
 }
 
-void eDRAMCacheFATags::tagsInit()
+void FATags::tagsInit()
 {
     head = &(blks[0]);
     head->prev = nullptr;
@@ -31,9 +30,9 @@ void eDRAMCacheFATags::tagsInit()
     policy->policyInit(this);
 }
 
-eDRAMCacheFABlk* eDRAMCacheFATags::accessBlock(Addr addr)
+FABlk* FATags::accessBlock(Addr addr)
 {
-    eDRAMCacheFABlk *blk = findBlock(addr);
+    FABlk *blk = findBlock(addr);
 
     if (blk && blk->isValid())
     {
@@ -43,14 +42,14 @@ eDRAMCacheFABlk* eDRAMCacheFATags::accessBlock(Addr addr)
     return blk;
 }
 
-eDRAMCacheFABlk* eDRAMCacheFATags::findVictim(Addr addr)
+FABlk* FATags::findVictim(Addr addr)
 {
-    eDRAMCacheFABlk* victim = policy->findVictim(addr);
+    FABlk* victim = policy->findVictim(addr);
 
     return victim;
 }
 
-void eDRAMCacheFATags::invalidate(eDRAMCacheFABlk* victim)
+void FATags::invalidate(FABlk* victim)
 {
     assert(tagHash.erase(victim->tag));
 
@@ -59,7 +58,7 @@ void eDRAMCacheFATags::invalidate(eDRAMCacheFABlk* victim)
     policy->downgrade(victim);
 }
 
-void eDRAMCacheFATags::insertBlock(Addr addr, eDRAMCacheFABlk* victim)
+void FATags::insertBlock(Addr addr, FABlk* victim)
 {
     assert(!victim->isValid());
 
@@ -70,9 +69,9 @@ void eDRAMCacheFATags::insertBlock(Addr addr, eDRAMCacheFABlk* victim)
     tagHash[victim->tag] = victim;
 }
 
-eDRAMCacheFABlk* eDRAMCacheFATags::findBlock(Addr addr) const
+FABlk* FATags::findBlock(Addr addr) const
 {
-    eDRAMCacheFABlk *blk = nullptr;
+    FABlk *blk = nullptr;
 
     Addr tag = extractTag(addr);
     

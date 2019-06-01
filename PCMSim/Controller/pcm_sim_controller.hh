@@ -9,6 +9,11 @@
 #include <iostream>
 #include <list>
 
+namespace Configuration
+{
+    class Config;
+}
+
 namespace PCMSim
 {
 class Array;
@@ -32,6 +37,8 @@ class Controller
     std::list<Request>::iterator scheduled_req;
 
   public:
+    typedef Configuration::Config Config;
+
     Controller(Array *_channel) : channel(_channel), clk(0),
                                   scheduled(0) {}
     ~Controller() { delete channel; }

@@ -1,8 +1,7 @@
-#include "pcm_sim_config.hh"
+#include "config.hh"
 
-namespace PCMSim
+namespace Configuration
 {
-
 Config::Config(const std::string &cfg_file)
 {
     parse(cfg_file);
@@ -54,7 +53,43 @@ void Config::parse(const std::string &fname)
         assert(tokens.size() == 2 && "Only allow two tokens in one line");
 
         // Extract Timing Parameters
-        if(tokens[0] == "num_of_word_lines_per_tile")
+        if(tokens[0] == "on_chip_frequency")
+        {
+            on_chip_frequency = atof(tokens[1].c_str());
+        }
+        else if(tokens[0] == "off_chip_frequency")
+        {
+            off_chip_frequency = atof(tokens[1].c_str());
+        }
+        else if(tokens[0] == "cache_detailed")
+        {
+            cache_detailed = tokens[1] == "false" ? 0 : 1;
+        }
+        else if(tokens[0] == "block_size")
+        {
+            blkSize = atoi(tokens[1].c_str());
+        }
+        else if(tokens[0].find("L1I") != std::string::npos)
+        {
+            extractCacheInfo(Cache_Level::L1I, tokens);
+        }
+        else if(tokens[0].find("L1D") != std::string::npos)
+        {
+            extractCacheInfo(Cache_Level::L1D, tokens);
+        }
+        else if(tokens[0].find("L2") != std::string::npos)
+        {
+            extractCacheInfo(Cache_Level::L2, tokens);
+        }
+        else if(tokens[0].find("L3") != std::string::npos)
+        {
+            extractCacheInfo(Cache_Level::L3, tokens);
+        }
+        else if(tokens[0].find("eDRAM") != std::string::npos)
+        {
+            extractCacheInfo(Cache_Level::eDRAM, tokens);
+        }
+	else if(tokens[0] == "num_of_word_lines_per_tile")
         {
             num_of_word_lines_per_tile = atoi(tokens[1].c_str());
         }
@@ -125,6 +160,34 @@ void Config::parse(const std::string &fname)
     }
 
     file.close();
+}
+
+void Config::extractCacheInfo(Cache_Level level, std::vector<std::string> &tokens)
+{
+    if(tokens[0].find("assoc") != std::string::npos)
+    {
+        caches[int(level)].assoc = atoi(tokens[1].c_str());
+    }
+    else if(tokens[0].find("size") != std::string::npos)
+    {
+        caches[int(level)].size = atoi(tokens[1].c_str());
+    }
+    else if(tokens[0].find("write_only") != std::string::npos)
+    {
+        caches[int(level)].write_only = tokens[1] == "false" ? 0 : 1;
+    }
+    else if(tokens[0].find("num_mshrs") != std::string::npos)
+    {
+        caches[int(level)].num_mshrs = atoi(tokens[1].c_str());
+    }
+    else if(tokens[0].find("num_wb_entries") != std::string::npos)
+    {
+        caches[int(level)].num_wb_entries = atoi(tokens[1].c_str());
+    }
+    else if(tokens[0].find("tag_lookup_latency") != std::string::npos)
+    {
+	caches[int(level)].tag_lookup_latency = atoi(tokens[1].c_str());
+    }
 }
 
 }

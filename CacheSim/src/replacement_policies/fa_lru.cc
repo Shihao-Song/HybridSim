@@ -1,14 +1,13 @@
-#include "eDRAM_cache_fa_lru.hh"
+#include "fa_lru.hh"
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
-eDRAMCacheFALRU::eDRAMCacheFALRU()
-    : eDRAMCacheFAReplacementPolicy()
+FALRU::FALRU() : FAReplacementPolicy()
 {
 }
 
 // LRU policy - move the MRU block to the head
-void eDRAMCacheFALRU::upgrade(eDRAMCacheFABlk *blk)
+void FALRU::upgrade(FABlk *blk)
 {
     // If block is not already head, do the moving
     if (blk != *head) {
@@ -32,7 +31,7 @@ void eDRAMCacheFALRU::upgrade(eDRAMCacheFABlk *blk)
     assert(blk == *head);
 }
 
-void eDRAMCacheFALRU::downgrade(eDRAMCacheFABlk *blk)
+void FALRU::downgrade(FABlk *blk)
 {
     // If block is not already tail, do the moving
     if (blk != *tail) {
@@ -57,7 +56,7 @@ void eDRAMCacheFALRU::downgrade(eDRAMCacheFABlk *blk)
     assert(blk == *tail);
 }
 
-eDRAMCacheFABlk* eDRAMCacheFALRU::findVictim(Addr addr)
+FABlk* FALRU::findVictim(Addr addr)
 {
     return *tail;
 }

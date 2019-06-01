@@ -5,12 +5,14 @@
 #include <vector>
 
 #include "../request.hh"
-#include "../Configs/pcm_sim_config.hh"
+#include "../../Configs/config.hh"
 
 namespace PCMSim
 {
 class Array
 {
+    typedef Configuration::Config Config;
+
   public:
     Array(typename Config::Level level_val,
           Config &cfgs, float nclks_per_ns);

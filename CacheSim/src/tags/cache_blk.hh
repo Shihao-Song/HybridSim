@@ -1,19 +1,19 @@
-#ifndef __eDRAM_CACHE_FA_BLK_HH__
-#define __eDRAM_CACHE_FA_BLK_HH__
+#ifndef __CACHE_BLK_HH__
+#define __CACHE_BLK_HH__
 
 #include <cassert>
 #include <cstdint>
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
 typedef uint64_t Addr;
 typedef uint64_t Tick;
 
-class eDRAMCacheFABlk
+class Blk
 {
   public:
     // Initially, all blks should not be valid
-    eDRAMCacheFABlk() : prev(nullptr), next(nullptr), valid(0) {}
+    Blk() : valid(0) {}
 
     void insert(const Addr _tag)
     {
@@ -32,19 +32,43 @@ class eDRAMCacheFABlk
     {
         return valid;
     }
+
+    Addr tag;
+
+    bool valid;
+
+    Tick when_touched;
+};
+
+class SetWayBlk : public Blk
+{
+  public:
+    SetWayBlk() : Blk() {}
+
+    void setPosition(const uint32_t _set, const uint32_t _way) 
+    {
+        set = _set;
+        way = _way;
+    }
+
+    uint32_t set; // Which set this entry belongs
+    uint32_t way; // Which way (within set) this entry belongs
+};
+
+class FABlk : public Blk
+{
+  public:
+    FABlk() : Blk(), prev(nullptr), next(nullptr) {}
     /*
      * prev and next are determined by the replacement policy. For example,
      * when LRU is used, prev means the previous block in LRU order.
      *
      * prev (recently used), block, next (least recently used)
      * */
-    eDRAMCacheFABlk *prev;
 
-    eDRAMCacheFABlk *next;
+    FABlk *prev;
 
-    Addr tag;
-
-    bool valid;
+    FABlk *next;
 };
 }
 #endif

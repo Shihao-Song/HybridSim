@@ -5,7 +5,7 @@
 #include <set>
 #include <unordered_map>
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
 
 template<class T>

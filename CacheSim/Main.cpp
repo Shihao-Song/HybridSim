@@ -1,7 +1,8 @@
+#include "../Configs/config.hh"
 #include "../PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "../PCMSim/Trace/pcm_sim_trace.hh"
 
-#include "src/eDRAM_cache.hh"
+#include "src/cache.hh"
 
 #include <iostream>
 
@@ -12,18 +13,20 @@ namespace PCMSim
     class Trace;
 }
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
-    class eDRAMCache;
+    class Cache;
 }
 
 typedef PCMSim::PCMSimMemorySystem PCMSimMemorySystem;
 typedef PCMSim::Request Request;
 typedef PCMSim::Trace Trace;
 
-typedef eDRAMSimulator::eDRAMCache eDRAMCache;
+typedef CacheSimulator::Cache Cache;
 
-void runMemtraces(eDRAMCache &eDRAM, const char* tracename);
+typedef Configuration::Config Config;
+
+void runMemtraces(Cache &eDRAM, const char* tracename);
 
 int main(int argc, const char *argv[])
 {
@@ -36,13 +39,51 @@ int main(int argc, const char *argv[])
         return 0;
     }
 
-    PCMSimMemorySystem mem_system(argv[1]);
-    eDRAMCache eDRAM(&mem_system);
+    Config cfg(argv[1]);
+    // PCM memory system
+    PCMSimMemorySystem mem_system(cfg);
+
+    // eDRAM system
+    Cache eDRAM(Config::Cache_Level::eDRAM, cfg);
+    eDRAM.setNextLevel(&mem_system);
+
     runMemtraces(eDRAM, argv[2]);
     eDRAM.printStats();
+
+    /*
+    for (int i = 0; i < int(Config::Cache_Level::MAX); i++)
+    {
+        if (i == int(Config::Cache_Level::L1I))
+        {
+            std::cout << "L1I: \n";
+        }
+        if (i == int(Config::Cache_Level::L1D))
+        {
+            std::cout << "L1D: \n";
+        }
+        if (i == int(Config::Cache_Level::L2))
+        {
+            std::cout << "L2: \n";
+        }
+        if (i == int(Config::Cache_Level::L3))
+        {
+            std::cout << "L3: \n";
+        }
+        if (i == int(Config::Cache_Level::eDRAM))
+        {
+            std::cout << "eDRAM: \n";
+        }
+        std::cout << "assoc: " << cfg.caches[i].assoc << "\n";
+        std::cout << "size: " << cfg.caches[i].size << "\n";
+        std::cout << "write only: " << cfg.caches[i].write_only << "\n";
+        std::cout << "num mshrs: " << cfg.caches[i].num_mshrs << "\n";
+        std::cout << "num wb entries: " << cfg.caches[i].num_wb_entries << "\n";
+        std::cout << "lat: " << cfg.caches[i].tag_lookup_latency << "\n\n";
+    }
+    */
 }
 
-void runMemtraces(eDRAMCache &eDRAM, const char* tracename)
+void runMemtraces(Cache &eDRAM, const char* tracename)
 {
     std::cout << "Running trace: " << tracename << "\n\n";
 
@@ -55,7 +96,7 @@ void runMemtraces(eDRAMCache &eDRAM, const char* tracename)
 
     // Initialize Request
     Addr addr = 0;
-    Request::Request_Type req_type = PCMSim::Request::Request_Type::READ;
+    Request::Request_Type req_type = Request::Request_Type::READ;
 
     Tick clks = 0;
     

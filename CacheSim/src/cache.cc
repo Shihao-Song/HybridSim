@@ -1,32 +1,50 @@
-#include "eDRAM_cache.hh"
-#include "tags/eDRAM_cache_fa_tags.hh"
+#include "cache.hh"
+#include "tags/fa_tags.hh"
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
-eDRAMCache::eDRAMCache(PCMSimMemorySystem *_pcm)
-    : cur_clk(0),
-      write_only(Constants::WRITE_ONLY),
-      pcm_tick_period(Constants::TICKS_PER_NS / pcm->nclks_per_ns),
-      mshr_cb_func(std::bind(&eDRAMCache::MSHRComplete, this,
+Cache::Cache(Config::Cache_Level _level, Config &cfg)
+    : level(_level),
+      cur_clk(0),
+      mshr_cb_func(std::bind(&Cache::MSHRComplete, this,
                              std::placeholders::_1)),
-      wb_cb_func(std::bind(&eDRAMCache::WBComplete, this,
+      wb_cb_func(std::bind(&Cache::WBComplete, this,
                            std::placeholders::_1)),
-      tags(new eDRAMCacheFATags()),
-      mshrs(new Deferred_Set(Constants::NUM_MSHRS)),
-      wb_queue(new Deferred_Set(Constants::NUM_WB_ENTRIES)),
-      pcm(_pcm),
       num_read_allos(0),
       num_write_allos(0),
       num_evicts(0),
       num_read_hits(0),
       num_write_hits(0)
 {
-    std::cout << "eDRAM System (" << Constants::SIZE / 1024 / 1024
-              << " MB): \n";
-    std::cout << "Write-only mode: " << Constants::WRITE_ONLY << "\n\n";
+    // Only cache write requests?
+    write_only = cfg.caches[int(level)].write_only;
+    // When should we tick off-chip component?
+    off_chip_tick = cfg.on_chip_frequency / cfg.off_chip_frequency;
+    // Do we care about cache latency?
+    if (cfg.cache_detailed)
+    {
+        tag_lookup_latency = cfg.caches[int(level)].tag_lookup_latency;
+    }
+    else
+    {
+        tag_lookup_latency = 0;
+    }
+
+    // Create tag
+    if (level == Config::Cache_Level::eDRAM)
+    {
+        tags = new FATags(int(level), cfg);
+    }
+
+    // MSHRs and WB buffer    
+    mshrs = new Deferred_Set(cfg.caches[int(level)].num_mshrs);
+    wb_queue = new Deferred_Set(cfg.caches[int(level)].num_wb_entries);
+
+    std::cout << getLevel()
+              << ", Write-only mode: " << write_only << "\n\n";
 }
 
-void eDRAMCache::tick()
+void Cache::tick()
 {
     cur_clk++; 
 
@@ -37,13 +55,13 @@ void eDRAMCache::tick()
     sendDeferredReq();
 
     // Step three: tick the PCM system
-    if (cur_clk % pcm_tick_period == 0)
+    if (cur_clk % off_chip_tick == 0)
     {
         pcm->tick();
     }
 }
 
-void eDRAMCache::sendDeferredReq()
+void Cache::sendDeferredReq()
 {
     Addr mshr_entry = MaxAddr;
     bool mshr_entry_valid = mshrs->getEntry(mshr_entry, cur_clk);
@@ -69,16 +87,20 @@ void eDRAMCache::sendDeferredReq()
     }
 }
 
-bool eDRAMCache::access(Request &req)
+bool Cache::access(Request &req)
 {
-    eDRAMCacheFABlk *
-    blk = tags->accessBlock(req.addr);
+    FABlk *blk;
+    if(level == Config::Cache_Level::eDRAM)
+    {
+        FATags *fa_tags = (FATags *)tags;
+        blk = fa_tags->accessBlock(req.addr);
+    }
 
     if (blk && blk->isValid())
     {
         // insert to pending queue
         req.begin_exe = cur_clk;
-        req.end_exe = cur_clk + Constants::TAG_LOOKUP_LATENCY;
+        req.end_exe = cur_clk + tag_lookup_latency;
         pending_queue_for_hits.push_back(req);
 
         if (req.req_type == Request::Request_Type::WRITE)
@@ -119,8 +141,13 @@ bool eDRAMCache::access(Request &req)
             assert(req.req_type == Request::Request_Type::WRITE);
         }
 
-        Addr target = tags->extractTag(req.addr);
-        mshrs->allocate(target, cur_clk + Constants::TAG_LOOKUP_LATENCY);
+        Addr target;
+        if (level == Config::Cache_Level::eDRAM)
+        {
+            FATags *fa_tags = (FATags *)tags;
+            target = fa_tags->extractTag(req.addr);
+        }
+        mshrs->allocate(target, cur_clk + tag_lookup_latency);
         if (req.req_type == Request::Request_Type::READ)
         {
             num_read_allos++;
@@ -151,7 +178,7 @@ bool eDRAMCache::access(Request &req)
     return false;
 }
 
-void eDRAMCache::sendMSHRReq(Addr addr)
+void Cache::sendMSHRReq(Addr addr)
 {
     Request req(addr, Request::Request_Type::READ, mshr_cb_func);
    
@@ -161,7 +188,7 @@ void eDRAMCache::sendMSHRReq(Addr addr)
     }
 }
 
-void eDRAMCache::sendWBReq(Addr addr)
+void Cache::sendWBReq(Addr addr)
 {
     Request req(addr, Request::Request_Type::WRITE, wb_cb_func);
     
@@ -171,7 +198,7 @@ void eDRAMCache::sendWBReq(Addr addr)
     }
 }
 
-void eDRAMCache::MSHRComplete(Request& req)
+void Cache::MSHRComplete(Request& req)
 {
     // Step one: Allocate eDRAM block
     allocateBlock(req);
@@ -180,15 +207,20 @@ void eDRAMCache::MSHRComplete(Request& req)
     mshrs->deAllocate(req.addr);
 }
 
-void eDRAMCache::WBComplete(Request& req)
+void Cache::WBComplete(Request& req)
 {
     // Step one: De-allocate wb entry
     wb_queue->deAllocate(req.addr);
 }
 
-void eDRAMCache::allocateBlock(Request &req)
+void Cache::allocateBlock(Request &req)
 {
-    eDRAMCacheFABlk *victim = tags->findVictim(req.addr);
+    FABlk *victim;
+    if (level == Config::Cache_Level::eDRAM)
+    {
+        FATags *fa_tags = (FATags *)tags;
+        victim = fa_tags->findVictim(req.addr);
+    }
     assert(victim != nullptr);
 
     if (victim->isValid())
@@ -196,18 +228,26 @@ void eDRAMCache::allocateBlock(Request &req)
         evictBlock(victim);
     }
 
-    tags->insertBlock(req.addr, victim);
+    if (level == Config::Cache_Level::eDRAM)
+    {
+        FATags *fa_tags = (FATags *)tags;
+        fa_tags->insertBlock(req.addr, victim);
+    }
     assert(victim->isValid()); 
 }
 
-void eDRAMCache::evictBlock(eDRAMCacheFABlk *victim)
+void Cache::evictBlock(FABlk *victim)
 {
     num_evicts++;
     // Send to write-back queue
     wb_queue->allocate(victim->tag, cur_clk);
     
     // Invalidate this block
-    tags->invalidate(victim);
+    if (level == Config::Cache_Level::eDRAM)
+    {
+        FATags *fa_tags = (FATags *)tags;
+        fa_tags->invalidate(victim);
+    }
     assert(!victim->isValid());
 }
 }

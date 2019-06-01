@@ -1,12 +1,14 @@
-#ifndef __eDRAMCACHE_HH__
-#define __eDRAMCACHE_HH__
+#ifndef __CACHE_HH__
+#define __CACHE_HH__
 
+#include "../../Configs/config.hh"
 #include "../../PCMSim/Memory_System/pcm_sim_memory_system.hh"
-#include "tags/eDRAM_cache_fa_blk.hh"
-#include "tags/eDRAM_cache_tags.hh"
+#include "tags/cache_blk.hh"
+#include "tags/cache_tags.hh"
 #include "util/deferred_queue.hh"
 
 #include <deque>
+#include <string>
 
 namespace PCMSim
 {
@@ -14,19 +16,49 @@ namespace PCMSim
     class PCMSimMemorySystem;
 }
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
-typedef PCMSim::Request Request;
-typedef PCMSim::PCMSimMemorySystem PCMSimMemorySystem;
-
-class eDRAMCacheTagsWithFABlk;
-
-class eDRAMCache
+class Cache
 {
-  public:    
-    eDRAMCache(PCMSimMemorySystem *_pcm);
+    typedef Configuration::Config Config;
+    typedef PCMSim::Request Request;
+    typedef PCMSim::PCMSimMemorySystem PCMSimMemorySystem;
 
-    ~eDRAMCache()
+  private:
+    Config::Cache_Level level;
+
+    std::string getLevel()
+    {
+        if (level == Config::Cache_Level::L1I)
+        {
+            return "L1I";
+        }
+        else if (level == Config::Cache_Level::L1D)
+        {
+            return "L1D";
+        }
+        else if (level == Config::Cache_Level::L2)
+        {
+            return "L2";
+        }
+        else if (level == Config::Cache_Level::L3)
+        {
+            return "L3";
+        }
+        else if (level == Config::Cache_Level::eDRAM)
+        {
+            return "eDRAM";
+        }
+    }
+
+    bool write_only;
+    unsigned off_chip_tick;
+    unsigned tag_lookup_latency;
+
+  public:
+    Cache(Config::Cache_Level _level, Config &cfg);
+
+    ~Cache()
     {
         delete mshrs;
         delete wb_queue;
@@ -40,18 +72,16 @@ class eDRAMCache
     unsigned numOutstanding()
     {
         return (pcm->pendingRequests() + mshrs->numEntries() +
-                wb_queue->numEntries());
+                wb_queue->numEntries() + pending_queue_for_hits.size());
     }
 
   private:
     Tick cur_clk;
 
   private:
-    const bool write_only; // Does this cache only cache writes?
-    const unsigned pcm_tick_period; // Tick PCM every this period
-
-  private:
     std::deque<Request> pending_queue_for_hits; // for read/write hits
+
+    // TODO, should also invoke call-back function as well.
     void servePendingHits()
     {
         if (!pending_queue_for_hits.size())
@@ -81,12 +111,19 @@ class eDRAMCache
     void WBComplete(Request& req);
 
     void allocateBlock(Request& req);
-    void evictBlock(eDRAMCacheFABlk *victim);
+    void evictBlock(FABlk *victim);
 
   private:
-    eDRAMCacheTagsWithFABlk *tags;
+    void *tags;
     Deferred_Set *mshrs;
     Deferred_Set *wb_queue;
+
+  public:
+    void setNextLevel(Cache *_next_level);
+    void setNextLevel(PCMSimMemorySystem *_pcm)
+    {
+        pcm = _pcm;
+    }
 
   private:
     PCMSimMemorySystem *pcm;

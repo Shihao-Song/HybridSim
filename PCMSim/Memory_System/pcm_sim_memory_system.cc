@@ -1,15 +1,13 @@
 #include "pcm_sim_memory_system.hh"
 
 #include "../Array_Architecture/pcm_sim_array.hh"
-#include "../Configs/pcm_sim_config.hh"
+#include "../../Configs/config.hh"
 #include "../Controller/pcm_sim_controller.hh"
 
 namespace PCMSim
 {
-PCMSimMemorySystem::PCMSimMemorySystem(const std::string cfg_file)
+PCMSimMemorySystem::PCMSimMemorySystem(Config &cfgs)
 {
-    Config cfgs(cfg_file);
-
     init(cfgs);
     blkSize = cfgs.blkSize;
 

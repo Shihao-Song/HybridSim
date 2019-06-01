@@ -8,9 +8,13 @@
 #include <string>
 #include <vector>
 
+namespace Configuration
+{
+    class Config;
+}
+
 namespace PCMSim
 {
-class Config;
 class Controller;
 
 class PCMSimMemorySystem
@@ -20,8 +24,9 @@ class PCMSimMemorySystem
     std::vector<int> addr_bits;
 
   public:
+    typedef Configuration::Config Config;
 
-    PCMSimMemorySystem(const std::string cfg_file);
+    PCMSimMemorySystem(Config &cfgs);
 
     ~PCMSimMemorySystem();
 

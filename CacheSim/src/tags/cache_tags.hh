@@ -1,27 +1,31 @@
-#ifndef __eDRAM_CACHE_TAGS_HH__
-#define __eDRAM_CACHE_TAGS_HH__
+#ifndef __CACHE_TAGS_HH__
+#define __CACHE_TAGS_HH__
 
+#include "../../../Configs/config.hh"
 #include "../../../PCMSim/request.hh"
-#include "eDRAM_cache_fa_blk.hh"
-#include "../consts.hh"
+#include "cache_blk.hh"
 
-namespace eDRAMSimulator
+namespace CacheSimulator
 {
-class eDRAMCacheFAReplacementPolicy;
+class FAReplacementPolicy;
 
+// TODO, build tags based on cache level
 template<class T>
-class eDRAMCacheTags
+class Tags
 {
+    typedef Configuration::Config Config;
+
   public:
     // Must be a constructor if there are any const type
-    eDRAMCacheTags()
-        : blkSize(Constants::BLOCK_SIZE),
-          blkMask(Constants::BLOCK_SIZE - 1),
-          size(Constants::SIZE),
+    // TODO, size should be dependent on cache level
+    Tags(int level, Config &cfg)
+        : blkSize(cfg.blkSize),
+          blkMask(blkSize - 1),
+          size(cfg.caches[level].size * 1024),
           numBlocks(size / blkSize)
     {}
 
-    virtual ~eDRAMCacheTags()
+    virtual ~Tags()
     {
         delete blks;
     }
@@ -62,22 +66,22 @@ class eDRAMCacheTags
     virtual Addr regenerateAddr(T *blk) const = 0;
 };
 
-class eDRAMCacheTagsWithFABlk :
-    public eDRAMCacheTags<eDRAMCacheFABlk>
+class TagsWithFABlk : public Tags<FABlk>
 {
+    typedef Configuration::Config Config;
+
   public:
-    eDRAMCacheTagsWithFABlk()
-        : eDRAMCacheTags()
-    {}
+    TagsWithFABlk(int level, Config &cfg) :
+        Tags(level, cfg) {}
 
   protected:
-    eDRAMCacheFABlk *head;
-    eDRAMCacheFABlk *tail;
+    FABlk *head;
+    FABlk *tail;
 
   protected:
-    eDRAMCacheFAReplacementPolicy *policy;
+    FAReplacementPolicy *policy;
 
-  friend class eDRAMCacheFAReplacementPolicy;
+  friend class FAReplacementPolicy;
 };
 }
 #endif
