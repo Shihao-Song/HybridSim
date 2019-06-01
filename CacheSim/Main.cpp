@@ -3,6 +3,7 @@
 #include "../PCMSim/Trace/pcm_sim_trace.hh"
 
 #include "src/cache.hh"
+#include "src/tags/fa_tags.hh"
 
 #include <iostream>
 
@@ -13,20 +14,13 @@ namespace PCMSim
     class Trace;
 }
 
-namespace CacheSimulator
-{
-    class Cache;
-}
-
 typedef PCMSim::PCMSimMemorySystem PCMSimMemorySystem;
 typedef PCMSim::Request Request;
 typedef PCMSim::Trace Trace;
 
-typedef CacheSimulator::Cache Cache;
-
 typedef Configuration::Config Config;
 
-void runMemtraces(Cache &eDRAM, const char* tracename);
+void runMemtraces(const char* cfg_file, const char* tracename);
 
 int main(int argc, const char *argv[])
 {
@@ -39,17 +33,7 @@ int main(int argc, const char *argv[])
         return 0;
     }
 
-    Config cfg(argv[1]);
-    // PCM memory system
-    PCMSimMemorySystem mem_system(cfg);
-
-    // eDRAM system
-    Cache eDRAM(Config::Cache_Level::eDRAM, cfg);
-    eDRAM.setNextLevel(&mem_system);
-
-    runMemtraces(eDRAM, argv[2]);
-    eDRAM.printStats();
-
+    runMemtraces(argv[1], argv[2]);    
     /*
     for (int i = 0; i < int(Config::Cache_Level::MAX); i++)
     {
@@ -83,8 +67,21 @@ int main(int argc, const char *argv[])
     */
 }
 
-void runMemtraces(Cache &eDRAM, const char* tracename)
+void runMemtraces(const char* cfg_file, const char* tracename)
 {
+    Config cfg(cfg_file);
+    // PCM memory system
+    PCMSimMemorySystem mem_system(cfg);
+
+    // eDRAM system
+    CacheSimulator::Cache<CacheSimulator::FABlk,
+        CacheSimulator::FATags> eDRAM(Config::Cache_Level::eDRAM, cfg);
+    CacheSimulator::FATags tags(int(Config::Cache_Level::eDRAM), cfg);
+
+    eDRAM.setTags(&tags);
+    eDRAM.setNextLevel(&mem_system);
+
+    // Simulation
     std::cout << "Running trace: " << tracename << "\n\n";
 
     // Initialize memory trace
@@ -120,4 +117,6 @@ void runMemtraces(Cache &eDRAM, const char* tracename)
         eDRAM.tick();
         clks++;
     }
+    
+    eDRAM.printStats();
 }
