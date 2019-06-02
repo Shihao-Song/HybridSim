@@ -45,6 +45,13 @@ class SetAssocTags : public TagsWithSetWayBlk
         policy = new SetWayAssocLRU();
 
         tagsInit();
+
+        std::cout << "Size of cache: " << size / 1024 / 1024 << "MB. \n";
+        std::cout << "Number of blocks: " << numBlocks << "\n";
+        std::cout << "Num of sets: " << sets.size() << "\n";
+        std::cout << "Set shift: " << setShift << "\n";
+        std::cout << "Set mask: " << setMask << "\n";
+        std::cout << "Tag shift: " << tagShift << "\n\n";
     }
 
     void tagsInit() override
@@ -79,6 +86,7 @@ class SetAssocTags : public TagsWithSetWayBlk
         {
             policy->upgrade(blk, cur_clk);
         }
+        return blk;
     }
 
     SetWayBlk* findVictim(Addr addr) override
@@ -98,13 +106,18 @@ class SetAssocTags : public TagsWithSetWayBlk
         assert(!victim->isValid());
     }
 
-    void insertBlock(Addr addr, SetWayBlk* victim, Tick cur_clk)
+    void insertBlock(Addr addr, SetWayBlk* victim, Tick cur_clk = 0) override
     {
         assert(!victim->isValid());
 
         victim->insert(extractTag(addr));
 
         policy->upgrade(victim, cur_clk);
+    }
+
+    Addr regenerateAddr(SetWayBlk *blk) const override
+    {
+        return (blk->tag << tagShift) | (blk->getSet() << setShift);
     }
 
   protected:
@@ -125,11 +138,6 @@ class SetAssocTags : public TagsWithSetWayBlk
         }
 
         return nullptr;
-    }
-
-    Addr regenerateAddr(SetWayBlk *blk) const override
-    {
-        return (blk->tag << tagShift) | (blk->getSet() << setShift);
     }
 };
 }

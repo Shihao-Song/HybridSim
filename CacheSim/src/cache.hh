@@ -66,7 +66,9 @@ class Cache
           num_write_allos(0),
           num_evicts(0),
           num_read_hits(0),
-          num_write_hits(0)
+          num_write_hits(0),
+          num_mshr_hits(0),
+          num_wb_queue_hits(0)
     {
         // Only cache write requests?
         write_only = cfg.caches[int(level)].write_only;
@@ -88,6 +90,7 @@ class Cache
 
         std::cout << getLevel()
                   << ", Write-only mode: " << write_only << "\n";
+        std::cout << "Lookup latency: " << tag_lookup_latency << "\n";
     }
 
     ~Cache()
@@ -100,7 +103,7 @@ class Cache
 
     bool access(Request &req)
     {
-        B *blk = tags->accessBlock(req.addr);
+        B *blk = tags->accessBlock(req.addr, cur_clk);
 
         if (blk && blk->isValid())
         {
@@ -126,12 +129,14 @@ class Cache
         // (2) A write followed by a write, update the data (in buffer) directly;
         if (mshrs->isInQueue(req.addr))
         {
+            num_mshr_hits++;
             return true;
         }
 
         // Hit on wb queue, bring back the entry.
         if (wb_queue->isInQueueNotOnBoard(req.addr))
         {
+            num_wb_queue_hits++;
             wb_queue->deAllocate(req.addr, false);
             allocateBlock(req);
         }
@@ -148,7 +153,7 @@ class Cache
                 assert(req.req_type == Request::Request_Type::WRITE);
             }
 
-            Addr target = tags->extractTag(req.addr);
+            Addr target = tags->blkAlign(req.addr);
             mshrs->allocate(target, cur_clk + tag_lookup_latency);
             if (req.req_type == Request::Request_Type::READ)
             {
@@ -192,6 +197,7 @@ class Cache
 
         // Step three: tick the PCM system (off-chip system)
         // TODO, tick next level cache
+        // TODO, next-level may need to be a template argument as well
         if (cur_clk % off_chip_tick == 0)
         {
             pcm->tick();
@@ -294,20 +300,21 @@ class Cache
     {
         B *victim = tags->findVictim(req.addr);
         assert(victim != nullptr);
-
+        // std::cout << "Allocating for addr: " << req.addr << "\n";
         if (victim->isValid())
         {
             evictBlock(victim);
         }
-
-        tags->insertBlock(req.addr, victim);
+        // std::cout << "\n";
+        tags->insertBlock(req.addr, victim, cur_clk);
         assert(victim->isValid());
     }
     void evictBlock(B *victim)
     {
         num_evicts++;
         // Send to write-back queue
-        wb_queue->allocate(victim->tag, cur_clk);
+        // std::cout << "Evicting: " << tags->regenerateAddr(victim) << "\n";
+        wb_queue->allocate(tags->regenerateAddr(victim), cur_clk);
 
         // Invalidate this block
         tags->invalidate(victim);
@@ -336,6 +343,8 @@ class Cache
     uint64_t num_evicts;
     uint64_t num_read_hits;
     uint64_t num_write_hits;
+    uint64_t num_mshr_hits;
+    uint64_t num_wb_queue_hits;
   public:
     void printStats()
     {
@@ -344,6 +353,8 @@ class Cache
 	std::cout << "Num of evictions: " << num_evicts << "\n";	
 	std::cout << "Num of read hits: " << num_read_hits << "\n";
         std::cout << "Num of write hits: " << num_write_hits << "\n";
+        std::cout << "Num of MSHR hits: " << num_mshr_hits << "\n";
+        std::cout << "Num of wb queue hits: " << num_wb_queue_hits << "\n";
     }
 };
 }

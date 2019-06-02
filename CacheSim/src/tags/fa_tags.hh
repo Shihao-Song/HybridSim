@@ -35,13 +35,13 @@ class FATags : public TagsWithFABlk
 
     unsigned numOccupiedBlocks() override { return tagHash.size(); }
 
-  protected:
-    FABlk* findBlock(Addr addr) const;
-
     Addr regenerateAddr(FABlk *blk) const override
     {
         return blk->tag;
     }
+
+  protected:
+    FABlk* findBlock(Addr addr) const;
 };
 }
 #endif

@@ -23,7 +23,7 @@ class Tags
           size(cfg.caches[level].size * 1024),
           numBlocks(size / blkSize)
     {
-        std::cout << "Number of blocks: " << numBlocks << "\n\n";
+        // std::cout << "Number of blocks: " << numBlocks << "\n\n";
     }
   protected:
     const unsigned blkSize; // cache-line (block) size
@@ -47,11 +47,6 @@ class Tags
 
     virtual void invalidate(T* victim) {}
 
-    virtual unsigned numOccupiedBlocks() = 0; // Only make sense for FA
-
-  protected:
-    virtual T* findBlock(Addr addr) const = 0;
-
     // This is a universal function
     Addr blkAlign(Addr addr) const
     {
@@ -59,6 +54,9 @@ class Tags
     }
 
     virtual Addr regenerateAddr(T *blk) const = 0;
+
+  protected:
+    virtual T* findBlock(Addr addr) const = 0;    
 };
 
 class TagsWithSetWayBlk : public Tags<SetWayBlk>
@@ -92,6 +90,8 @@ class TagsWithFABlk : public Tags<FABlk>
         delete blks;
         delete policy;
     }
+
+    virtual unsigned numOccupiedBlocks() = 0; // Only make sense for FA
 
    protected:
     FABlk *head;

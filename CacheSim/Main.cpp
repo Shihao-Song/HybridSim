@@ -45,8 +45,14 @@ void runMemtraces(const char* cfg_file, const char* tracename)
     eDRAM.setTags(&tags);
     eDRAM.setNextLevel(&mem_system);
 
+/*
     // Testing
-    
+    CacheSimulator::Cache<CacheSimulator::SetWayBlk,
+        CacheSimulator::SetAssocTags> eDRAM(Config::Cache_Level::L3, cfg);
+    CacheSimulator::SetAssocTags tags(int(Config::Cache_Level::L3), cfg);
+    eDRAM.setTags(&tags);
+    eDRAM.setNextLevel(&mem_system);
+*/
 
     // Simulation
     std::cout << "Running trace: " << tracename << "\n\n";

@@ -5,6 +5,7 @@ namespace CacheSimulator
 {
 FATags::FATags(int level, Config &cfg) : TagsWithFABlk(level, cfg)
 {
+    std::cout << "FA: " << numBlocks << "\n\n";
     blks = new FABlk[numBlocks];
     policy = new FALRU();
 
