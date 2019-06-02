@@ -7,7 +7,7 @@ FALRU::FALRU() : FAReplacementPolicy()
 }
 
 // LRU policy - move the MRU block to the head
-void FALRU::upgrade(FABlk *blk)
+void FALRU::upgrade(FABlk *blk, Tick cur_clk)
 {
     // If block is not already head, do the moving
     if (blk != *head) {

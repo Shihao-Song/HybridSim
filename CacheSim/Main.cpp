@@ -4,15 +4,9 @@
 
 #include "src/cache.hh"
 #include "src/tags/fa_tags.hh"
+#include "src/tags/set_assoc_tags.hh"
 
 #include <iostream>
-
-namespace PCMSim
-{
-    class PCMSimMemorySystem;
-    class Request;
-    class Trace;
-}
 
 typedef PCMSim::PCMSimMemorySystem PCMSimMemorySystem;
 typedef PCMSim::Request Request;
@@ -34,42 +28,12 @@ int main(int argc, const char *argv[])
     }
 
     runMemtraces(argv[1], argv[2]);    
-    /*
-    for (int i = 0; i < int(Config::Cache_Level::MAX); i++)
-    {
-        if (i == int(Config::Cache_Level::L1I))
-        {
-            std::cout << "L1I: \n";
-        }
-        if (i == int(Config::Cache_Level::L1D))
-        {
-            std::cout << "L1D: \n";
-        }
-        if (i == int(Config::Cache_Level::L2))
-        {
-            std::cout << "L2: \n";
-        }
-        if (i == int(Config::Cache_Level::L3))
-        {
-            std::cout << "L3: \n";
-        }
-        if (i == int(Config::Cache_Level::eDRAM))
-        {
-            std::cout << "eDRAM: \n";
-        }
-        std::cout << "assoc: " << cfg.caches[i].assoc << "\n";
-        std::cout << "size: " << cfg.caches[i].size << "\n";
-        std::cout << "write only: " << cfg.caches[i].write_only << "\n";
-        std::cout << "num mshrs: " << cfg.caches[i].num_mshrs << "\n";
-        std::cout << "num wb entries: " << cfg.caches[i].num_wb_entries << "\n";
-        std::cout << "lat: " << cfg.caches[i].tag_lookup_latency << "\n\n";
-    }
-    */
 }
 
 void runMemtraces(const char* cfg_file, const char* tracename)
 {
     Config cfg(cfg_file);
+
     // PCM memory system
     PCMSimMemorySystem mem_system(cfg);
 
@@ -80,6 +44,9 @@ void runMemtraces(const char* cfg_file, const char* tracename)
 
     eDRAM.setTags(&tags);
     eDRAM.setNextLevel(&mem_system);
+
+    // Testing
+    
 
     // Simulation
     std::cout << "Running trace: " << tracename << "\n\n";

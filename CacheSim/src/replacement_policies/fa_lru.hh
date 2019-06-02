@@ -10,7 +10,7 @@ class FALRU : public FAReplacementPolicy
   public:
     FALRU();
 
-    void upgrade(FABlk *blk) override;
+    void upgrade(FABlk *blk, Tick cur_clk = 0) override;
     void downgrade(FABlk *blk) override;
     FABlk* findVictim(Addr addr) override;
 };

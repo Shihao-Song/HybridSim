@@ -30,7 +30,7 @@ void FATags::tagsInit()
     policy->policyInit(this);
 }
 
-FABlk* FATags::accessBlock(Addr addr)
+FABlk* FATags::accessBlock(Addr addr, Tick cur_clk)
 {
     FABlk *blk = findBlock(addr);
 
@@ -58,7 +58,7 @@ void FATags::invalidate(FABlk* victim)
     policy->downgrade(victim);
 }
 
-void FATags::insertBlock(Addr addr, FABlk* victim)
+void FATags::insertBlock(Addr addr, FABlk* victim, Tick cur_clk)
 {
     assert(!victim->isValid());
 

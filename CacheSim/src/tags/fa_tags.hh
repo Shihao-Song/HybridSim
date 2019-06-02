@@ -20,7 +20,7 @@ class FATags : public TagsWithFABlk
 
   public:
     FATags(int level, Config &cfg);
-    
+
     void tagsInit() override;
 
     Addr extractTag(Addr addr) const override
@@ -28,9 +28,9 @@ class FATags : public TagsWithFABlk
         return blkAlign(addr);
     }
 
-    FABlk* accessBlock(Addr addr) override;
+    FABlk* accessBlock(Addr addr, Tick cur_clk = 0) override;
     FABlk* findVictim(Addr addr) override;
-    void insertBlock(Addr addr, FABlk* victim) override;
+    void insertBlock(Addr addr, FABlk* victim, Tick cur_clk = 0) override;
     void invalidate(FABlk* victim) override;
 
     unsigned numOccupiedBlocks() override { return tagHash.size(); }

@@ -13,7 +13,7 @@ class Blk
 {
   public:
     // Initially, all blks should not be valid
-    Blk() : valid(0) {}
+    Blk() : valid(0), when_touched(0) {}
 
     void insert(const Addr _tag)
     {
@@ -50,6 +50,8 @@ class SetWayBlk : public Blk
         set = _set;
         way = _way;
     }
+
+    uint32_t getSet() const { return set; }
 
     uint32_t set; // Which set this entry belongs
     uint32_t way; // Which way (within set) this entry belongs

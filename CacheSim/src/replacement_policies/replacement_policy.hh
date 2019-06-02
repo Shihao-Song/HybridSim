@@ -13,10 +13,20 @@ class ReplacementPolicy
   public:
     ReplacementPolicy() {}
 
-    virtual void upgrade(T *blk) {}
+    virtual void upgrade(T *blk, Tick cur_clk = 0) {}
     virtual void downgrade(T *blk) {}
-    virtual T* findVictim(Addr addr) = 0;
 };	
+
+class SetWayAssocReplacementPolicy
+      : public ReplacementPolicy<SetWayBlk>
+{
+  public:
+    SetWayAssocReplacementPolicy()
+        : ReplacementPolicy()
+    {}
+
+    virtual SetWayBlk* findVictim(const std::vector<SetWayBlk *>&set) const = 0; 
+};
 
 class FAReplacementPolicy
       : public ReplacementPolicy<FABlk>
@@ -32,6 +42,8 @@ class FAReplacementPolicy
         head = &(tags->head);
         tail = &(tags->tail);
     }
+    
+    virtual FABlk* findVictim(Addr addr) = 0;
   protected:
     FABlk *blks;
 

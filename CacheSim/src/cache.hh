@@ -82,14 +82,12 @@ class Cache
             tag_lookup_latency = 0;
         }
 
-        // TODO, set tags externally.
-	
         // MSHRs and WB buffer    
         mshrs = new Deferred_Set(cfg.caches[int(level)].num_mshrs);
         wb_queue = new Deferred_Set(cfg.caches[int(level)].num_wb_entries);
 
         std::cout << getLevel()
-                  << ", Write-only mode: " << write_only << "\n\n";
+                  << ", Write-only mode: " << write_only << "\n";
     }
 
     ~Cache()

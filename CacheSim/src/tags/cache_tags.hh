@@ -7,9 +7,9 @@
 
 namespace CacheSimulator
 {
+class SetWayAssocReplacementPolicy;
 class FAReplacementPolicy;
 
-// TODO, build tags based on cache level
 template<class T>
 class Tags
 {
@@ -17,19 +17,14 @@ class Tags
 
   public:
     // Must be a constructor if there are any const type
-    // TODO, size should be dependent on cache level
     Tags(int level, Config &cfg)
         : blkSize(cfg.blkSize),
           blkMask(blkSize - 1),
           size(cfg.caches[level].size * 1024),
           numBlocks(size / blkSize)
-    {}
-
-    virtual ~Tags()
     {
-        delete blks;
+        std::cout << "Number of blocks: " << numBlocks << "\n\n";
     }
-
   protected:
     const unsigned blkSize; // cache-line (block) size
     const Addr blkMask;
@@ -44,11 +39,11 @@ class Tags
 
     virtual Addr extractTag(Addr addr) const = 0;
 
-    virtual T* accessBlock(Addr addr) = 0;
+    virtual T* accessBlock(Addr addr, Tick cur_clk = 0) = 0;
 
     virtual T* findVictim(Addr addr) = 0;
 
-    virtual void insertBlock(Addr addr, T* victim) {}
+    virtual void insertBlock(Addr addr, T* victim, Tick cur_clk = 0) {}
 
     virtual void invalidate(T* victim) {}
 
@@ -66,6 +61,24 @@ class Tags
     virtual Addr regenerateAddr(T *blk) const = 0;
 };
 
+class TagsWithSetWayBlk : public Tags<SetWayBlk>
+{
+    typedef Configuration::Config Config;
+
+  public:
+    TagsWithSetWayBlk(int level, Config &cfg) :
+        Tags(level, cfg) {}
+
+    virtual ~TagsWithSetWayBlk()
+    {
+        delete blks;
+        delete policy;
+    }
+
+  protected:
+    SetWayAssocReplacementPolicy *policy;
+};
+
 class TagsWithFABlk : public Tags<FABlk>
 {
     typedef Configuration::Config Config;
@@ -74,7 +87,13 @@ class TagsWithFABlk : public Tags<FABlk>
     TagsWithFABlk(int level, Config &cfg) :
         Tags(level, cfg) {}
 
-  protected:
+    virtual ~TagsWithFABlk()
+    {
+        delete blks;
+        delete policy;
+    }
+
+   protected:
     FABlk *head;
     FABlk *tail;
 
