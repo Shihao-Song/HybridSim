@@ -89,6 +89,14 @@ void Config::parse(const std::string &fname)
         {
             extractCacheInfo(Cache_Level::eDRAM, tokens);
         }
+        else if(tokens[0] == "mem_controller_family")
+        {
+            mem_controller_family = tokens[1];
+        }
+        else if(tokens[0] == "mem_controller_type")
+        {
+            mem_controller_type = tokens[1];
+        }
 	else if(tokens[0] == "num_of_word_lines_per_tile")
         {
             num_of_word_lines_per_tile = atoi(tokens[1].c_str());
@@ -133,17 +141,13 @@ void Config::parse(const std::string &fname)
         {
             tWL = atoi(tokens[1].c_str());
         }
-        else if(tokens[0] == "ns_bit_rd")
+        else if(tokens[0] == "tWR")
         {
-            ns_bit_rd = atoi(tokens[1].c_str());
+            tWR = atoi(tokens[1].c_str());
         }
-        else if(tokens[0] == "ns_bit_set")
+        else if(tokens[0] == "tCL")
         {
-            ns_bit_set = atoi(tokens[1].c_str());
-        }
-        else if(tokens[0] == "ns_bit_reset")
-        {
-            ns_bit_reset = atoi(tokens[1].c_str());
+            tCL = atoi(tokens[1].c_str());
         }
         else if(tokens[0] == "pj_bit_rd")
         {

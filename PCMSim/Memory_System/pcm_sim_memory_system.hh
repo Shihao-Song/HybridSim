@@ -15,13 +15,16 @@ namespace Configuration
 
 namespace PCMSim
 {
-class Controller;
+class BaseController;
 
 class PCMSimMemorySystem
 {
   private:
-    std::vector<Controller*> controllers;
+    std::vector<BaseController*> controllers;
     std::vector<int> addr_bits;
+
+    std::string mem_controller_family;
+    std::string mem_controller_type;
 
   public:
     typedef Configuration::Config Config;
@@ -38,7 +41,7 @@ class PCMSimMemorySystem
 
     unsigned blkSize;
     
-    static constexpr float nclks_per_ns = 0.2; // Assume 200MHz clock frequency
+    const float nclks_per_ns;
 
   private:
     void init(Config &cfgs);

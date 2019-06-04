@@ -38,6 +38,10 @@ class Config
     std::array<Cache_Info, int(Cache_Level::MAX)> caches;
     void extractCacheInfo(Cache_Level level, std::vector<std::string> &tokens);
 
+    // Memory Controller
+    std::string mem_controller_family = "N/A";
+    std::string mem_controller_type = "N/A";
+
     // PCM Array Architecture
     unsigned num_of_word_lines_per_tile;
     unsigned num_of_bit_lines_per_tile;
@@ -52,10 +56,8 @@ class Config
     unsigned tRCD;
     unsigned tData;
     unsigned tWL;
-
-    unsigned ns_bit_rd;
-    unsigned ns_bit_set;
-    unsigned ns_bit_reset;
+    unsigned tWR;
+    unsigned tCL;
 
     double pj_bit_rd;
     double pj_bit_set;
@@ -75,7 +77,12 @@ class Config
     enum class Decoding : int
     {
         // Address mapping: bank-interleaving
-        Channel, Rank, Row, Col, Bank, Cache_Line, MAX
+        // Rank, Row, Col, Bank, Channel, Cache_Line, MAX
+
+        // Channel-interleaving + Bank-interleaving + Partition-interleaving
+	// When PLP is not enable, you can do this:
+	// Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
+        Rank, Row, Col, Partition, Bank, Channel, Cache_Line, MAX
     };
 
     // For PCM

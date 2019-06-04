@@ -29,7 +29,9 @@ class Array
         */
         unsigned blkSize;
 
-        unsigned long long num_of_word_lines_per_bank;
+        // unsigned long long num_of_word_lines_per_bank;
+        unsigned num_of_parts_per_bank;
+        unsigned long long num_of_word_lines_per_part;
         unsigned long long num_of_byte_lines_per_bank;
         unsigned num_of_banks;
         unsigned num_of_ranks;
@@ -40,9 +42,8 @@ class Array
         unsigned tData;
         unsigned tWL;
 
-        unsigned nclks_bit_rd;
-        unsigned nclks_bit_set;
-        unsigned nclks_bit_reset;
+        unsigned tWR;
+        unsigned tCL;
 
         double pj_bit_rd;
         double pj_bit_set;
@@ -76,7 +77,7 @@ class Array
     {
         if (lev == Config::Level::Channel)
         {
-            next_free = cur_clk + arr_info.tData;
+            next_free = cur_clk + latency;
         }
 	else
 	{

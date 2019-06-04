@@ -70,6 +70,7 @@ bool Controller::issueAccess()
     return issued;
 }
 
+// Timing is not correct, please refer to PLPController
 void Controller::channelAccess()
 {
     scheduled_req->begin_exe = clk;
@@ -84,14 +85,14 @@ void Controller::channelAccess()
     {
         latency = channel->write(scheduled_req);
     }
-    
+
     scheduled_req->end_exe = scheduled_req->begin_exe + latency;
 
     // Post access
     int rank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
     int bank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
 
-    channel->postAccess(Config::Level::Channel, rank_id, bank_id, latency);
-    channel->postAccess(Config::Level::Bank, rank_id, bank_id, latency);
+//    channel->postAccess(Config::Level::Channel, rank_id, bank_id, latency);
+//    channel->postAccess(Config::Level::Bank, rank_id, bank_id, latency);
 }
 }

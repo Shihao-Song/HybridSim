@@ -53,8 +53,11 @@ void Array::initArrInfo(Config &cfgs, float nclks_per_ns)
 {
     arr_info.blkSize = cfgs.blkSize;
 
-    arr_info.num_of_word_lines_per_bank = cfgs.num_of_word_lines_per_tile *
-                                          cfgs.num_of_parts;
+//    arr_info.num_of_word_lines_per_bank = cfgs.num_of_word_lines_per_tile *
+//                                          cfgs.num_of_parts;
+
+    arr_info.num_of_parts_per_bank = cfgs.num_of_parts;
+    arr_info.num_of_word_lines_per_part = cfgs.num_of_word_lines_per_tile;
 
     arr_info.num_of_byte_lines_per_bank = cfgs.num_of_bit_lines_per_tile /
                                           8 *
@@ -68,9 +71,8 @@ void Array::initArrInfo(Config &cfgs, float nclks_per_ns)
     arr_info.tData = cfgs.tData;
     arr_info.tWL = cfgs.tWL;
 
-    arr_info.nclks_bit_rd = cfgs.ns_bit_rd * nclks_per_ns;
-    arr_info.nclks_bit_set = cfgs.ns_bit_set * nclks_per_ns;
-    arr_info.nclks_bit_reset = cfgs.ns_bit_reset * nclks_per_ns;
+    arr_info.tWR = cfgs.tWR;
+    arr_info.tCL = cfgs.tCL;
 
     arr_info.pj_bit_rd = cfgs.pj_bit_rd;
     arr_info.pj_bit_set = cfgs.pj_bit_set;
@@ -81,8 +83,7 @@ void Array::initArrInfo(Config &cfgs, float nclks_per_ns)
 unsigned Array::write(std::list<Request>::iterator &req)
 {
     unsigned lat = arr_info.tRCD + arr_info.tData +
-                   arr_info.tWL + arr_info.nclks_bit_set +
-                   arr_info.nclks_bit_reset;
+                   arr_info.tWL + arr_info.tWR;
 
     return lat;
 }
@@ -90,7 +91,7 @@ unsigned Array::write(std::list<Request>::iterator &req)
 unsigned Array::read(std::list<Request>::iterator &req)
 {
     unsigned lat = arr_info.tRCD + arr_info.tData +
-                   arr_info.nclks_bit_rd;
+                   arr_info.tCL;
 
     return lat;
 }

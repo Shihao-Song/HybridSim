@@ -3,6 +3,7 @@
 
 #include <cstdint> // Addr
 #include <functional>
+#include <list>
 #include <memory>
 #include <vector>
 
@@ -40,16 +41,36 @@ class Request
     // call-back function
     std::function<void(Request&)> callback;
 
+    /* when PLP (Partition-level Paral.) is enabled */
+    int OrderID;
+
+    enum class Pairing_Type : int
+    {
+        RR, // Two reads scheduled in parallel
+        RW, // One read and one write scheduled in parallel
+        MAX
+    }pair_type;
+	
+    int master = 0;
+    int slave = 0;
+
+    std::list<Request>::iterator slave_req;
+
+    std::list<Request>::iterator master_req;
+
+    /* Constructors */
     Request(Addr _addr, Request_Type _type) :
         addr(_addr),
-        req_type(_type)
+        req_type(_type),
+        pair_type(Pairing_Type::MAX)
     {}
 
     Request(Addr _addr, Request_Type _type,
             std::function<void(Request&)> _callback) :
         addr(_addr),
         req_type(_type),
-        callback(_callback)
+        callback(_callback),
+        pair_type(Pairing_Type::MAX)
     {}
 };
 }
