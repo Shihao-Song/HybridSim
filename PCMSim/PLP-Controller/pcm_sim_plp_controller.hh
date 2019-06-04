@@ -4,6 +4,7 @@
 #include "../Controller/pcm_sim_controller.hh"
 #include "pairing_queue.hh"
 
+#include <fstream>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -64,6 +65,14 @@ class PLPController : public BaseController
     
         std::string type_path = size_path + "/" + cfgs.mem_controller_type;
         status = mkdir(type_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+        std::string file = type_path + "/" + cfgs.workload + ".req_info";
+        out.open(file);
+
+        out << "Channel,Rank,Bank,"
+            << "Type,"
+            << "Queue Arrival,Begin Execution,End Execution,"
+            << ",RAPL,OrderID\n";
     }
 
     int getQueueSize() override
@@ -156,6 +165,15 @@ class PLPController : public BaseController
     void HPIssue(std::list<Request>::iterator &req);
     // Break up master-slave chain
     void breakup(std::list<Request>::iterator &req);
+
+  // Data collection for off-line analysis
+  public:
+    Tick getEndExe() { return clk; }
+    double getPower() { return power; }
+
+  private:
+    std::ofstream out;
+    void printReqInfo(Request &req);
 };
 }
 

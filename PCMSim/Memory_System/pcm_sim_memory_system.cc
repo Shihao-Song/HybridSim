@@ -47,7 +47,7 @@ void PCMSimMemorySystem::init(Config &cfgs)
 	channel->id = i;
 
         // TODO, should be based on the family of memory controller.
-        BaseController *controller = new PLPController(cfgs, channel);
+        PLPController *controller = new PLPController(cfgs, channel);
         assert(controller != nullptr);
         controllers.push_back(controller);
     }
@@ -135,5 +135,16 @@ int PCMSimMemorySystem::sliceLowerBits(Addr& addr, int bits)
     int lbits = addr & ((1<<bits) - 1);
     addr >>= bits;
     return lbits;
+}
+
+void PCMSimMemorySystem::printStats()
+{
+    for (int i = 0; i < controllers.size(); i++)
+    {
+        std::cout << "Channel " << i << ": " << controllers[i]->getEndExe()
+                                << ", " << controllers[i]->getPower()
+                                << "\n";
+    }
+    std::cout << "\n";
 }
 }

@@ -15,12 +15,12 @@ namespace Configuration
 
 namespace PCMSim
 {
-class BaseController;
+class PLPController;
 
 class PCMSimMemorySystem
 {
   private:
-    std::vector<BaseController*> controllers;
+    std::vector<PLPController*> controllers;
     std::vector<int> addr_bits;
 
     std::string mem_controller_family;
@@ -43,6 +43,8 @@ class PCMSimMemorySystem
     
     const float nclks_per_ns;
 
+    void printStats();
+    
   private:
     void init(Config &cfgs);
     void decode(Addr _addr, std::vector<int> &vec);

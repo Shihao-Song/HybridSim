@@ -39,7 +39,7 @@ void PLPController::init()
 void PLPController::tick()
 {
     clk++;
-    std::cout << clk << "\n";
+
     // Update state in PCM
     channel->update(clk);
 
@@ -111,8 +111,8 @@ void PLPController::servePendingReqs()
                     req.slave_callback(tmp_req);
                 }
             }
+            printReqInfo(req);
             r_w_pending_queue.pop_front();
-            // std::cout << finished_request++ << "\n";
         }
     }
 }
@@ -428,5 +428,42 @@ void PLPController::breakup(std::list<Request>::iterator &req)
     {
         update_power_write();
     }
+}
+
+// Data collection for off-line analysis
+void PLPController::printReqInfo(Request &req)
+{
+    out << req.addr_vec[int(Config::Decoding::Channel)] << ",";
+    out << req.addr_vec[int(Config::Decoding::Rank)] << ",";
+    out << req.addr_vec[int(Config::Decoding::Bank)] << ",";
+
+    if(req.master == 1)
+    {
+        if(req.pair_type == Request::Pairing_Type::RR)
+        {
+            out << "R-R,";
+        }
+        else
+        {
+            out << "R-W,";
+        }
+    }
+    else
+    {
+        if(req.req_type == Request::Request_Type::READ)
+        {
+            out << "R,";
+        }
+        else
+        {
+            out << "W,";
+        }
+    }
+
+    out << req.queue_arrival << ",";
+    out << req.begin_exe << ",";
+    out << req.end_exe << ",";
+    out << power << ",";
+    out << req.OrderID << "\n";
 }
 }

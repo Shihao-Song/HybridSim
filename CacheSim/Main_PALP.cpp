@@ -86,6 +86,7 @@ void runMemtraces(const char* cfg_file, const char* tracename)
         eDRAM.tick();
         clks++;
     }
-    
+
+    mem_system.printStats();    
     eDRAM.printStats();
 }

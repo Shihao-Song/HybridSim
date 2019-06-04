@@ -70,7 +70,7 @@ bool Controller::issueAccess()
     return issued;
 }
 
-// Timing is not correct, please refer to PLPController
+// TODO, timing is not correct, please refer to PLPController
 void Controller::channelAccess()
 {
     scheduled_req->begin_exe = clk;
