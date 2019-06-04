@@ -33,7 +33,12 @@ int main(int argc, const char *argv[])
 void runMemtraces(const char* cfg_file, const char* tracename)
 {
     Config cfg(cfg_file);
-
+    // Set up the workload name
+    std::string tmp(tracename);
+    tmp = tmp.substr(0, tmp.find("."));
+    tmp = tmp.substr(tmp.find_last_of("/\\") + 1);
+    cfg.workload = tmp;
+    
     // PCM memory system
     PCMSimMemorySystem mem_system(cfg);
 

@@ -58,6 +58,10 @@ class Request
 
     std::list<Request>::iterator master_req;
 
+    // Very important
+    std::function<void(Request&)> slave_callback;
+    Addr slave_addr;
+
     /* Constructors */
     Request(Addr _addr, Request_Type _type) :
         addr(_addr),

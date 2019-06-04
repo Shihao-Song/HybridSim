@@ -39,7 +39,7 @@ void PLPController::init()
 void PLPController::tick()
 {
     clk++;
-
+    std::cout << clk << "\n";
     // Update state in PCM
     channel->update(clk);
 
@@ -65,7 +65,12 @@ void PLPController::tick()
     if (issued)
     {
         if (scheduled_req->master == 1)
-        {	
+        {
+            scheduled_req->slave_callback = 
+            scheduled_req->slave_req->callback;
+
+            scheduled_req->slave_addr = scheduled_req->slave_req->addr;
+
             r_w_pending_queue.push_back(*scheduled_req);
 
             // Erase slave
@@ -95,7 +100,19 @@ void PLPController::servePendingReqs()
             {
                 req.callback(req);
             }
+
+            // Very important!
+            if (req.master == 1)
+            {
+                if (req.slave_callback)
+                {
+                    Request tmp_req(req.slave_addr,
+                                    Request::Request_Type::READ);
+                    req.slave_callback(tmp_req);
+                }
+            }
             r_w_pending_queue.pop_front();
+            // std::cout << finished_request++ << "\n";
         }
     }
 }

@@ -4,6 +4,9 @@
 #include "../Controller/pcm_sim_controller.hh"
 #include "pairing_queue.hh"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 namespace PCMSim
 {
 class PLPController : public BaseController
@@ -36,6 +39,31 @@ class PLPController : public BaseController
 
         // Initialize timings and power specific to PLP operations
         init();
+
+        // Other configurations specific to PLP operations
+        power_limit_enabled = cfgs.power_limit_enabled;
+        starv_free_enabled = cfgs.starv_free_enabled;
+        RAPL = cfgs.RAPL;
+        THB = cfgs.THB;
+
+        // Output for off-line analysis
+        std::string run_path = "plp_out/";
+        if (!power_limit_enabled && !starv_free_enabled)
+        {
+            run_path += "inf_inf";
+        }
+        else
+        {
+            run_path += std::to_string(RAPL) + "_" + std::to_string(THB);
+        }
+        int status = mkdir(run_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        
+        std::string size_path = run_path + "/" +
+                                std::to_string(cfgs.sizeInGB()) + "_GB";
+        status = mkdir(size_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    
+        std::string type_path = size_path + "/" + cfgs.mem_controller_type;
+        status = mkdir(type_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
 
     int getQueueSize() override
@@ -108,7 +136,7 @@ class PLPController : public BaseController
 
   // Scheduler section
   private:
-    // Running average should always below RAPL? (Default no)
+    // Running average power should always below RAPL? (Default no)
     bool power_limit_enabled = false;
     // OrderID should never exceed back-logging threshold? (Default no)
     bool starv_free_enabled = false;

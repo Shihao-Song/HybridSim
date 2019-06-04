@@ -97,6 +97,22 @@ void Config::parse(const std::string &fname)
         {
             mem_controller_type = tokens[1];
         }
+        else if(tokens[0] == "power_limit_enabled")
+        {
+            power_limit_enabled = tokens[1] == "false" ? 0 : 1;
+        }
+        else if(tokens[0] == "starv_free_enabled")
+        {
+            starv_free_enabled = tokens[1] == "false" ? 0 : 1;
+        }
+        else if(tokens[0] == "RAPL")
+        {
+            RAPL = atof(tokens[1].c_str());
+        }
+        else if(tokens[0] == "THB")
+        {
+            THB = atoi(tokens[1].c_str());
+        }
 	else if(tokens[0] == "num_of_word_lines_per_tile")
         {
             num_of_word_lines_per_tile = atoi(tokens[1].c_str());

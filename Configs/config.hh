@@ -13,6 +13,8 @@ namespace Configuration
 class Config
 {
   public:
+    std::string workload; // Name of the running workload
+
     // Processor configuration
     float on_chip_frequency;
     float off_chip_frequency;
@@ -41,6 +43,13 @@ class Config
     // Memory Controller
     std::string mem_controller_family = "N/A";
     std::string mem_controller_type = "N/A";
+   
+    // Running average power should always below RAPL? (Default no)
+    bool power_limit_enabled = false;
+    // OrderID should never exceed back-logging threshold? (Default no)
+    bool starv_free_enabled = false;
+    double RAPL; // running average power limit
+    int THB; // back-logging threshold
 
     // PCM Array Architecture
     unsigned num_of_word_lines_per_tile;
