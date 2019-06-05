@@ -127,14 +127,15 @@ class Cache
         // Hit on MSHR queue, return true.
         // (1) A read followed by a write, can get data directly;
         // (2) A write followed by a write, update the data (in buffer) directly;
-        if (mshrs->isInQueue(req.addr))
+        Addr aligned_addr = tags->blkAlign(req.addr);
+	if (mshrs->isInQueue(aligned_addr))
         {
             num_mshr_hits++;
             return true;
         }
 
         // Hit on wb queue, bring back the entry.
-        if (wb_queue->isInQueueNotOnBoard(req.addr))
+        if (wb_queue->isInQueueNotOnBoard(aligned_addr))
         {
             num_wb_queue_hits++;
             wb_queue->deAllocate(req.addr, false);
