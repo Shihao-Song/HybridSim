@@ -49,8 +49,12 @@ void PLPController::tick()
     // Find the request to schedule
     if (scheduled == 0 && r_w_q.size())
     {
-        scheduled_req = getHead();
-        scheduled = 1;
+        bool retry = false;
+        scheduled_req = getHead(retry);
+        if (!retry)
+        {
+            scheduled = 1;
+        }
     }
 
     // Issue command
@@ -127,6 +131,8 @@ bool PLPController::issueAccess()
     // channel->isFree() mimics the bus utilization
     // ...bank->isFree() mimics the bank utilization
     if (channel->children[target_rank]->children[target_bank]->isFree() &&
+        channel->children[target_rank]->isFree() && // There should not be
+                                                    // rank-level parallelsim.
         channel->isFree())
     {
         channelAccess();
@@ -181,8 +187,36 @@ void PLPController::channelAccess()
     int rank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
     int bank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
 
-    channel->postAccess(Config::Level::Channel, rank_id, bank_id, bank_latency);
-    channel->postAccess(Config::Level::Bank, rank_id, bank_id, channel_latency);
+    channel->postAccess(Config::Level::Channel, rank_id, bank_id, channel_latency);
+    channel->postAccess(Config::Level::Bank, rank_id, bank_id, bank_latency);
+
+    // All other ranks won't be available until this rank is fully de-coupled.
+    int num_of_ranks = channel->arr_info.num_of_ranks;
+    for (int i = 0; i < num_of_ranks; i++)
+    {
+        if (i == rank_id)
+        {
+            continue;
+        }
+
+        channel->postAccess(Config::Level::Rank, i, bank_id, req_latency);
+    }
+
+    /*
+    // De-bugging
+    std::cout << "My rank: " << rank_id << "\n";
+    std::cout << "My bank: " << bank_id << "\n";
+    std::cout << "Current CLK: " << clk << "\n";
+    std::cout << "My next bank free: "
+              << channel->children[rank_id]->children[bank_id]->next_free << "\n";
+    for (int i = 0; i < num_of_ranks; i++)
+    {
+        std::cout << "Rank " << i << ": "
+                  << channel->children[i]->next_free << "\n";
+    }
+
+    std::cout << "\n";
+    */
 }
 
 // (run-time) power calculation
@@ -216,7 +250,7 @@ double PLPController::power_rw()
 }
 
 // scheduler
-std::list<Request>::iterator PLPController::Base()
+std::list<Request>::iterator PLPController::Base(bool &retry)
 {
     std::list<Request>::iterator req = r_w_q.queue.begin();
     assert(req->pair_type == Request::Pairing_Type::MAX);
@@ -236,7 +270,7 @@ std::list<Request>::iterator PLPController::Base()
     return req;
 }
 
-std::list<Request>::iterator PLPController::FCFS()
+std::list<Request>::iterator PLPController::FCFS(bool &retry)
 {
     std::list<Request>::iterator req = r_w_q.queue.begin();
     HPIssue(req);
@@ -245,7 +279,7 @@ std::list<Request>::iterator PLPController::FCFS()
     return req; 
 }
 
-std::list<Request>::iterator PLPController::OoO()
+std::list<Request>::iterator PLPController::OoO(bool &retry)
 {
     std::list<Request>::iterator req = r_w_q.queue.begin();
     if (starv_free_enabled && req->OrderID <= THB)
@@ -254,6 +288,7 @@ std::list<Request>::iterator PLPController::OoO()
         HPIssue(req);
         return req;
     }
+    assert(req->OrderID > THB);
 
     std::list<Request>::iterator r;
     std::list<Request>::iterator rr;
@@ -269,43 +304,52 @@ std::list<Request>::iterator PLPController::OoO()
          ite != r_w_q.queue.end(); ++ite)
     {
         // Record R
-        if (ite->master != 1 &&
-            ite->slave != 1 &&
-            ite->req_type == Request::Request_Type::READ &&
-            r_found == 0)
-        {
-            r_found = 1;
-            r = ite;
-        }
+        int target_rank = (ite->addr_vec)[int(Config::Decoding::Rank)];
+        int target_bank = (ite->addr_vec)[int(Config::Decoding::Bank)];
 
-        // Record RR pair
-        if (ite->master == 1 && // Must be a master request
-            ite->pair_type == Request::Pairing_Type::RR && // RR pair
-            rr_found == 0 // Must be the first RR pair found
-          )
+        if (channel->children[target_rank]->children[target_bank]->isFree() &&
+            channel->children[target_rank]->isFree() && // There should not be
+                                                       // rank-level parallelsim.
+            channel->isFree())
         {
-            rr_found = 1;
-            rr = ite;
-        }
+            if (ite->master != 1 &&
+                ite->slave != 1 &&
+                ite->req_type == Request::Request_Type::READ &&
+                r_found == 0)
+            {
+                r_found = 1;
+                r = ite;
+            }
 
-	// Record W
-        if (ite->master != 1 &&
-            ite->slave != 1 &&
-            ite->req_type == Request::Request_Type::WRITE &&
-            w_found == 0)
-        {
-            w_found = 1;
-            w = ite;
-	}
+            // Record RR pair
+            if (ite->master == 1 && // Must be a master request
+                ite->pair_type == Request::Pairing_Type::RR && // RR pair
+                rr_found == 0 // Must be the first RR pair found
+               )
+            {
+                rr_found = 1;
+                rr = ite;
+            }
 
-        // Record RW pair
-        if (ite->master == 1 && // Must be a master request
-            ite->pair_type == Request::Pairing_Type::RW && // RW pair
-            rw_found == 0 // Must be the first RW pair found
-          )
-        {
-            rw_found = 1;
-            rw = ite;
+            // Record W
+            if (ite->master != 1 &&
+                ite->slave != 1 &&
+                ite->req_type == Request::Request_Type::WRITE &&
+                w_found == 0)
+            {
+                w_found = 1;
+                w = ite;
+            }
+
+            // Record RW pair
+            if (ite->master == 1 && // Must be a master request
+                ite->pair_type == Request::Pairing_Type::RW && // RW pair
+                rw_found == 0 // Must be the first RW pair found
+               )
+            {
+                rw_found = 1;
+                rw = ite;
+            }
         }
     }
 
@@ -322,6 +366,18 @@ std::list<Request>::iterator PLPController::OoO()
         }
     }
 
+    if (r_found == 1)
+    {
+        update_power_read();
+        return r;
+    }
+   
+    if (w_found == 1)
+    {
+        update_power_write();
+        return w;
+    }
+
     if (rw_found == 1)
     {
         double est_power = power_rw();
@@ -334,19 +390,17 @@ std::list<Request>::iterator PLPController::OoO()
         }
     }
 
-    if (r_found == 1)
+    if (r_found == 0 &&
+        rr_found == 0 &&
+        rw_found == 0 &&
+        w_found == 0)
     {
-        update_power_read();
-        return r;
+        // PCM is busy anyway, we don't need to schedule anything
+        retry = true;
+        return req;
     }
 
-    if (w_found == 1)
-    {
-        update_power_write();
-        return w;
-    }
-
-    // At this point, we need split either RR pair or RW pair
+    // At this point, we need to split either RR pair or RW pair
     if (rw_found == 1)
     {
         breakup(rw);

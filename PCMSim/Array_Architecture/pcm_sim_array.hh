@@ -79,13 +79,17 @@ class Array
         {
             next_free = cur_clk + latency;
         }
+        else if (lev == Config::Level::Rank)
+        {
+            children[rank_id]->next_free = cur_clk + latency;
+        }
 	else
 	{
             children[rank_id]->children[bank_id]->next_free = cur_clk + latency;
         }
     }
 
-  private:
+//  private:
     Tick cur_clk;
     Tick next_free;
 

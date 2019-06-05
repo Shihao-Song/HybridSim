@@ -20,17 +20,17 @@ class PLPController : public BaseController
         if (cfgs.mem_controller_type == "PALP")
         {
             r_w_q.OoO = 1;
-            getHead = std::bind(&PLPController::OoO, this);
+            getHead = std::bind(&PLPController::OoO, this, std::placeholders::_1);
         }
         else if (cfgs.mem_controller_type == "FCFS")
         {
             r_w_q.FCFS = 1;
-            getHead = std::bind(&PLPController::FCFS, this);
+            getHead = std::bind(&PLPController::FCFS, this, std::placeholders::_1);
         }
         else if (cfgs.mem_controller_type == "Base")
         {
             r_w_q.no_pairing = 1;
-            getHead = std::bind(&PLPController::Base, this);
+            getHead = std::bind(&PLPController::Base, this, std::placeholders::_1);
         }
         else
         {
@@ -52,6 +52,10 @@ class PLPController : public BaseController
         if (!power_limit_enabled && !starv_free_enabled)
         {
             run_path += "inf_inf";
+        }
+	else if (!power_limit_enabled && starv_free_enabled)
+        {
+            run_path += "inf_" + std::to_string(-THB);
         }
         else
         {
@@ -156,10 +160,10 @@ class PLPController : public BaseController
     bool scheduled;
     std::list<Request>::iterator scheduled_req;
 
-    std::function<std::list<Request>::iterator(void)>getHead;
-    std::list<Request>::iterator Base();
-    std::list<Request>::iterator FCFS();
-    std::list<Request>::iterator OoO();
+    std::function<std::list<Request>::iterator(bool &retry)>getHead;
+    std::list<Request>::iterator Base(bool &retry);
+    std::list<Request>::iterator FCFS(bool &retry);
+    std::list<Request>::iterator OoO(bool &retry);
 
     // High-priority issue (the current request must be issued)
     void HPIssue(std::list<Request>::iterator &req);

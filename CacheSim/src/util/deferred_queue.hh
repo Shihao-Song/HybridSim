@@ -78,7 +78,7 @@ class Deferred_Queue
     typedef std::unordered_map<Addr, Tick> TickHash;
     TickHash when_ready;
 
-  protected:
+//  protected:
     int max;
     T all_entries;
     T entries_on_flight;
@@ -102,9 +102,10 @@ public:
         auto ret = all_entries.insert(addr);
         assert(ret.first != all_entries.end());
 
-        assert(ret.second == true);
-        Deferred_Queue::allocate(addr, when);
-        
+        if (ret.second == true)
+        {
+            Deferred_Queue::allocate(addr, when);
+        }
         // Make sure the entry is there
         assert(when_ready.find(addr) != when_ready.end());
     }
