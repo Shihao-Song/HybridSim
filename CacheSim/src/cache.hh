@@ -115,6 +115,7 @@ class Cache
             if (req.req_type == Request::Request_Type::WRITE)
             {
                 num_write_hits++;
+                blk->dirty = true;
             }
             else
             {
@@ -128,7 +129,7 @@ class Cache
         // (1) A read followed by a write, can get data directly;
         // (2) A write followed by a write, update the data (in buffer) directly;
         Addr aligned_addr = tags->blkAlign(req.addr);
-	if (mshrs->all_entries.find(aligned_addr) != mshrs->all_entries.end())
+	if (mshrs->isInQueue(aligned_addr))
         {
             num_mshr_hits++;
             return true;

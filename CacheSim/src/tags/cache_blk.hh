@@ -13,7 +13,7 @@ class Blk
 {
   public:
     // Initially, all blks should not be valid
-    Blk() : valid(0), when_touched(0) {}
+    Blk() : valid(0), dirty(0), when_touched(0) {}
 
     void insert(const Addr _tag)
     {
@@ -36,6 +36,8 @@ class Blk
     Addr tag;
 
     bool valid;
+
+    bool dirty; // Has the brought in cache-line been modified yet?
 
     Tick when_touched;
 };

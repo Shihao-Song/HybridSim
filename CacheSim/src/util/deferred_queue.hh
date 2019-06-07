@@ -7,11 +7,17 @@
 
 namespace CacheSimulator
 {
-
 template<class T>
 class Deferred_Queue
 {
   public:
+    enum class Instruction_Type : int
+    {
+        LOAD,
+        STORE,
+        MAX
+    };
+
     Deferred_Queue(int _max) : max(_max) {}
     virtual ~Deferred_Queue() {}
 

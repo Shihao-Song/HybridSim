@@ -21,7 +21,7 @@ class Request
 
     std::vector<int> addr_vec;
 
-    // Request type
+    // (Memory) request type
     enum class Request_Type : int
     {
         READ,
