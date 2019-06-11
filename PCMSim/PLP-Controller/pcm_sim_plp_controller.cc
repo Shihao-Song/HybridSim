@@ -171,13 +171,13 @@ void PLPController::channelAccess()
         {
             req_latency = time_for_rr;
             bank_latency = tRCD * 3 + time_single_read_work;
-            channel_latency = tData + tRCD + tData;
+            channel_latency = tData;
         }
         else if (scheduled_req->pair_type == Request::Pairing_Type::RW)
         {
             req_latency = time_for_rw;
             bank_latency = time_for_rw;
-            channel_latency = time_for_single_read;
+            channel_latency = tData;
         }
     }
 
@@ -279,6 +279,211 @@ std::list<Request>::iterator PLPController::FCFS(bool &retry)
     return req; 
 }
 
+std::list<Request>::iterator PLPController::OoO(bool &retry)
+{
+    std::list<Request>::iterator req = r_w_q.queue.begin();
+    if (starv_free_enabled && req->OrderID <= THB)
+    {
+        // Have to be served anyway
+        OoOPair(req);
+        powerLimit(req);
+        return req;
+    }
+    assert(req->OrderID > THB);
+
+    bool first_ready_found = false;
+    std::list<Request>::iterator first_ready;
+    bool first_ready_pair_found = false;
+    std::list<Request>::iterator first_ready_pair;
+
+    for (std::list<Request>::iterator ite = r_w_q.queue.begin();
+         ite != r_w_q.queue.end(); ++ite)
+    {
+        int target_rank = (ite->addr_vec)[int(Config::Decoding::Rank)];
+        int target_bank = (ite->addr_vec)[int(Config::Decoding::Bank)];
+
+        if (channel->children[target_rank]->children[target_bank]->isFree() &&
+            channel->children[target_rank]->isFree() && // There should not be
+                                                       // rank-level parallelsim.
+            channel->isFree())
+        {
+            assert(ite->master != 1);
+            assert(ite->slave != 1);
+            assert(ite->pair_type == Request::Pairing_Type::MAX);
+
+            if (first_ready_found == false)
+            {
+                first_ready_found = true;
+                first_ready = ite;
+            }
+
+            if (OoOPair(ite))
+            {
+                first_ready_pair_found = true;
+                first_ready_pair = ite;
+                break; // No need to proceed further
+            }
+        }
+    }
+
+    if (first_ready_pair_found)
+    {
+        powerLimit(first_ready_pair);
+        return first_ready_pair;
+    }
+
+    // Can't find any pairs, schedule the first ready request.
+    if (first_ready_found)
+    {
+        powerLimit(first_ready);
+        return first_ready;
+    }
+
+    // PCM is busy anyway, we don't need to schedule anything
+    retry = true;
+    return req;
+}
+
+bool PLPController::OoOPair(std::list<Request>::iterator &req)
+{
+    // Should iterator the element behind it.
+    // Because we have known that the requests before it are not ready or
+    // this request is the oldest one (exceeding THB).
+    auto ite = req;
+    ++ite;
+
+    // Step one, find a candidate read or write
+    std::list<Request>::iterator r;
+    std::list<Request>::iterator w;
+
+    bool r_found = false;
+    bool w_found = false;
+
+    for (ite; ite != r_w_q.queue.end(); ++ite)
+    {
+        if (ite->addr_vec[int(Config::Decoding::Channel)] ==
+            req->addr_vec[int(Config::Decoding::Channel)] &&
+            // Same Rank
+            ite->addr_vec[int(Config::Decoding::Rank)] ==
+            req->addr_vec[int(Config::Decoding::Rank)] &&
+            // Same Bank
+            ite->addr_vec[int(Config::Decoding::Bank)] ==
+            req->addr_vec[int(Config::Decoding::Bank)] &&
+            // Different Partition
+            ite->addr_vec[int(Config::Decoding::Partition)] !=
+            req->addr_vec[int(Config::Decoding::Partition)])\
+        {
+            if (w_found == false &&
+                ite->req_type == Request::Request_Type::WRITE)
+            {
+                w_found = true;
+                w = ite;
+            }
+            else if (r_found == false &&
+                     ite->req_type == Request::Request_Type::READ)
+            {
+                r_found = true;
+                r = ite;;
+            }
+        }
+    }
+
+    if (req->req_type == Request::Request_Type::READ)
+    {
+        // We can pair with either a read or write request
+        if (rr_enable && r_found)
+        {
+            // Always priori. RR pair
+            pairForRR(req, r);
+            return true;
+        }
+
+        // Then try to pair with a write
+        if (w_found)
+        {
+            pairForRW(req, w);
+            return true;
+        }
+    }
+    else if (req->req_type == Request::Request_Type::WRITE)
+    {
+        // We can only pair with a read request
+        if (r_found)
+        {
+            pairForRW(req, r);
+            return true;
+        }
+    }
+
+    return false; // Cannot find any pair
+}
+
+void PLPController::powerLimit(std::list<Request>::iterator &req)
+{
+    if (req->pair_type == Request::Pairing_Type::RR)
+    {
+        double est_power = power_rr();
+
+        if (!power_limit_enabled ||
+            power_limit_enabled && est_power < RAPL)
+        {
+            power = est_power;
+        }
+    }
+    else if (req->pair_type == Request::Pairing_Type::RW)
+    {
+        double est_power = power_rw();
+
+        if (!power_limit_enabled ||
+            power_limit_enabled && est_power < RAPL)
+        {
+            power = est_power;
+        }
+
+    }
+    else if (req->pair_type == Request::Pairing_Type::MAX)
+    {
+        if (req->req_type == Request::Request_Type::READ)
+        {
+            update_power_read();
+        }
+        else if (req->req_type == Request::Request_Type::WRITE)
+        {
+            update_power_write();
+        }
+    }
+}
+
+// When slave is a read request
+void PLPController::pairForRR(std::list<Request>::iterator &master,
+                              std::list<Request>::iterator &slave)
+{
+    master->master = 1;
+    slave->slave = 1;
+
+    master->pair_type = Request::Pairing_Type::RR;
+    slave->pair_type = Request::Pairing_Type::RR;
+
+    // Assign pointers to each other
+    master->slave_req = slave;
+    slave->master_req = master;
+}
+
+void PLPController::pairForRW(std::list<Request>::iterator &master,
+                              std::list<Request>::iterator &slave)
+{
+    master->master = 1;
+    slave->slave = 1;
+
+    master->pair_type = Request::Pairing_Type::RW;
+    slave->pair_type = Request::Pairing_Type::RW;
+
+    // Assign pointers to each other
+    master->slave_req = slave;
+    slave->master_req = master;
+}
+
+/*
 std::list<Request>::iterator PLPController::OoO(bool &retry)
 {
     std::list<Request>::iterator req = r_w_q.queue.begin();
@@ -419,6 +624,9 @@ std::list<Request>::iterator PLPController::OoO(bool &retry)
         exit(0);
     }
 }
+*/
+
+
 
 void PLPController::HPIssue(std::list<Request>::iterator &req)
 {

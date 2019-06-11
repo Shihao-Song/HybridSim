@@ -16,20 +16,24 @@ class PLPController : public BaseController
     PLPController(Config &cfgs, Array *_channel)
         : BaseController(_channel), scheduled(0)
     {
+        r_w_q.no_pairing = 1;
+
         // Configure pairing_queue
         if (cfgs.mem_controller_type == "PALP")
         {
-            r_w_q.OoO = 1;
+//            r_w_q.OoO = 1;
+            rr_enable = true;
             getHead = std::bind(&PLPController::OoO, this, std::placeholders::_1);
         }
-        else if (cfgs.mem_controller_type == "FCFS")
+        else if (cfgs.mem_controller_type == "PALP-R")
         {
-            r_w_q.FCFS = 1;
-            getHead = std::bind(&PLPController::FCFS, this, std::placeholders::_1);
+//            r_w_q.FCFS = 1;
+            rr_enable = false;
+            getHead = std::bind(&PLPController::OoO, this, std::placeholders::_1);
         }
         else if (cfgs.mem_controller_type == "Base")
         {
-            r_w_q.no_pairing = 1;
+//            r_w_q.no_pairing = 1;
             getHead = std::bind(&PLPController::Base, this, std::placeholders::_1);
         }
         else
@@ -76,7 +80,7 @@ class PLPController : public BaseController
         out << "Channel,Rank,Bank,"
             << "Type,"
             << "Queue Arrival,Begin Execution,End Execution,"
-            << ",RAPL,OrderID\n";
+            << "RAPL,OrderID\n";
     }
 
     int getQueueSize() override
@@ -149,6 +153,8 @@ class PLPController : public BaseController
 
   // Scheduler section
   private:
+    bool rr_enable;
+
     // Running average power should always below RAPL? (Default no)
     bool power_limit_enabled = false;
     // OrderID should never exceed back-logging threshold? (Default no)
@@ -165,6 +171,13 @@ class PLPController : public BaseController
     std::list<Request>::iterator FCFS(bool &retry);
     std::list<Request>::iterator OoO(bool &retry);
 
+    bool OoOPair(std::list<Request>::iterator &req);
+    void powerLimit(std::list<Request>::iterator &req);
+    void pairForRR(std::list<Request>::iterator &master,
+                   std::list<Request>::iterator &slave);
+    void pairForRW(std::list<Request>::iterator &master,
+                   std::list<Request>::iterator &slave);
+    
     // High-priority issue (the current request must be issued)
     void HPIssue(std::list<Request>::iterator &req);
     // Break up master-slave chain
