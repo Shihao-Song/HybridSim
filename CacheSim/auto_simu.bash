@@ -1,4 +1,4 @@
-TRACES_DIR="/home/shihao-song/Documents/Research_Extend_1/New_Traces/CASES_2019"
+TRACES_DIR="/home/shihao-song/Documents/Data/CASES_2019/Traces"
 CONFIGS_DIR="/home/shihao-song/Documents/Research/Tools_Development/Hybrid-eDRAM-PCM-Simulator/Configs/cfg_files"
 
 TRACES=$(ls $TRACES_DIR)

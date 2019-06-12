@@ -58,6 +58,11 @@ class Request
 
     std::list<Request>::iterator master_req;
 
+    // For recording
+    Tick slave_arrival;
+    Request_Type slave_type;
+    int slave_order_id;
+
     // Very important
     std::function<void(Request&)> slave_callback;
     Addr slave_addr;

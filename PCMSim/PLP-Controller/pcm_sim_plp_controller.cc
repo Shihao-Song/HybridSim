@@ -75,6 +75,10 @@ void PLPController::tick()
 
             scheduled_req->slave_addr = scheduled_req->slave_req->addr;
 
+            scheduled_req->slave_arrival = scheduled_req->slave_req->queue_arrival;
+            scheduled_req->slave_type = scheduled_req->slave_req->req_type;
+            scheduled_req->slave_order_id = scheduled_req->slave_req->OrderID;
+
             r_w_pending_queue.push_back(*scheduled_req);
 
             // Erase slave
@@ -388,20 +392,34 @@ bool PLPController::OoOPair(std::list<Request>::iterator &req)
         }
     }
 
+    // TODO, take into power consumption when pairing. If power exceeds
+    // we should also return true.
     if (req->req_type == Request::Request_Type::READ)
     {
         // We can pair with either a read or write request
         if (rr_enable && r_found)
         {
-            // Always priori. RR pair
-            pairForRR(req, r);
+            double est_power = power_rr();
+
+            if (!power_limit_enabled ||
+                power_limit_enabled && est_power < RAPL)
+            {
+                // Always priori. RR pair
+                pairForRR(req, r);
+            }
             return true;
         }
 
         // Then try to pair with a write
         if (w_found)
         {
-            pairForRW(req, w);
+            double est_power = power_rw();
+
+            if (!power_limit_enabled ||
+                power_limit_enabled && est_power < RAPL)
+            {
+                pairForRW(req, w);
+            }
             return true;
         }
     }
@@ -410,7 +428,13 @@ bool PLPController::OoOPair(std::list<Request>::iterator &req)
         // We can only pair with a read request
         if (r_found)
         {
-            pairForRW(req, r);
+            double est_power = power_rw();
+
+            if (!power_limit_enabled ||
+                power_limit_enabled && est_power < RAPL)
+            {
+                pairForRW(req, r);
+            }
             return true;
         }
     }
@@ -698,28 +722,14 @@ void PLPController::printReqInfo(Request &req)
     out << req.addr_vec[int(Config::Decoding::Channel)] << ",";
     out << req.addr_vec[int(Config::Decoding::Rank)] << ",";
     out << req.addr_vec[int(Config::Decoding::Bank)] << ",";
-
-    if(req.master == 1)
+    
+    if(req.req_type == Request::Request_Type::READ)
     {
-        if(req.pair_type == Request::Pairing_Type::RR)
-        {
-            out << "R-R,";
-        }
-        else
-        {
-            out << "R-W,";
-        }
+        out << "R,";
     }
     else
     {
-        if(req.req_type == Request::Request_Type::READ)
-        {
-            out << "R,";
-        }
-        else
-        {
-            out << "W,";
-        }
+        out << "W,";
     }
 
     out << req.queue_arrival << ",";
@@ -727,5 +737,31 @@ void PLPController::printReqInfo(Request &req)
     out << req.end_exe << ",";
     out << power << ",";
     out << req.OrderID << "\n";
+
+    if(req.master != 1)
+    {
+        return;
+    }
+
+    assert(req.master == 1);
+
+    out << req.addr_vec[int(Config::Decoding::Channel)] << ",";
+    out << req.addr_vec[int(Config::Decoding::Rank)] << ",";
+    out << req.addr_vec[int(Config::Decoding::Bank)] << ",";
+    
+    if(req.slave_type == Request::Request_Type::READ)
+    {
+        out << "R,";
+    }
+    else
+    {
+        out << "W,";
+    }
+
+    out << req.slave_arrival << ",";
+    out << req.begin_exe << ",";
+    out << req.end_exe << ",";
+    out << power << ",";
+    out << req.slave_order_id << "\n";
 }
 }

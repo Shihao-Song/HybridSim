@@ -63,10 +63,14 @@ class PLPController : public BaseController
         }
         else
         {
-            run_path += std::to_string(RAPL) + "_" + std::to_string(THB);
+            run_path += std::to_string(RAPL) + "_" + std::to_string(-THB);
         }
         int status = mkdir(run_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        
+       
+        unsigned eDRAM_size = cfgs.caches[int(Config::Cache_Level::eDRAM)].size / 1024;
+        run_path += "/" + std::to_string(eDRAM_size) + "_MB";
+        mkdir(run_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
         std::string size_path = run_path + "/" +
                                 std::to_string(cfgs.sizeInGB()) + "_GB";
         status = mkdir(size_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
