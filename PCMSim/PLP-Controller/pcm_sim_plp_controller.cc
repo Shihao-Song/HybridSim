@@ -148,6 +148,14 @@ bool PLPController::issueAccess()
 
 void PLPController::channelAccess()
 {
+    /*
+     * As I/O (Data Bus) becomes faster and faster, we don't consider the effect
+     * of tBurst (tData) in newer memory architecture anymore (>= DDR4).
+     *
+     * channel_latency = tData can be ignored for newer memory architecture; however,
+     * it still plays an important role in older memory architecture.
+     * */
+
     scheduled_req->begin_exe = clk;
 
     unsigned req_latency = 0; // read/write + data transfer
