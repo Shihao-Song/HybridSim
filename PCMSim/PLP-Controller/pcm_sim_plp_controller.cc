@@ -7,10 +7,10 @@ void PLPController::init()
 {
     time_for_single_read = channel->arr_info.tRCD +
                            channel->arr_info.tData +
-			   channel->arr_info.tCL;
+                           channel->arr_info.tCL;
     time_single_read_work = channel->arr_info.tCL;
     power_per_bit_read = channel->arr_info.pj_bit_rd /
-			 time_single_read_work;
+                         time_single_read_work;
     
     time_for_single_write = channel->arr_info.tRCD +
                             channel->arr_info.tData +
@@ -70,21 +70,14 @@ void PLPController::tick()
     {
         if (scheduled_req->master == 1)
         {
-            scheduled_req->slave_callback = 
-            scheduled_req->slave_req->callback;
-
-            scheduled_req->slave_addr = scheduled_req->slave_req->addr;
-
-            scheduled_req->slave_arrival = scheduled_req->slave_req->queue_arrival;
-            scheduled_req->slave_type = scheduled_req->slave_req->req_type;
-            scheduled_req->slave_order_id = scheduled_req->slave_req->OrderID;
-
+            // slave request waiting for completion
+            r_w_pending_queue.push_back(*(scheduled_req->slave_req));
+            // master request waiting for completion
             r_w_pending_queue.push_back(*scheduled_req);
 
-            // Erase slave
+            // Erase slave from r_w_q
             r_w_q.erase(scheduled_req->slave_req);
-
-            // Erase master
+            // Erase master from r_w_q
             r_w_q.erase(scheduled_req);
         }
         else
@@ -99,26 +92,18 @@ void PLPController::tick()
 
 void PLPController::servePendingReqs()
 {
-    if (r_w_pending_queue.size() > 0)
+    if (r_w_pending_queue.size())
     {
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
+            // TODO, if callback is a vector, we should always invoke from
+            // the last callback function.
             if (req.callback)
             {
                 req.callback(req);
             }
 
-            // Very important!
-            if (req.master == 1)
-            {
-                if (req.slave_callback)
-                {
-                    Request tmp_req(req.slave_addr,
-                                    Request::Request_Type::READ);
-                    req.slave_callback(tmp_req);
-                }
-            }
             printReqInfo(req);
             r_w_pending_queue.pop_front();
         }
@@ -132,8 +117,6 @@ bool PLPController::issueAccess()
     int target_rank = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
     int target_bank = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
 
-    // channel->isFree() mimics the bus utilization
-    // ...bank->isFree() mimics the bank utilization
     if (channel->children[target_rank]->children[target_bank]->isFree() &&
         channel->children[target_rank]->isFree() && // There should not be
                                                     // rank-level parallelsim.
@@ -154,11 +137,12 @@ void PLPController::channelAccess()
      *
      * channel_latency = tData can be ignored for newer memory architecture; however,
      * it still plays an important role in older memory architecture.
+     *
      * */
 
     scheduled_req->begin_exe = clk;
 
-    unsigned req_latency = 0; // read/write + data transfer
+    unsigned req_latency = 0;
     unsigned bank_latency = 0;
     unsigned channel_latency = 0;
 
@@ -191,6 +175,11 @@ void PLPController::channelAccess()
             bank_latency = time_for_rw;
             channel_latency = tData;
         }
+
+        // Update slave information
+        scheduled_req->slave_req->begin_exe = clk;
+        scheduled_req->slave_req->end_exe = scheduled_req->slave_req->begin_exe +
+                                            req_latency;
     }
 
     scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
@@ -213,22 +202,6 @@ void PLPController::channelAccess()
 
         channel->postAccess(Config::Level::Rank, i, bank_id, req_latency);
     }
-
-    /*
-    // De-bugging
-    std::cout << "My rank: " << rank_id << "\n";
-    std::cout << "My bank: " << bank_id << "\n";
-    std::cout << "Current CLK: " << clk << "\n";
-    std::cout << "My next bank free: "
-              << channel->children[rank_id]->children[bank_id]->next_free << "\n";
-    for (int i = 0; i < num_of_ranks; i++)
-    {
-        std::cout << "Rank " << i << ": "
-                  << channel->children[i]->next_free << "\n";
-    }
-
-    std::cout << "\n";
-    */
 }
 
 // (run-time) power calculation
@@ -278,17 +251,7 @@ std::list<Request>::iterator PLPController::Base(bool &retry)
         update_power_write();
     }
 
-    assert(req->OrderID == 0);
     return req;
-}
-
-std::list<Request>::iterator PLPController::FCFS(bool &retry)
-{
-    std::list<Request>::iterator req = r_w_q.queue.begin();
-    HPIssue(req);
-    assert(req->OrderID >= 0);
-    assert(req->pair_type != Request::Pairing_Type::RR);
-    return req; 
 }
 
 std::list<Request>::iterator PLPController::OoO(bool &retry)
@@ -298,7 +261,7 @@ std::list<Request>::iterator PLPController::OoO(bool &retry)
     {
         // Have to be served anyway
         OoOPair(req);
-        powerLimit(req);
+        powerUpdate(req);
         return req;
     }
     assert(req->OrderID > THB);
@@ -340,14 +303,14 @@ std::list<Request>::iterator PLPController::OoO(bool &retry)
 
     if (first_ready_pair_found)
     {
-        powerLimit(first_ready_pair);
+        powerUpdate(first_ready_pair);
         return first_ready_pair;
     }
 
     // Can't find any pairs, schedule the first ready request.
     if (first_ready_found)
     {
-        powerLimit(first_ready);
+        powerUpdate(first_ready);
         return first_ready;
     }
 
@@ -400,7 +363,7 @@ bool PLPController::OoOPair(std::list<Request>::iterator &req)
         }
     }
 
-    // TODO, take into power consumption when pairing. If power exceeds
+    // Take into power consumption when pairing. If power exceeds
     // we should also return true.
     if (req->req_type == Request::Request_Type::READ)
     {
@@ -450,7 +413,7 @@ bool PLPController::OoOPair(std::list<Request>::iterator &req)
     return false; // Cannot find any pair
 }
 
-void PLPController::powerLimit(std::list<Request>::iterator &req)
+void PLPController::powerUpdate(std::list<Request>::iterator &req)
 {
     if (req->pair_type == Request::Pairing_Type::RR)
     {
@@ -515,215 +478,6 @@ void PLPController::pairForRW(std::list<Request>::iterator &master,
     slave->master_req = master;
 }
 
-/*
-std::list<Request>::iterator PLPController::OoO(bool &retry)
-{
-    std::list<Request>::iterator req = r_w_q.queue.begin();
-    if (starv_free_enabled && req->OrderID <= THB)
-    {
-        // Have to be served anyway
-        HPIssue(req);
-        return req;
-    }
-    assert(req->OrderID > THB);
-
-    std::list<Request>::iterator r;
-    std::list<Request>::iterator rr;
-    std::list<Request>::iterator w;
-    std::list<Request>::iterator rw;
-
-    bool r_found = 0;
-    bool rr_found = 0;
-    bool w_found = 0;
-    bool rw_found = 0;
-
-    for (std::list<Request>::iterator ite = r_w_q.queue.begin();
-         ite != r_w_q.queue.end(); ++ite)
-    {
-        // Record R
-        int target_rank = (ite->addr_vec)[int(Config::Decoding::Rank)];
-        int target_bank = (ite->addr_vec)[int(Config::Decoding::Bank)];
-
-        if (channel->children[target_rank]->children[target_bank]->isFree() &&
-            channel->children[target_rank]->isFree() && // There should not be
-                                                       // rank-level parallelsim.
-            channel->isFree())
-        {
-            if (ite->master != 1 &&
-                ite->slave != 1 &&
-                ite->req_type == Request::Request_Type::READ &&
-                r_found == 0)
-            {
-                r_found = 1;
-                r = ite;
-            }
-
-            // Record RR pair
-            if (ite->master == 1 && // Must be a master request
-                ite->pair_type == Request::Pairing_Type::RR && // RR pair
-                rr_found == 0 // Must be the first RR pair found
-               )
-            {
-                rr_found = 1;
-                rr = ite;
-            }
-
-            // Record W
-            if (ite->master != 1 &&
-                ite->slave != 1 &&
-                ite->req_type == Request::Request_Type::WRITE &&
-                w_found == 0)
-            {
-                w_found = 1;
-                w = ite;
-            }
-
-            // Record RW pair
-            if (ite->master == 1 && // Must be a master request
-                ite->pair_type == Request::Pairing_Type::RW && // RW pair
-                rw_found == 0 // Must be the first RW pair found
-               )
-            {
-                rw_found = 1;
-                rw = ite;
-            }
-        }
-    }
-
-    // Prioritize rr pair
-    if (rr_found == 1)
-    {
-        double est_power = power_rr();
-
-        if (!power_limit_enabled || 
-            power_limit_enabled && est_power < RAPL)
-        {
-            power = est_power;
-            return rr;
-        }
-    }
-
-    if (r_found == 1)
-    {
-        update_power_read();
-        return r;
-    }
-   
-    if (w_found == 1)
-    {
-        update_power_write();
-        return w;
-    }
-
-    if (rw_found == 1)
-    {
-        double est_power = power_rw();
-
-        if (!power_limit_enabled ||
-            power_limit_enabled && est_power < RAPL)
-        {
-            power = est_power;
-            return rw;
-        }
-    }
-
-    if (r_found == 0 &&
-        rr_found == 0 &&
-        rw_found == 0 &&
-        w_found == 0)
-    {
-        // PCM is busy anyway, we don't need to schedule anything
-        retry = true;
-        return req;
-    }
-
-    // At this point, we need to split either RR pair or RW pair
-    if (rw_found == 1)
-    {
-        breakup(rw);
-        assert(rw->pair_type == Request::Pairing_Type::MAX);
-        return rw;
-    }
-    else if (rr_found == 1)
-    {
-        breakup(rr);
-        assert(rr->pair_type == Request::Pairing_Type::MAX);
-        return rr;
-    }
-    else
-    {
-        std::cerr << "Should never happen. \n";
-        exit(0);
-    }
-}
-*/
-
-
-
-void PLPController::HPIssue(std::list<Request>::iterator &req)
-{
-    // If it is an individual request, schedule it
-    if (req->master != 1 && req->slave != 1)
-    {
-        // Update power
-        if (req->req_type == Request::Request_Type::READ)
-        {
-            update_power_read();
-        }
-        else if (req->req_type == Request::Request_Type::WRITE)
-        {
-            update_power_write();
-        }
-    }
-    else
-    {
-        double est_power = 0.0;
-
-        if (req->pair_type == Request::Pairing_Type::RR)
-        {
-            est_power = power_rr();
-        }
-        else if (req->pair_type == Request::Pairing_Type::RW)
-        {
-            est_power = power_rw();
-        }
-
-        if (power_limit_enabled && est_power >= RAPL)
-        {
-            breakup(req);
-            assert(req->pair_type == Request::Pairing_Type::MAX);
-        }
-        else
-        {
-            // Update power
-	    assert(est_power != 0.0);
-            power = est_power;
-        }
-    }
-}
-
-void PLPController::breakup(std::list<Request>::iterator &req)
-{
-    // Break the master-slave connection
-    req->master = 0;
-    req->slave = 0;
-    req->pair_type = Request::Pairing_Type::MAX;
-
-    req->slave_req->slave = 0;
-    req->slave_req->master = 0;
-    req->slave_req->pair_type = Request::Pairing_Type::MAX;
-
-    // Update power
-    if (req->req_type == Request::Request_Type::READ)
-    {
-	update_power_read();
-    }
-    else if (req->req_type == Request::Request_Type::WRITE)
-    {
-        update_power_write();
-    }
-}
-
 // Data collection for off-line analysis
 void PLPController::printReqInfo(Request &req)
 {
@@ -745,31 +499,5 @@ void PLPController::printReqInfo(Request &req)
     out << req.end_exe << ",";
     out << power << ",";
     out << req.OrderID << "\n";
-
-    if(req.master != 1)
-    {
-        return;
-    }
-
-    assert(req.master == 1);
-
-    out << req.addr_vec[int(Config::Decoding::Channel)] << ",";
-    out << req.addr_vec[int(Config::Decoding::Rank)] << ",";
-    out << req.addr_vec[int(Config::Decoding::Bank)] << ",";
-    
-    if(req.slave_type == Request::Request_Type::READ)
-    {
-        out << "R,";
-    }
-    else
-    {
-        out << "W,";
-    }
-
-    out << req.slave_arrival << ",";
-    out << req.begin_exe << ",";
-    out << req.end_exe << ",";
-    out << power << ",";
-    out << req.slave_order_id << "\n";
 }
 }

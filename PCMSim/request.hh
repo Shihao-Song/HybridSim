@@ -39,33 +39,31 @@ class Request
     Addr end_exe;
 
     // call-back function
+    // TODO, this may need to be updated as a vector of callbacks
+    // because of multiple layers of memory (cache).
     std::function<void(Request&)> callback;
 
-    /* when PLP (Partition-level Paral.) is enabled */
+    // when OoO is enabled
     int OrderID;
 
+    /*  PLP (Partition-level Parallelism) Section */
     enum class Pairing_Type : int
     {
         RR, // Two reads scheduled in parallel
         RW, // One read and one write scheduled in parallel
         MAX
     }pair_type;
-	
+
+    // PLP related, master: request whose OrderID and queue arrival time are smaller
     int master = 0;
+    // PLP related, slave: request that is scheduled with the master, this request
+    // comes (into the queue) later than master
     int slave = 0;
 
+    // PLP related, master maintains a pointer to slave
     std::list<Request>::iterator slave_req;
-
+    // PLP related, slave maintains a pointer to master
     std::list<Request>::iterator master_req;
-
-    // For recording
-    Tick slave_arrival;
-    Request_Type slave_type;
-    int slave_order_id;
-
-    // Very important
-    std::function<void(Request&)> slave_callback;
-    Addr slave_addr;
 
     /* Constructors */
     Request(Addr _addr, Request_Type _type) :
@@ -74,6 +72,7 @@ class Request
         pair_type(Pairing_Type::MAX)
     {}
 
+    // TODO, callback should be pushed into the vector
     Request(Addr _addr, Request_Type _type,
             std::function<void(Request&)> _callback) :
         addr(_addr),
