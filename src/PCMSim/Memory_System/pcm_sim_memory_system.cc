@@ -1,7 +1,7 @@
 #include "pcm_sim_memory_system.hh"
 
 #include "../Array_Architecture/pcm_sim_array.hh"
-#include "../../Configs/config.hh"
+#include "../../Sim/config.hh"
 #include "../Controller/pcm_sim_controller.hh"
 #include "../PLP-Controller/pcm_sim_plp_controller.hh"
 

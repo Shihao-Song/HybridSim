@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <unordered_map>
 
-#include "../../../Configs/config.hh"
+#include "../../../Sim/config.hh"
 #include "cache_tags.hh"
 
 namespace CacheSimulator

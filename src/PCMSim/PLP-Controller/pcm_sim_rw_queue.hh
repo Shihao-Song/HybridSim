@@ -2,7 +2,7 @@
 #define __PCM_SIM_READ_WRITE_QUEUE_HH__
 
 #include "../request.hh"
-#include "../../Configs/config.hh"
+#include "../../Sim/config.hh"
 
 namespace PCMSim
 {

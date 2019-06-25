@@ -1,4 +1,4 @@
-#include "../Configs/config.hh"
+#include "../Sim/config.hh"
 #include "../PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "../PCMSim/Trace/pcm_sim_trace.hh"
 

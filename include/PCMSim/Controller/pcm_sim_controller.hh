@@ -2,7 +2,7 @@
 #define __PCMSIM_CONTROLLER_HH__
 
 #include "Sim/request.hh"
-#include "Configs/config.hh"
+#include "Sim/config.hh"
 
 #include "PCMSim/Array_Architecture/pcm_sim_array.hh"
 

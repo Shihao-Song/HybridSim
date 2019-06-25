@@ -1,4 +1,4 @@
-#include "Configs/config.hh"
+#include "Sim/config.hh"
 
 namespace Simulator
 {

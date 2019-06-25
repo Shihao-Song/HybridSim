@@ -1,7 +1,7 @@
 #ifndef __CACHE_TAGS_HH__
 #define __CACHE_TAGS_HH__
 
-#include "../../../Configs/config.hh"
+#include "../../../Sim/config.hh"
 #include "../../../PCMSim/request.hh"
 #include "cache_blk.hh"
 

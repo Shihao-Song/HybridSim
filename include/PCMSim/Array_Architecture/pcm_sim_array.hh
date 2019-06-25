@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "Configs/config.hh"
+#include "Sim/config.hh"
 
 namespace PCMSim
 {

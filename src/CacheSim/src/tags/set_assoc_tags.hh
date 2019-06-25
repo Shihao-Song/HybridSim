@@ -5,7 +5,7 @@
 
 #include "cache_tags.hh"
 #include "../replacement_policies/set_way_lru.hh"
-#include "../../../Configs/config.hh"
+#include "../../../Sim/config.hh"
 
 namespace CacheSimulator
 {
