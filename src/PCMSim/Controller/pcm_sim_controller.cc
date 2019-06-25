@@ -58,7 +58,8 @@ bool Controller::issueAccess()
     
     int target_rank = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
     int target_bank = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
-        
+
+    // TODO, this should be grouped into a function. 
     if (channel->children[target_rank]->children[target_bank]->isFree() &&
         channel->children[target_rank]->isFree() && // There should not be
                                                     // rank-level parallelsim.
@@ -98,6 +99,7 @@ void Controller::channelAccess()
     int rank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
     int bank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
 
+    // TODO, this should be put into a function
     channel->postAccess(Config::Array_Level::Channel, rank_id, bank_id, channel_latency);
     channel->postAccess(Config::Array_Level::Bank, rank_id, bank_id, bank_latency);
 

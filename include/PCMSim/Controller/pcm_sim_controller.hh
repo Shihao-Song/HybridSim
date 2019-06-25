@@ -41,9 +41,6 @@ class BaseController
     // How many requests left to get served.
     virtual int getQueueSize() = 0;
 
-    // Push request into queue
-//    virtual bool enqueue(Request& req) = 0;
-
     // tick
     virtual void tick() {}
 };
