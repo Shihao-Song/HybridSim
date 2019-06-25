@@ -1,5 +1,4 @@
-#include "pcm_sim_controller.hh"
-#include "../Array_Architecture/pcm_sim_array.hh"
+#include "PCMSim/Controller/pcm_sim_controller.hh"
 
 namespace PCMSim
 {
@@ -61,6 +60,8 @@ bool Controller::issueAccess()
     int target_bank = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
         
     if (channel->children[target_rank]->children[target_bank]->isFree() &&
+        channel->children[target_rank]->isFree() && // There should not be
+                                                    // rank-level parallelsim.
         channel->isFree())
     {
         channelAccess();
@@ -70,29 +71,46 @@ bool Controller::issueAccess()
     return issued;
 }
 
-// TODO, timing is not correct, please refer to PLPController
 void Controller::channelAccess()
 {
     scheduled_req->begin_exe = clk;
 
-    unsigned latency = 0;
+    unsigned req_latency = 0;
+    unsigned bank_latency = 0;
+    unsigned channel_latency = 0;
 
     if (scheduled_req->req_type == Request::Request_Type::READ)
-    {	
-        latency = channel->read(scheduled_req);
+    {
+        req_latency = read_latency;
+        bank_latency = read_bank_latency;
+        channel_latency = tData;
     }
     else if (scheduled_req->req_type == Request::Request_Type::WRITE)
     {
-        latency = channel->write(scheduled_req);
+        req_latency = write_latency;
+        bank_latency = write_latency;
+        channel_latency = tData;
     }
 
-    scheduled_req->end_exe = scheduled_req->begin_exe + latency;
+    scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
 
     // Post access
     int rank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
     int bank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
 
-//    channel->postAccess(Config::Level::Channel, rank_id, bank_id, latency);
-//    channel->postAccess(Config::Level::Bank, rank_id, bank_id, latency);
+    channel->postAccess(Config::Array_Level::Channel, rank_id, bank_id, channel_latency);
+    channel->postAccess(Config::Array_Level::Bank, rank_id, bank_id, bank_latency);
+
+    // All other ranks won't be available until this rank is fully de-coupled.
+    int num_of_ranks = channel->arr_info.num_of_ranks;
+    for (int i = 0; i < num_of_ranks; i++)
+    {
+        if (i == rank_id)
+        {
+            continue;
+        }
+
+        channel->postAccess(Config::Array_Level::Rank, i, bank_id, req_latency);
+    }
 }
 }

@@ -1,5 +1,5 @@
-#ifndef __PCMSIM_REQUEST_H__
-#define __PCMSIM_REQUEST_H__
+#ifndef __REQUEST_H__
+#define __REQUEST_H__
 
 #include <cstdint> // Addr
 #include <functional>
@@ -12,7 +12,7 @@ typedef uint64_t Tick;
 
 const Addr MaxAddr = (Addr)-1;
 
-namespace PCMSim
+namespace Simulator
 {
 class Request
 {
@@ -42,6 +42,9 @@ class Request
     // TODO, this may need to be updated as a vector of callbacks
     // because of multiple layers of memory (cache).
     std::function<void(Request&)> callback;
+
+    // TODO, should have something like Builder or Factory to create different
+    // types of Request object.
 
     // when OoO is enabled
     int OrderID;

@@ -1,6 +1,6 @@
-#include "config.hh"
+#include "Configs/config.hh"
 
-namespace Configuration
+namespace Simulator
 {
 Config::Config(const std::string &cfg_file)
 {
@@ -67,7 +67,7 @@ void Config::parse(const std::string &fname)
         }
         else if(tokens[0] == "block_size")
         {
-            blkSize = atoi(tokens[1].c_str());
+            block_size = atoi(tokens[1].c_str());
         }
         else if(tokens[0].find("L1I") != std::string::npos)
         {
@@ -120,10 +120,6 @@ void Config::parse(const std::string &fname)
         else if(tokens[0] == "num_of_bit_lines_per_tile")
         {
             num_of_bit_lines_per_tile = atoi(tokens[1].c_str());
-        }
-        else if(tokens[0] == "block_size")
-        {
-            blkSize = atoi(tokens[1].c_str());
         }
         else if(tokens[0] == "num_of_tiles")
         {

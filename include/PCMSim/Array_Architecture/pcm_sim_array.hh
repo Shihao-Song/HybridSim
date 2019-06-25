@@ -2,20 +2,21 @@
 #define __PCMSIM_ARRAY_HH__
 
 #include <list>
+#include <cstdint>
 #include <vector>
 
-#include "../request.hh"
-#include "../../Configs/config.hh"
+#include "Configs/config.hh"
 
 namespace PCMSim
 {
 class Array
 {
-    typedef Configuration::Config Config;
+    typedef uint64_t Tick;
+    typedef Simulator::Config Config;
 
   public:
-    Array(typename Config::Level level_val,
-          Config &cfgs, float nclks_per_ns);
+    Array(typename Config::Array_Level level_val,
+          Config &cfgs);
     ~Array();
 
     struct Info
@@ -27,7 +28,7 @@ class Array
         unsigned num_of_tiles;
         unsigned num_of_parts;
         */
-        unsigned blkSize;
+        unsigned block_size;
 
         // unsigned long long num_of_word_lines_per_bank;
         unsigned num_of_parts_per_bank;
@@ -51,15 +52,13 @@ class Array
     };
     Info arr_info;
 
-    typename Config::Level level;
+    typename Config::Array_Level level;
     int id;
     Array *parent;
     std::vector<Array *>children;
 
-    unsigned write(std::list<Request>::iterator &req);
-    unsigned read(std::list<Request>::iterator &req);
-
     // State information
+    // TODO, make this function like postAccess()
     bool isFree() { return next_free <= cur_clk; }
 
     void update(Tick clk)
@@ -72,14 +71,14 @@ class Array
         }
     }
 
-    void postAccess(typename Config::Level lev, int rank_id, int bank_id,
+    void postAccess(typename Config::Array_Level lev, int rank_id, int bank_id,
                      unsigned latency)
     {
-        if (lev == Config::Level::Channel)
+        if (lev == Config::Array_Level::Channel)
         {
             next_free = cur_clk + latency;
         }
-        else if (lev == Config::Level::Rank)
+        else if (lev == Config::Array_Level::Rank)
         {
             children[rank_id]->next_free = cur_clk + latency;
         }
@@ -89,12 +88,12 @@ class Array
         }
     }
 
-//  private:
+  private:
     Tick cur_clk;
     Tick next_free;
 
     // Helper functions
-    void initArrInfo(Config &cfgs, float nclks_per_ns);
+    void initArrInfo(Config &cfgs);
 };
 }
 

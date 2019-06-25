@@ -1,11 +1,11 @@
-#include "pcm_sim_array.hh"
+#include "PCMSim/Array_Architecture/pcm_sim_array.hh"
 
 namespace PCMSim
 {
-Array::Array(typename Config::Level level_val,
-             Config &cfgs, float nclks_per_ns) : level(level_val), id(0)
+Array::Array(typename Config::Array_Level level_val,
+             Config &cfgs) : level(level_val), id(0)
 {
-    initArrInfo(cfgs, nclks_per_ns);
+    initArrInfo(cfgs);
 
     cur_clk = 0;
     next_free = 0;
@@ -13,19 +13,19 @@ Array::Array(typename Config::Level level_val,
     int child_level = int(level_val) + 1;
     
     // Stop at bank level
-    if (level == Config::Level::Bank)
+    if (level == Config::Array_Level::Bank)
     {
         return;
     }
-    assert(level != Config::Level::Bank);
+    assert(level != Config::Array_Level::Bank);
 
     int child_max = -1;
 
-    if(level_val == Config::Level::Channel)
+    if(level_val == Config::Array_Level::Channel)
     {
         child_max = arr_info.num_of_ranks;
     }
-    else if(level_val == Config::Level::Rank)
+    else if(level_val == Config::Array_Level::Rank)
     {
         child_max = arr_info.num_of_banks;
     }
@@ -33,8 +33,8 @@ Array::Array(typename Config::Level level_val,
 
     for (int i = 0; i < child_max; ++i)
     {
-        Array* child = new Array(typename Config::Level(child_level),
-                                 cfgs, nclks_per_ns);
+        Array* child = new Array(typename Config::Array_Level(child_level),
+                                 cfgs);
         child->parent = this;
         child->id = i;
         children.push_back(child);
@@ -49,9 +49,9 @@ Array::~Array()
     }
 }
 
-void Array::initArrInfo(Config &cfgs, float nclks_per_ns)
+void Array::initArrInfo(Config &cfgs)
 {
-    arr_info.blkSize = cfgs.blkSize;
+    arr_info.block_size = cfgs.block_size;
 
 //    arr_info.num_of_word_lines_per_bank = cfgs.num_of_word_lines_per_tile *
 //                                          cfgs.num_of_parts;
@@ -77,22 +77,5 @@ void Array::initArrInfo(Config &cfgs, float nclks_per_ns)
     arr_info.pj_bit_rd = cfgs.pj_bit_rd;
     arr_info.pj_bit_set = cfgs.pj_bit_set;
     arr_info.pj_bit_reset = cfgs.pj_bit_reset;
-}
-
-// @ECEC-623, please re-code these two functions.
-unsigned Array::write(std::list<Request>::iterator &req)
-{
-    unsigned lat = arr_info.tRCD + arr_info.tData +
-                   arr_info.tWL + arr_info.tWR;
-
-    return lat;
-}
-
-unsigned Array::read(std::list<Request>::iterator &req)
-{
-    unsigned lat = arr_info.tRCD + arr_info.tData +
-                   arr_info.tCL;
-
-    return lat;
 }
 }

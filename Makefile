@@ -1,7 +1,7 @@
-SOURCE  := Main.cpp Memory_System/pcm_sim_memory_system.cc Controller/pcm_sim_controller.cc Configs/pcm_sim_config.cc Array_Architecture/pcm_sim_array.cc Trace/pcm_sim_trace.cc
+SOURCE  := Main.cc src/Configs/config.cc src/PCMSim/Array_Architecture/pcm_sim_array.cc src/PCMSim/Controller/pcm_sim_controller.cc
 
 CC      := g++
-FLAGS   := -O3 -std=c++11 -w
+FLAGS   := -O3 -std=c++17 -w -I include
 TARGET  := PCMSim
 
 all: $(TARGET)
