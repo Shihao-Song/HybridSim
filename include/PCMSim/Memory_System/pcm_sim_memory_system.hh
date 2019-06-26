@@ -1,6 +1,7 @@
 #ifndef __PCMSIM_MEMORY_SYSTEM_HH__
 #define __PCMSIM_MEMORY_SYSTEM_HH__
 
+#include "Sim/clocked_object.hh"
 #include "Sim/config.hh"
 #include "Sim/request.hh"
 
