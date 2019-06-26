@@ -5,6 +5,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <math.h>
 #include <string>
 #include <vector>
 
@@ -94,9 +95,11 @@ class Config
 	// Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
         Rank, Row, Col, Partition, Bank, Channel, Cache_Line, MAX
     };
+    std::vector<int> mem_addr_decoding_bits;
+    void genMemAddrDecodingBits();
 
     // For PCM
-    unsigned sizeInGB()
+    unsigned sizeOfPCMInGB()
     {
         unsigned long long num_of_word_lines_per_bank = num_of_word_lines_per_tile *
                                                         num_of_parts;

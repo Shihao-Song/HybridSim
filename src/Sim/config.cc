@@ -5,6 +5,35 @@ namespace Simulator
 Config::Config(const std::string &cfg_file)
 {
     parse(cfg_file);
+
+    // Generate memory address decoding bits
+    genMemAddrDecodingBits();
+}
+
+void Config::genMemAddrDecodingBits()
+{
+    mem_addr_decoding_bits.resize(int(Decoding::MAX));
+
+    mem_addr_decoding_bits[int(Decoding::Rank)] = int(log2(num_of_ranks));
+
+    // I assume all the tiles lined up horizontally, the number of rows in a partition equals
+    // to the number of rows in a tile.
+    mem_addr_decoding_bits[int(Decoding::Row)] = int(log2(num_of_word_lines_per_tile));
+
+    // Same as above, I assume all the tiles lined up horizontally.
+    unsigned num_of_byte_lines_per_bank = num_of_bit_lines_per_tile /
+                                          8 *
+                                          num_of_tiles;
+    mem_addr_decoding_bits[int(Decoding::Col)] =
+        int(log2(num_of_byte_lines_per_bank / block_size));
+
+    mem_addr_decoding_bits[int(Decoding::Partition)] = int(log2(num_of_parts));
+
+    mem_addr_decoding_bits[int(Decoding::Bank)] = int(log2(num_of_banks));
+
+    mem_addr_decoding_bits[int(Decoding::Channel)] = int(log2(num_of_channels));
+
+    mem_addr_decoding_bits[int(Decoding::Cache_Line)] = int(log2(block_size));
 }
 
 void Config::parse(const std::string &fname)

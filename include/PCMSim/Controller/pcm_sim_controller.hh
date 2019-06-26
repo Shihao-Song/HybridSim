@@ -15,11 +15,11 @@
 
 namespace PCMSim
 {
-// TODO, BaseController should be re-considered in the future.
 class BaseController
 {
   public:
     typedef Simulator::Config Config;
+    typedef Simulator::Request Request;
 
   public:
     std::unique_ptr<Array> channel;
@@ -39,7 +39,10 @@ class BaseController
     virtual ~BaseController() { }
 
     // How many requests left to get served.
-    virtual int getQueueSize() = 0;
+    virtual int pendingRequests() = 0;
+
+    // accepts a (general) request and push it into queue.
+    virtual bool enqueue(Request& req) = 0;
 
     // tick
     virtual void tick() {}
@@ -47,8 +50,6 @@ class BaseController
 
 class Controller : public BaseController
 {
-    typedef Simulator::Request Request;
-
   protected:
     std::list<Request> r_w_q;
     const int max = 64; // Max size of r_w_q
@@ -81,12 +82,12 @@ class Controller : public BaseController
         tData = channel->arr_info.tData;
     }
 
-    int getQueueSize() override 
+    int pendingRequests() override 
     {
         return r_w_q.size() + r_w_pending_queue.size();
     }
     
-    bool enqueue(Request& req)
+    bool enqueue(Request& req) override
     {
         if (r_w_q.size() == max)
         {
