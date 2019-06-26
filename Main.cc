@@ -21,4 +21,5 @@ int main(int argc, const char *argv[])
     
     //PCMSim::Array channel(Config::Array_Level::Channel, cfg);
     //Controller ctrl(0, cfg);
+    PCMSim::NormalPCMSimMemorySystem mem_sys(cfg);
 }

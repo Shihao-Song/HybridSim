@@ -17,7 +17,7 @@
 namespace PCMSim
 {
 template<typename T>
-class PCMSimMemorySystem
+class PCMSimMemorySystem : public Simulator::Clocked_Object
 {
   private:
     std::vector<std::unique_ptr<T>> controllers;
@@ -27,7 +27,7 @@ class PCMSimMemorySystem
     typedef Simulator::Config Config;
     typedef Simulator::Request Request;
 
-    PCMSimMemorySystem(Config &cfg)
+    PCMSimMemorySystem(Config &cfg) : Simulator::Clocked_Object()
     {
         // Initialize
         init(cfg);
@@ -50,7 +50,7 @@ class PCMSimMemorySystem
         return outstandings;
     }
 
-    bool send(Request &req)
+    bool send(Request &req) override
     {
         req.addr_vec.resize(int(Config::Decoding::MAX));
 
@@ -66,7 +66,7 @@ class PCMSimMemorySystem
         return false;
     }
 
-    void tick()
+    void tick() override
     {
         for (auto &controller : controllers)
         {
@@ -102,5 +102,7 @@ class PCMSimMemorySystem
         return lbits;
     }
 };
+
+typedef PCMSimMemorySystem<Controller> NormalPCMSimMemorySystem;
 }
 #endif
