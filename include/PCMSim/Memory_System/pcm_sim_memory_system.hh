@@ -32,8 +32,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
         // Initialize
         init(cfg);
 
-        std::cout << "\nMemory Controller: " << cfg.mem_controller_family << "-"
-                                             << cfg.mem_controller_type << ".\n";
+        std::cout << "\nMemory Controller: " << cfg.mem_controller_type << ".\n";
 
         std::cout << "\nPCM System: " << cfg.sizeOfPCMInGB() << " GB.\n";
     }
@@ -103,6 +102,46 @@ class PCMSimMemorySystem : public Simulator::MemObject
     }
 };
 
-typedef PCMSimMemorySystem<Controller> NormalPCMSimMemorySystem;
+typedef PCMSimMemorySystem<FCFS_Controller> FCFS_PCMSimMemorySystem;
+
+class PCMSimMemorySystemFactory
+{
+    typedef Simulator::Config Config;
+    typedef Simulator::MemObject MemObject;
+
+  private:
+    std::unordered_map<std::string,
+                       std::function<std::unique_ptr<MemObject>(Config&)>> factories;
+
+  public:
+    PCMSimMemorySystemFactory()
+    {
+        factories["FCFS"] = [](Config &cfg)
+                            {
+                                return std::make_unique<FCFS_PCMSimMemorySystem>(cfg);
+                            };
+    }
+
+    auto createPCMSimMemorySystem(Config &cfg)
+    {
+        std::string type = cfg.mem_controller_type;
+        if (auto iter = factories.find(type);
+            iter != factories.end())
+        {
+            return iter->second(cfg);
+        }
+        else
+        {
+            std::cerr << "Unsupported memory controller type. \n";
+            exit(0);
+        }
+    }
+};
+
+static PCMSimMemorySystemFactory PCMSimMemorySystemFactories;
+auto createPCMSimMemorySystem(Simulator::Config &cfg)
+{
+    return PCMSimMemorySystemFactories.createPCMSimMemorySystem(cfg);
+}
 }
 #endif

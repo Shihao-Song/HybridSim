@@ -2,8 +2,6 @@
 
 #include "Simulation.h"
 
-typedef Simulator::Config Config;
-
 int main(int argc, const char *argv[])
 {
     /*
@@ -18,8 +16,5 @@ int main(int argc, const char *argv[])
     */
 
     Config cfg(argv[1]);
-    
-    //PCMSim::Array channel(Config::Array_Level::Channel, cfg);
-    //Controller ctrl(0, cfg);
-    PCMSim::NormalPCMSimMemorySystem mem_sys(cfg);
+    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));   
 }

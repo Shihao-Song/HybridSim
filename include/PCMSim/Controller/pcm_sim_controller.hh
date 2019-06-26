@@ -113,6 +113,8 @@ class Controller : public BaseController
     void servePendingAccesses();
     void channelAccess();
 };
+
+typedef Controller FCFS_Controller;
 }
 
 #endif
