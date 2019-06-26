@@ -1,7 +1,7 @@
 #ifndef __PCMSIM_MEMORY_SYSTEM_HH__
 #define __PCMSIM_MEMORY_SYSTEM_HH__
 
-#include "Sim/clocked_object.hh"
+#include "Sim/mem_object.hh"
 #include "Sim/config.hh"
 #include "Sim/request.hh"
 
@@ -17,7 +17,7 @@
 namespace PCMSim
 {
 template<typename T>
-class PCMSimMemorySystem : public Simulator::Clocked_Object
+class PCMSimMemorySystem : public Simulator::MemObject
 {
   private:
     std::vector<std::unique_ptr<T>> controllers;
@@ -27,7 +27,7 @@ class PCMSimMemorySystem : public Simulator::Clocked_Object
     typedef Simulator::Config Config;
     typedef Simulator::Request Request;
 
-    PCMSimMemorySystem(Config &cfg) : Simulator::Clocked_Object()
+    PCMSimMemorySystem(Config &cfg) : Simulator::MemObject()
     {
         // Initialize
         init(cfg);
