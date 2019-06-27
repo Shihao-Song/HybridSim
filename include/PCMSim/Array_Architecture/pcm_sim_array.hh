@@ -58,8 +58,19 @@ class Array
     std::vector<Array *>children;
 
     // State information
-    // TODO, make this function like postAccess()
-    bool isFree() { return next_free <= cur_clk; }
+    bool isFree(int target_rank, int target_bank)
+    {
+        if (children[target_rank]->children[target_bank]->next_free <= cur_clk &&
+            children[target_rank]->next_free <= cur_clk &&
+            next_free <= cur_clk)
+        {
+            return true;
+	}
+        else
+        {
+            return false;
+        }
+    }
 
     void update(Tick clk)
     { 
@@ -71,20 +82,27 @@ class Array
         }
     }
 
-    void postAccess(typename Config::Array_Level lev, int rank_id, int bank_id,
-                     unsigned latency)
+    void postAccess(int rank_id, int bank_id,
+                    unsigned channel_latency,
+                    unsigned rank_latency,
+                    unsigned bank_latency)
     {
-        if (lev == Config::Array_Level::Channel)
+        // Add channel latency
+        next_free = cur_clk + channel_latency;
+
+        // Add bank latency
+        children[rank_id]->children[bank_id]->next_free = cur_clk + bank_latency;
+
+        // All other ranks won't be available until this rank is fully de-coupled.
+        int num_of_ranks = arr_info.num_of_ranks;
+        for (int i = 0; i < num_of_ranks; i++)
         {
-            next_free = cur_clk + latency;
-        }
-        else if (lev == Config::Array_Level::Rank)
-        {
-            children[rank_id]->next_free = cur_clk + latency;
-        }
-	else
-	{
-            children[rank_id]->children[bank_id]->next_free = cur_clk + latency;
+            if (i == rank_id)
+            {
+                continue;
+            }
+
+            children[i]->next_free = cur_clk + rank_latency;
         }
     }
 

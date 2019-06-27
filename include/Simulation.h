@@ -34,6 +34,8 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 
     Request req;
 
+    std::cout << "\nMemory-trace driven simulation...\n";
+    uint64_t Tick = 0;
     bool stall, end = false;
 
     while (!end || mem_obj->pendingRequests())
@@ -49,9 +51,10 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
         }
 
         mem_obj->tick();
+        ++Tick;
     }
 
-    std::cout << "\nMem-trace driven simulation is done. \n";
+    std::cout << "\nEnd Execution Time: " << Tick << "\n";
 }
 
 #endif

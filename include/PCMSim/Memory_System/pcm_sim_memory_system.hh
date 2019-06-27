@@ -36,10 +36,12 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
         std::cout << "\nPCM System: " << cfg.sizeOfPCMInGB() << " GB.\n";
 
+        /*
         for (int i = 0; i < memory_addr_decoding_bits.size(); i++)
         {
             std::cout << memory_addr_decoding_bits[i] << "\n";
         }
+        */
     }
 
     int pendingRequests() override
@@ -108,6 +110,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
 };
 
 typedef PCMSimMemorySystem<FCFS_Controller> FCFS_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<FR_FCFS_Controller> FR_FCFS_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -124,6 +127,11 @@ class PCMSimMemorySystemFactory
         factories["FCFS"] = [](Config &cfg)
                             {
                                 return std::make_unique<FCFS_PCMSimMemorySystem>(cfg);
+                            };
+
+        factories["FR-FCFS"] = [](Config &cfg)
+                            {
+                                return std::make_unique<FR_FCFS_PCMSimMemorySystem>(cfg);
                             };
     }
 

@@ -46,9 +46,56 @@ class BaseController
 
     // tick
     virtual void tick() {}
+
+     // Some function Proxy
+  protected:
+    auto issueable(auto req)
+    {
+        int target_rank = (req->addr_vec)[int(Config::Decoding::Rank)];
+        int target_bank = (req->addr_vec)[int(Config::Decoding::Bank)];
+
+        return channel->isFree(target_rank, target_bank);
+    }
+
+    auto postAccess(auto scheduled_req,
+                    unsigned channel_latency,
+                    unsigned rank_latency,
+                    unsigned bank_latency)
+    {
+        int rank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
+        int bank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Bank)];
+
+        channel->postAccess(rank_id, bank_id,
+                            channel_latency,
+                            rank_latency,
+                            bank_latency);
+    }
+
+    auto displayReqInfo(auto &req)
+    {
+        std::cout << req.addr_vec[int(Config::Decoding::Channel)] << ","
+                  << req.addr_vec[int(Config::Decoding::Rank)] << ","
+                  << req.addr_vec[int(Config::Decoding::Bank)] << ",";
+
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            std::cout << "R,";
+        }
+        else
+        {
+            std::cout << "W,";
+        }
+
+        std::cout << req.begin_exe << ","
+                  << req.end_exe << "\n";
+    }
 };
 
-class Controller : public BaseController
+struct FCFS{};
+struct FR_FCFS{};
+
+template <typename S>
+class SampleController : public BaseController
 {
   protected:
     std::list<Request> r_w_q;
@@ -56,16 +103,13 @@ class Controller : public BaseController
 
     std::deque<Request> r_w_pending_queue;
 
-  protected:
-    bool scheduled;
-    std::list<Request>::iterator scheduled_req;
-
   public:
 
-    Controller(int _id, Config &cfg)
-        : BaseController(_id, cfg),
-          scheduled(0)
+    SampleController(int _id, Config &cfg)
+        : BaseController(_id, cfg)
     {
+        // TODO, the followings should not be here.
+        // Should use get... instead in order to hide implementation details.
         // Initialize timing info
         read_latency = channel->arr_info.tRCD +
                        channel->arr_info.tData +
@@ -100,7 +144,22 @@ class Controller : public BaseController
         return true;
     }
 
-    void tick() override;
+    void tick() override
+    {
+        clk++;
+        channel->update(clk);
+
+        servePendingAccesses();
+
+        if (auto [scheduled, scheduled_req] = getHead();
+            scheduled)
+        {
+            channelAccess(scheduled_req);
+
+            r_w_pending_queue.push_back(std::move(*scheduled_req));
+            r_w_q.erase(scheduled_req);
+        }
+    }
 
   protected:
     unsigned read_latency;
@@ -109,12 +168,93 @@ class Controller : public BaseController
     unsigned tData; 
 
   protected:
-    bool issueAccess();
-    void servePendingAccesses();
-    void channelAccess();
+
+    void servePendingAccesses()
+    {
+        if (!r_w_pending_queue.size())
+        {
+            return;
+        }
+
+        Request &req = r_w_pending_queue[0];
+        if (req.end_exe <= clk)
+        {
+            if (req.callback)
+            {
+                req.callback(req);
+            }
+            // displayReqInfo(req); // To review request info in run-time
+            r_w_pending_queue.pop_front();
+        }
+    }
+
+    auto getHead()
+    {
+        if (r_w_q.size() == 0)
+        {
+            // Queue is empty, nothing to be scheduled.
+            return std::make_pair(false, r_w_q.end());
+        }
+
+        // constexpr-if is determined in compile-time.
+        if constexpr(std::is_same<FCFS, S>::value)
+        {
+            auto req = r_w_q.begin();
+            if (issueable(req))
+            {
+                return std::make_pair(true, req);
+            }
+            return std::make_pair(false, r_w_q.end());
+        }
+        else if constexpr(std::is_same<FR_FCFS, S>::value)
+        {
+            for (auto iter = r_w_q.begin(); iter != r_w_q.end(); ++iter)
+            {
+                if (issueable(iter))
+                {
+                    return std::make_pair(true, iter);
+                }
+            }
+            return std::make_pair(false, r_w_q.end());
+        }
+    }
+    
+    void channelAccess(auto scheduled_req)
+    {
+        scheduled_req->begin_exe = clk;
+
+        unsigned req_latency = 0;
+        unsigned bank_latency = 0;
+        unsigned channel_latency = 0;
+
+        if (scheduled_req->req_type == Request::Request_Type::READ)
+        {
+            req_latency = read_latency;
+            bank_latency = read_bank_latency;
+            channel_latency = tData;
+        }
+        else if (scheduled_req->req_type == Request::Request_Type::WRITE)
+        {
+            req_latency = write_latency;
+            bank_latency = write_latency;
+            channel_latency = tData;
+        }
+
+        scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
+
+        // Post access
+        postAccess(scheduled_req,
+                   channel_latency,
+                   req_latency, // This is rank latency for other ranks.
+                                // Since there is no rank-level parall,
+                                // other ranks must wait until the current rank
+                                // to be fully de-coupled.
+                   bank_latency);
+    }
 };
 
-typedef Controller FCFS_Controller;
+typedef SampleController<FCFS> FCFS_Controller;
+typedef SampleController<FR_FCFS> FR_FCFS_Controller;
 }
 
 #endif
