@@ -16,5 +16,9 @@ int main(int argc, const char *argv[])
     */
 
     Config cfg(argv[1]);
-    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));   
+
+    // Create (PCM) main memory
+    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+
+    // TODO, test PCM before proceeding further.
 }
