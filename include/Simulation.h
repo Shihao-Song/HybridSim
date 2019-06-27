@@ -51,7 +51,7 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
         mem_obj->tick();
     }
 
-    std::cout << "\n Mem-trace driven simulation is done. \n";
+    std::cout << "\nMem-trace driven simulation is done. \n";
 }
 
 #endif

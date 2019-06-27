@@ -91,9 +91,9 @@ class Config
         // Rank, Row, Col, Bank, Channel, Cache_Line, MAX
 
         // Channel-interleaving + Bank-interleaving + Partition-interleaving
-	// When PLP is not enable, you can do this:
-	// Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
-        Rank, Row, Col, Partition, Bank, Channel, Cache_Line, MAX
+	// When PLP is enable, you can do this:
+        // Rank, Row, Col, Partition, Bank, Channel, Cache_Line, MAX
+        Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
     };
     std::vector<int> mem_addr_decoding_bits;
     void genMemAddrDecodingBits();

@@ -48,6 +48,19 @@ void Controller::servePendingAccesses()
 	{
             req.callback(req);
         }
+        std::cout << req.addr_vec[int(Config::Decoding::Channel)] << ","
+                  << req.addr_vec[int(Config::Decoding::Rank)] << ","
+                  << req.addr_vec[int(Config::Decoding::Bank)] << ",";
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            std::cout << "R,";
+        }
+        else
+        {
+            std::cout << "W,";
+        }
+        std::cout << req.begin_exe << ","
+                  << req.end_exe << "\n";
 	r_w_pending_queue.pop_front();
     }
 }
