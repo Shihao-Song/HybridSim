@@ -69,6 +69,9 @@ class Request
     std::list<Request>::iterator master_req;
 
     /* Constructors */
+    Request() : addr(0), req_type(Request_Type::MAX)
+    { }
+
     Request(Addr _addr, Request_Type _type) :
         addr(_addr),
         req_type(_type),

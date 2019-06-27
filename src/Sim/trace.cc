@@ -1,6 +1,6 @@
-#include "pcm_sim_trace.hh"
+#include "Sim/trace.hh"
 
-namespace PCMSim
+namespace Simulator
 {
 Trace::Trace(const std::string trace_fname) : file(trace_fname),
                                               trace_name(trace_fname)
@@ -8,7 +8,7 @@ Trace::Trace(const std::string trace_fname) : file(trace_fname),
     assert(file.good());
 }
 
-bool Trace::getMemtraceRequest(Addr &req_addr, Request::Request_Type &req_type)
+bool Trace::getMemtraceRequest(Request &req)
 {
     std::string line;
     getline(file, line);
@@ -22,32 +22,31 @@ bool Trace::getMemtraceRequest(Addr &req_addr, Request::Request_Type &req_type)
 
     try
     {
-        req_addr = stoull(line, &pos, 0);
+        req.addr = stoull(line, &pos, 0);
     }
     catch (std::out_of_range e)
     {
-        req_addr = 0;
-        req_type = Request::Request_Type::READ;
+        req.addr = 0;
+        req.req_type = Request::Request_Type::READ;
 
         return true;	
     }
 
-    // Extract request type and data (for write request only)
     pos = line.find_first_not_of(' ', pos+1);
 
-    if (pos == std::string::npos || line.substr(pos)[0] == 'R')
+    if (line.substr(pos)[0] == 'R')
     {
-	req_type = Request::Request_Type::READ;
+	req.req_type = Request::Request_Type::READ;
     }
     else if (line.substr(pos)[0] == 'W')
     {
-        req_type = Request::Request_Type::WRITE;
+        req.req_type = Request::Request_Type::WRITE;
     }
     else 
     {
         file.close();
-        return false;
-        // assert(false);
+        std::cerr << "Corrupted trace file. \n";
+        exit(0);
     }
 
     return true;

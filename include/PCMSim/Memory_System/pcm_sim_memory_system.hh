@@ -37,7 +37,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
         std::cout << "\nPCM System: " << cfg.sizeOfPCMInGB() << " GB.\n";
     }
 
-    int pendingRequests()
+    int pendingRequests() override
     {
         int outstandings = 0;
 

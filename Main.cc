@@ -4,7 +4,6 @@
 
 int main(int argc, const char *argv[])
 {
-    /*
     if (argc != 3)
     {
         std::cerr << "Usage: " << argv[0]
@@ -13,12 +12,13 @@ int main(int argc, const char *argv[])
                   << "\n";
         return 0;
     }
-    */
 
+    /* Object Creation */
     Config cfg(argv[1]);
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
-    // TODO, test PCM before proceeding further.
+    /* Simulation */
+    runMemTrace(PCM.get(), argv[2]);
 }

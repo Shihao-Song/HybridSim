@@ -1,21 +1,23 @@
-#ifndef __PCMSSIM_TRACE_HH__
-#define __PCMSSIM_TRACE_HH__
+#ifndef __SIM_TRACE_HH__
+#define __SIM_TRACE_HH__
 
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <string>
 
-#include "../request.hh"
+#include "Sim/request.hh"
 
-namespace PCMSim
+namespace Simulator
 {
 class Trace
 {
+    typedef uint64_t Addr;
+
   public:
     Trace(const std::string trace_fname);
 
-    bool getMemtraceRequest(Addr &req_addr, Request::Request_Type &req_type);
+    bool getMemtraceRequest(Request &req);
 
   private:
     std::ifstream file;

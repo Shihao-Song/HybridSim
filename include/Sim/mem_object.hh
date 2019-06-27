@@ -11,6 +11,8 @@ class MemObject
   public:
     MemObject(){}
 
+    virtual int pendingRequests() = 0;
+
     virtual bool send(Request &req) = 0;
     virtual void tick() {}
 };
