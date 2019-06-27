@@ -47,7 +47,7 @@ class BaseController
     // tick
     virtual void tick() {}
 
-     // Some function Proxy
+     // Some Proxy functions
   protected:
     auto issueable(auto req)
     {
@@ -108,8 +108,9 @@ class SampleController : public BaseController
     SampleController(int _id, Config &cfg)
         : BaseController(_id, cfg)
     {
-        // TODO, the followings should not be here.
-        // Should use get... instead in order to hide implementation details.
+        // TODO, the followings should not be here. This violates the SOLID design pattern
+        // because as a higher level class, should not depend too much on the low-level
+        // implementation details.
         // Initialize timing info
         read_latency = channel->arr_info.tRCD +
                        channel->arr_info.tData +

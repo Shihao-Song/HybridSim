@@ -1,8 +1,9 @@
 #ifndef __PCMSIM_ARRAY_HH__
 #define __PCMSIM_ARRAY_HH__
 
-#include <list>
 #include <cstdint>
+#include <list>
+#include <memory>
 #include <vector>
 
 #include "Sim/config.hh"
@@ -16,28 +17,47 @@ class Array
 
   public:
     Array(typename Config::Array_Level level_val,
-          Config &cfgs);
-    ~Array();
+          Config &cfg) : level(level_val), id(0)
+    {
+        initArrInfo(cfg);
+
+        cur_clk = 0;
+        next_free = 0;
+
+        int child_level = int(level_val) + 1;
+
+        // Stop at bank level
+        if (level == Config::Array_Level::Bank)
+        {
+            return;
+        }
+        assert(level != Config::Array_Level::Bank);
+
+        int child_max = -1;
+
+        if(level_val == Config::Array_Level::Channel)
+        {
+            child_max = cfg.num_of_ranks;
+        }
+        else if(level_val == Config::Array_Level::Rank)
+        {
+            child_max = cfg.num_of_banks;
+        }
+        assert(child_max != -1);
+
+        for (int i = 0; i < child_max; ++i)
+        {
+            std::unique_ptr<Array> child =
+            std::make_unique< Array>(typename Config::Array_Level(child_level), cfg);
+
+            child->parent = this;
+            child->id = i;
+            children.push_back(std::move(child));
+        }
+    }
 
     struct Info
     {
-        // Array Architecture
-	/*
-        unsigned num_of_word_lines_per_tile;
-        unsigned num_of_bit_lines_per_tile;
-        unsigned num_of_tiles;
-        unsigned num_of_parts;
-        */
-        unsigned block_size;
-
-        // unsigned long long num_of_word_lines_per_bank;
-        unsigned num_of_parts_per_bank;
-        unsigned long long num_of_word_lines_per_part;
-        unsigned long long num_of_byte_lines_per_bank;
-        unsigned num_of_banks;
-        unsigned num_of_ranks;
-        unsigned num_of_channels;
-
         // Timing and energy parameters
         unsigned tRCD;
         unsigned tData;
@@ -55,7 +75,7 @@ class Array
     typename Config::Array_Level level;
     int id;
     Array *parent;
-    std::vector<Array *>children;
+    std::vector<std::unique_ptr<Array>>children;
 
     // State information
     bool isFree(int target_rank, int target_bank)
@@ -76,7 +96,7 @@ class Array
     { 
         cur_clk = clk; 
     
-        for (auto child : children)
+        for (auto &child : children)
         {
             child->update(clk);
         }
@@ -94,7 +114,7 @@ class Array
         children[rank_id]->children[bank_id]->next_free = cur_clk + bank_latency;
 
         // All other ranks won't be available until this rank is fully de-coupled.
-        int num_of_ranks = arr_info.num_of_ranks;
+        int num_of_ranks = children.size();
         for (int i = 0; i < num_of_ranks; i++)
         {
             if (i == rank_id)
@@ -111,7 +131,19 @@ class Array
     Tick next_free;
 
     // Helper functions
-    void initArrInfo(Config &cfgs);
+    void initArrInfo(Config &cfg)
+    {
+        arr_info.tRCD = cfg.tRCD;
+        arr_info.tData = cfg.tData;
+        arr_info.tWL = cfg.tWL;
+
+        arr_info.tWR = cfg.tWR;
+        arr_info.tCL = cfg.tCL;
+
+        arr_info.pj_bit_rd = cfg.pj_bit_rd;
+        arr_info.pj_bit_set = cfg.pj_bit_set;
+        arr_info.pj_bit_reset = cfg.pj_bit_reset;
+    }
 };
 }
 
