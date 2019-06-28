@@ -6,11 +6,11 @@
 
 namespace CacheSimulator
 {
-typedef uint64_t Addr;
-typedef uint64_t Tick;
-
 class Blk
 {
+    typedef uint64_t Addr;
+    typedef uint64_t Tick;
+
   public:
     // Initially, all blks should not be valid
     Blk() : valid(0), dirty(0), when_touched(0) {}
@@ -39,7 +39,7 @@ class Blk
 
     bool dirty; // Has the brought in cache-line been modified yet?
 
-    Tick when_touched;
+    Tick when_touched; // Last clock tick the Block is touched.
 };
 
 class SetWayBlk : public Blk
@@ -63,6 +63,7 @@ class FABlk : public Blk
 {
   public:
     FABlk() : Blk(), prev(nullptr), next(nullptr) {}
+
     /*
      * prev and next are determined by the replacement policy. For example,
      * when LRU is used, prev means the previous block in LRU order.
@@ -75,4 +76,5 @@ class FABlk : public Blk
     FABlk *next;
 };
 }
+
 #endif

@@ -20,7 +20,7 @@ class SetWayAssocLRU : public SetWayAssocReplacementPolicy
         victim->when_touched = 0;
     }
 
-    SetWayBlk* findVictim(const std::vector<SetWayBlk *>&set) const override
+    SetWayBlk* findVictim(const std::vector<SetWayBlk *> &set) const override
     {
         assert(set.size() > 0);
 

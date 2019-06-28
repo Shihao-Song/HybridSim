@@ -3,39 +3,45 @@
 
 #include <assert.h>
 
-#include "cache_tags.hh"
-#include "../replacement_policies/set_way_lru.hh"
-#include "../../../Sim/config.hh"
+#include "CacheSim/tags/cache_tags.hh"
+#include "CacheSim/tags/replacement_policies/set_way_lru.hh"
+#include "Sim/config.hh"
 
 namespace CacheSimulator
 {
-class SetAssocTags : public TagsWithSetWayBlk
+<template P>
+class SetAssocTags : public Tags<SetWayBlk>
 {
+  protected:
     typedef uint64_t Addr;
-    typedef Configuration::Config Config;
+    typedef uint64_t Tick
 
-  private:
+    typedef Simulator::Config Config;
+
+  protected:
     const int assoc;
 
-    const uint32_t numSets;
+    const uint32_t num_sets;
 
-    const int setShift;
+    const int set_shift;
 
-    const unsigned setMask;
+    const unsigned set_mask;
 
-    const int tagShift;
+    const int tag_shift;
 
     std::vector<std::vector<SetWayBlk *>> sets;
+
+    std::unique_ptr<P> policy;
 
   public:
     SetAssocTags(int level, Config &cfg)
         : TagsWithSetWayBlk(level, cfg),
           assoc(cfg.caches[level].assoc),
-          numSets(size / (blkSize * assoc)),
-          setShift(log2(blkSize)),
-          setMask(numSets - 1),
-          sets(numSets),
-          tagShift(setShift + log2(numSets))
+          num_sets(size / (block_size * assoc)),
+          set_shift(log2(block_size)),
+          set_mask(num_sets - 1),
+          sets(num_sets),
+          tag_shift(set_shift + log2(num_sets))
     {
         for (uint32_t i = 0; i < numSets; i++)
         {

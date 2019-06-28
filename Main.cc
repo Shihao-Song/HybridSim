@@ -3,6 +3,7 @@
 #include "Simulation.h"
 
 #include "CacheSim/cache_queue.hh"
+#include "CacheSim/tags/cache_tags.hh"
 
 int main(int argc, const char *argv[])
 {

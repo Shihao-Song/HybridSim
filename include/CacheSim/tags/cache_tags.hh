@@ -1,38 +1,42 @@
 #ifndef __CACHE_TAGS_HH__
 #define __CACHE_TAGS_HH__
 
-#include "../../../Sim/config.hh"
-#include "../../../PCMSim/request.hh"
-#include "cache_blk.hh"
+#include "Sim/config.hh"
+#include "Sim/request.hh"
+
+#include "CacheSim/cache_blk.hh"
+#include "CacheSim/tags/replacement_policies/replacement_policy.hh"
 
 namespace CacheSimulator
 {
-class SetWayAssocReplacementPolicy;
-class FAReplacementPolicy;
-
 template<class T>
 class Tags
 {
-    typedef Configuration::Config Config;
+  public:
+    typedef uint64_t Addr;
+    typedef uint64_t Tick;
+
+    typedef Simulator::Config Config;
 
   public:
     // Must be a constructor if there are any const type
     Tags(int level, Config &cfg)
-        : blkSize(cfg.blkSize),
-          blkMask(blkSize - 1),
+        : block_size(cfg.block_size),
+          block_mask(block_size - 1),
           size(cfg.caches[level].size * 1024),
-          numBlocks(size / blkSize)
+          num_blocks(size / block_size),
+          blks(new T[num_blocks])
     {
         // std::cout << "Number of blocks: " << numBlocks << "\n\n";
     }
   protected:
-    const unsigned blkSize; // cache-line (block) size
-    const Addr blkMask;
-    const unsigned long long size; // (entire) cache size
-    const unsigned numBlocks; // number of blocks in the cache
+    const unsigned block_size; // cache-line (block) size in bytes
+    const Addr block_mask;
+    const unsigned long long size; // (entire) cache size in bytes
+    const unsigned num_blocks; // number of blocks in the cache
 
   protected:
-    T *blks; // All cache blocks
+    std::unique_ptr<T[]> blks; // All cache blocks
 
   public:
     virtual void tagsInit() {}
@@ -50,7 +54,7 @@ class Tags
     // This is a universal function
     Addr blkAlign(Addr addr) const
     {
-        return addr & ~blkMask;
+        return addr & ~block_mask;
     }
 
     virtual Addr regenerateAddr(T *blk) const = 0;
@@ -59,37 +63,11 @@ class Tags
     virtual T* findBlock(Addr addr) const = 0;    
 };
 
-class TagsWithSetWayBlk : public Tags<SetWayBlk>
-{
-    typedef Configuration::Config Config;
-
-  public:
-    TagsWithSetWayBlk(int level, Config &cfg) :
-        Tags(level, cfg) {}
-
-    virtual ~TagsWithSetWayBlk()
-    {
-        delete blks;
-        delete policy;
-    }
-
-  protected:
-    SetWayAssocReplacementPolicy *policy;
-};
-
 class TagsWithFABlk : public Tags<FABlk>
 {
-    typedef Configuration::Config Config;
-
   public:
     TagsWithFABlk(int level, Config &cfg) :
         Tags(level, cfg) {}
-
-    virtual ~TagsWithFABlk()
-    {
-        delete blks;
-        delete policy;
-    }
 
     virtual unsigned numOccupiedBlocks() = 0; // Only make sense for FA
 
@@ -98,9 +76,7 @@ class TagsWithFABlk : public Tags<FABlk>
     FABlk *tail;
 
   protected:
-    FAReplacementPolicy *policy;
-
-  friend class FAReplacementPolicy;
+    std::unique_ptr<FAReplacementPolicy> policy;
 };
 }
 #endif
