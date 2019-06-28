@@ -9,12 +9,19 @@
 
 namespace CacheSimulator
 {
-<template P>
-class SetAssocTags : public Tags<SetWayBlk>
+class TagsWithSetWayBlk : public Tags<SetWayBlk>
+{
+  public:
+    TagsWithSetWayBlk(int level, Config &cfg) :
+        Tags(level, cfg) {}
+};
+
+template<typename P>
+class SetWayAssocTags : public TagsWithSetWayBlk
 {
   protected:
     typedef uint64_t Addr;
-    typedef uint64_t Tick
+    typedef uint64_t Tick;
 
     typedef Simulator::Config Config;
 
@@ -34,35 +41,34 @@ class SetAssocTags : public Tags<SetWayBlk>
     std::unique_ptr<P> policy;
 
   public:
-    SetAssocTags(int level, Config &cfg)
+    SetWayAssocTags(int level, Config &cfg)
         : TagsWithSetWayBlk(level, cfg),
           assoc(cfg.caches[level].assoc),
           num_sets(size / (block_size * assoc)),
           set_shift(log2(block_size)),
           set_mask(num_sets - 1),
           sets(num_sets),
-          tag_shift(set_shift + log2(num_sets))
+          tag_shift(set_shift + log2(num_sets)),
+          policy(new P())
     {
-        for (uint32_t i = 0; i < numSets; i++)
+        for (uint32_t i = 0; i < num_sets; i++)
         {
             sets[i].resize(assoc);
         }
-        blks = new SetWayBlk[numBlocks];
-        policy = new SetWayAssocLRU();
 
         tagsInit();
 
         std::cout << "Size of cache: " << size / 1024 / 1024 << "MB. \n";
-        std::cout << "Number of blocks: " << numBlocks << "\n";
+        std::cout << "Number of blocks: " << num_blocks << "\n";
         std::cout << "Num of sets: " << sets.size() << "\n";
-        std::cout << "Set shift: " << setShift << "\n";
-        std::cout << "Set mask: " << setMask << "\n";
-        std::cout << "Tag shift: " << tagShift << "\n\n";
+        std::cout << "Set shift: " << set_shift << "\n";
+        std::cout << "Set mask: " << set_mask << "\n";
+        std::cout << "Tag shift: " << tag_shift << "\n\n";
     }
 
     void tagsInit() override
     {
-        for (unsigned i = 0; i < numBlocks; i++)
+        for (unsigned i = 0; i < num_blocks; i++)
         {
             SetWayBlk *blk = &blks[i];
             uint32_t set = i / assoc;
@@ -75,12 +81,12 @@ class SetAssocTags : public Tags<SetWayBlk>
 
     Addr extractSet(Addr addr) const
     {
-        return (addr >> setShift) & setMask;
+        return (addr >> set_shift) & set_mask;
     }
 
     Addr extractTag(Addr addr) const override
     {
-        return (addr >> tagShift);
+        return (addr >> tag_shift);
     }
 
     SetWayBlk *accessBlock(Addr addr, Tick cur_clk = 0) override
@@ -123,7 +129,7 @@ class SetAssocTags : public Tags<SetWayBlk>
 
     Addr regenerateAddr(SetWayBlk *blk) const override
     {
-        return (blk->tag << tagShift) | (blk->getSet() << setShift);
+        return (blk->tag << tag_shift) | (blk->getSet() << set_shift);
     }
 
   protected:
@@ -146,6 +152,10 @@ class SetAssocTags : public Tags<SetWayBlk>
         return nullptr;
     }
 };
+
+typedef SetWayAssocTags<SetWayAssocLRU> LRUSetWayAssocTags;
+// TODO, should be another factory to create SetWayAssocTags;
+// auto createSetWayAssocTags
 }
 
 #endif

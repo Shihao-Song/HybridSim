@@ -1,7 +1,7 @@
 #ifndef __CACHE_SET_WAY_ASSOC_LRU_HH__
 #define __CACHE_SET_WAY_ASSOC_LRU_HH__
 
-#include "replacement_policy.hh"
+#include "CacheSim/tags/replacement_policies/replacement_policy.hh"
 
 namespace CacheSimulator
 {

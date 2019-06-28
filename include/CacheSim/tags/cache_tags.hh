@@ -26,9 +26,8 @@ class Tags
           size(cfg.caches[level].size * 1024),
           num_blocks(size / block_size),
           blks(new T[num_blocks])
-    {
-        // std::cout << "Number of blocks: " << numBlocks << "\n\n";
-    }
+    {}
+
   protected:
     const unsigned block_size; // cache-line (block) size in bytes
     const Addr block_mask;
