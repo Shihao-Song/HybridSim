@@ -106,26 +106,13 @@ class SampleController : public BaseController
   public:
 
     SampleController(int _id, Config &cfg)
-        : BaseController(_id, cfg)
-    {
-        // TODO, the followings should not be here. This violates the SOLID design pattern
-        // because as a higher level class, should not depend too much on the low-level
-        // implementation details.
-        // Initialize timing info
-        read_latency = channel->arr_info.tRCD +
-                       channel->arr_info.tData +
-                       channel->arr_info.tCL;
-
-        read_bank_latency = channel->arr_info.tRCD +
-                            channel->arr_info.tCL;
-
-        write_latency = channel->arr_info.tRCD +
-                        channel->arr_info.tData +
-                        channel->arr_info.tWL +
-                        channel->arr_info.tWR;
-
-        tData = channel->arr_info.tData;
-    }
+        : BaseController(_id, cfg),
+          singleReadLatency(channel->singleReadLatency()),
+          bankDelayCausedBySingleRead(channel->bankDelayCausedBySingleRead()),
+          singleWriteLatency(channel->singleWriteLatency()),
+          bankDelayCausedBySingleWrite(channel->bankDelayCausedBySingleWrite()),
+          dataTransferLatency(channel->dataTransferLatency())
+    {}
 
     int pendingRequests() override 
     {
@@ -163,10 +150,11 @@ class SampleController : public BaseController
     }
 
   protected:
-    unsigned read_latency;
-    unsigned read_bank_latency;
-    unsigned write_latency;
-    unsigned tData; 
+    const unsigned singleReadLatency;
+    const unsigned bankDelayCausedBySingleRead;
+    const unsigned singleWriteLatency;
+    const unsigned bankDelayCausedBySingleWrite;
+    const unsigned dataTransferLatency; 
 
   protected:
 
@@ -230,15 +218,15 @@ class SampleController : public BaseController
 
         if (scheduled_req->req_type == Request::Request_Type::READ)
         {
-            req_latency = read_latency;
-            bank_latency = read_bank_latency;
-            channel_latency = tData;
+            req_latency = singleReadLatency;
+            bank_latency = bankDelayCausedBySingleRead;
+            channel_latency = dataTransferLatency;
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
-            req_latency = write_latency;
-            bank_latency = write_latency;
-            channel_latency = tData;
+            req_latency = singleWriteLatency;
+            bank_latency = bankDelayCausedBySingleWrite;
+            channel_latency = dataTransferLatency;
         }
 
         scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;

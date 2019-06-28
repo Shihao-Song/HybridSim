@@ -71,13 +71,33 @@ class Array
         double pj_bit_reset;
     };
     Info arr_info;
+    unsigned singleReadLatency() const
+    {
+        return arr_info.tRCD + arr_info.tCL + arr_info.tData;
+    }
+    unsigned bankDelayCausedBySingleRead() const
+    {
+        return arr_info.tRCD + arr_info.tCL;
+    }
+    unsigned singleWriteLatency() const
+    {
+        return arr_info.tRCD + arr_info.tData +
+               arr_info.tWL + arr_info.tWR;
+    }
+    unsigned bankDelayCausedBySingleWrite() const
+    {
+        return singleWriteLatency();
+    }
+    unsigned dataTransferLatency() const
+    {
+        return arr_info.tData;
+    }
 
     typename Config::Array_Level level;
     int id;
     Array *parent;
     std::vector<std::unique_ptr<Array>>children;
 
-    // State information
     bool isFree(int target_rank, int target_bank)
     {
         if (children[target_rank]->children[target_bank]->next_free <= cur_clk &&
