@@ -7,15 +7,17 @@
 #include <memory>
 #include <vector>
 
-typedef uint64_t Addr;
-typedef uint64_t Tick;
-
+/*
 const Addr MaxAddr = (Addr)-1;
+*/
 
 namespace Simulator
 {
 class Request
 {
+    typedef uint64_t Addr;
+    typedef uint64_t Tick;
+
   public:
     Addr addr;
 

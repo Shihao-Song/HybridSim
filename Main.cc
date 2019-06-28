@@ -2,6 +2,8 @@
 
 #include "Simulation.h"
 
+#include "CacheSim/cache_queue.hh"
+
 int main(int argc, const char *argv[])
 {
     if (argc != 3)

@@ -18,6 +18,9 @@ namespace PCMSim
 class BaseController
 {
   public:
+    typedef uint64_t Addr;
+    typedef uint64_t Tick;
+
     typedef Simulator::Config Config;
     typedef Simulator::Request Request;
 

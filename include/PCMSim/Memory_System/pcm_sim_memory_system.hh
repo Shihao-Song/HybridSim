@@ -24,6 +24,9 @@ class PCMSimMemorySystem : public Simulator::MemObject
     std::vector<int> memory_addr_decoding_bits;
 
   public:
+    typedef uint64_t Addr;
+    typedef uint64_t Tick;
+
     typedef Simulator::Config Config;
     typedef Simulator::Request Request;
 
