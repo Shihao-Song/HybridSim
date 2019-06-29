@@ -71,21 +71,5 @@ class Tags
     // 
     virtual void invalidate(T* victim) {}
 };
-
-class TagsWithFABlk : public Tags<FABlk>
-{
-  public:
-    TagsWithFABlk(int level, Config &cfg) :
-        Tags(level, cfg) {}
-
-    virtual unsigned numOccupiedBlocks() = 0; // Only make sense for FA
-
-   protected:
-    FABlk *head;
-    FABlk *tail;
-
-  protected:
-    std::unique_ptr<FAReplacementPolicy> policy;
-};
 }
 #endif

@@ -28,7 +28,7 @@ class SetWayAssocReplacementPolicy
         : ReplacementPolicy()
     {}
 
-    virtual std::pair<bool, SetWayBlk*> findVictim(const std::vector<SetWayBlk *>&set) const
+    virtual std::pair<bool, SetWayBlk*> findVictim(const std::vector<SetWayBlk *>&set)
                                         = 0; 
 };
 
@@ -40,16 +40,8 @@ class FAReplacementPolicy
         : ReplacementPolicy()
     {}
 
-    virtual void policyInit(FABlk *blks, FABlk **head, FABlk **tail)
-    {
-        blks = blks;
-        head = head;
-        tail = tail;
-    }
+    virtual std::pair<bool, FABlk*> findVictim(Addr addr) = 0;
 
-    virtual FABlk* findVictim(Addr addr) = 0;
-
-  protected:
     FABlk *blks;
 
     FABlk **head;

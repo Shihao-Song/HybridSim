@@ -4,6 +4,7 @@
 
 #include "CacheSim/cache_queue.hh"
 #include "CacheSim/tags/set_assoc_tags.hh"
+#include "CacheSim/tags/fa_tags.hh"
 
 int main(int argc, const char *argv[])
 {
@@ -22,8 +23,9 @@ int main(int argc, const char *argv[])
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
-    CacheSimulator::LRUSetWayAssocTags tags(int (Config::Cache_Level::L3), cfg);
-   
+    //CacheSimulator::LRUSetWayAssocTags tags(int (Config::Cache_Level::L3), cfg);
+    CacheSimulator::LRUFATags tags(int (Config::Cache_Level::eDRAM), cfg);
+
     Trace mem_trace(argv[2]);
     bool end = false;
     Request req;
@@ -53,41 +55,6 @@ int main(int argc, const char *argv[])
         clk++;
     }
 
-    /*
-    if (auto [hit, aligned_addr] = tags.accessBlock(562950015231488);
-        !hit)
-    {
-        if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr);
-            !wb_required)
-        {
-            std::cout << "No write-back is required. \n";
-        }
-    }
-    
-    if (auto [hit, aligned_addr] = tags.accessBlock(844425010634752);
-        !hit)
-    {
-        if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr);
-            !wb_required)
-        {
-            std::cout << "No write-back is required. \n";
-        }
-    }
-
-    if (auto [hit, aligned_addr] = tags.accessBlock(1125899957984640);
-        !hit)
-    {
-        if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr);
-            !wb_required)
-        {
-            std::cout << "No write-back is required. \n";
-        }
-        else
-        {
-            std::cout << "Write-back address: " << wb_addr << "\n";
-        }
-    }
-    */
     exit(0);
     /* Simulation */
     // runMemTrace(PCM.get(), argv[2]);
