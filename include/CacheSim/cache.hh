@@ -39,6 +39,9 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> wb_queue;
 
   protected:
+    std::deque<Request> pending_queue;
+
+  protected:
     Simulator::MemObject *next_level;
 
   protected:
@@ -55,6 +58,11 @@ class Cache : public Simulator::MemObject
         : Simulator::MemObject()
     {
     
+    }
+
+    int pendingRequests() override
+    {
+        return pending_queue.size(); 
     }
 
     void setNextLevel(Simulator::MemObject *_next_level)

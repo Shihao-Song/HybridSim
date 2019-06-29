@@ -88,12 +88,6 @@ class Cache
         std::cout << "Lookup latency: " << tag_lookup_latency << "\n";
     }
 
-    ~Cache()
-    {
-        delete mshrs;
-        delete wb_queue;
-    }
-
     bool blocked() { return (mshrs->isFull() || wb_queue->isFull()); }
 
     bool access(Request &req)
@@ -202,15 +196,7 @@ class Cache
         }
     }
 
-    unsigned numOutstanding()
-    {
-        return (pcm->pendingRequests() + mshrs->numEntries() +
-                wb_queue->numEntries() + pending_queue_for_hits.size());
-    }
-
   private:
-    std::deque<Request> pending_queue_for_hits; // for read/write hits
-
     // TODO, should also invoke call-back function as well.
     void servePendingHits()
     {
