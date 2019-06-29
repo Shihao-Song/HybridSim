@@ -1,6 +1,8 @@
 #ifndef __CACHE_HH__
 #define __CACHE_HH__
 
+// TODO, clean this up!
+
 #include "../../Sim/config.hh"
 #include "../../PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "util/deferred_queue.hh"

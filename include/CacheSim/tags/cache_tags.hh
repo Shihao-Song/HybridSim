@@ -65,7 +65,6 @@ class Tags
     // Find the victim block to be replaced
     virtual std::tuple<bool, Addr, T*> findVictim(Addr addr) = 0;
     
-    // 
     virtual void invalidate(T* victim) {}
 };
 }
