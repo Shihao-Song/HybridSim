@@ -20,7 +20,7 @@ class SetWayAssocLRU : public SetWayAssocReplacementPolicy
         victim->when_touched = 0;
     }
 
-    SetWayBlk* findVictim(const std::vector<SetWayBlk *> &set) const override
+    std::pair<bool, SetWayBlk*> findVictim(const std::vector<SetWayBlk *> &set) const override
     {
         assert(set.size() > 0);
 
@@ -36,7 +36,10 @@ class SetWayAssocLRU : public SetWayAssocReplacementPolicy
             }
         }
 
-        if (victim != nullptr) { return victim; }
+        bool send_back_required = false;
+        if (victim != nullptr) { return std::make_pair(send_back_required, victim); }
+
+        send_back_required = true;
         // All the ways are valid
         victim = set[0];
         for (const auto way : set)
@@ -47,7 +50,7 @@ class SetWayAssocLRU : public SetWayAssocReplacementPolicy
                 victim = way;
             }
         }
-        return victim;
+        return std::make_pair(send_back_required, victim);
     }
 };
 }

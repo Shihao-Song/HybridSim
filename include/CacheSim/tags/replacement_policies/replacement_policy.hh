@@ -28,7 +28,8 @@ class SetWayAssocReplacementPolicy
         : ReplacementPolicy()
     {}
 
-    virtual SetWayBlk* findVictim(const std::vector<SetWayBlk *>&set) const = 0; 
+    virtual std::pair<bool, SetWayBlk*> findVictim(const std::vector<SetWayBlk *>&set) const
+                                        = 0; 
 };
 
 class FAReplacementPolicy

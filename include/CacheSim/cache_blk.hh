@@ -24,7 +24,6 @@ class Blk
     
     void invalidate()
     {
-        assert(valid == 1);
         valid = 0;
     }
 

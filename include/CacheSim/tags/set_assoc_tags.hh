@@ -58,14 +58,42 @@ class SetWayAssocTags : public TagsWithSetWayBlk
 
         tagsInit();
 
-        std::cout << "Size of cache: " << size / 1024 / 1024 << "MB. \n";
-        std::cout << "Number of blocks: " << num_blocks << "\n";
+        std::cout << "\nNumber of blocks: " << num_blocks << "\n";
         std::cout << "Num of sets: " << sets.size() << "\n";
         std::cout << "Set shift: " << set_shift << "\n";
         std::cout << "Set mask: " << set_mask << "\n";
         std::cout << "Tag shift: " << tag_shift << "\n\n";
     }
 
+    std::pair<bool, Addr> accessBlock(Addr addr, Tick cur_clk = 0) override
+    {
+        bool hit = false;
+        Addr blk_aligned_addr = blkAlign(addr);
+
+        SetWayBlk *blk = findBlock(blk_aligned_addr);
+
+        // If there is hit, upgrade
+        if (blk != nullptr)
+        {
+            hit = true;
+            policy->upgrade(blk, cur_clk);
+        }
+        return std::make_pair(hit, blk_aligned_addr);
+    }
+
+    std::pair<bool, Addr> insertBlock(Addr addr, Tick cur_clk = 0) override
+    {
+        // Find a victim block 
+        auto [wb_required, victim_addr, victim] = findVictim(addr);
+
+        victim->insert(extractTag(addr));
+
+        policy->upgrade(victim, cur_clk);
+
+        return std::make_pair(wb_required, victim_addr);
+    }
+
+  protected:
     void tagsInit() override
     {
         for (unsigned i = 0; i < num_blocks; i++)
@@ -89,50 +117,11 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         return (addr >> tag_shift);
     }
 
-    SetWayBlk *accessBlock(Addr addr, Tick cur_clk = 0) override
-    {
-        SetWayBlk *blk = findBlock(addr);
-
-        // If there is hit, upgrade
-        if (blk != nullptr)
-        {
-            policy->upgrade(blk, cur_clk);
-        }
-        return blk;
-    }
-
-    SetWayBlk* findVictim(Addr addr) override
-    {
-        // Extract the set
-        const std::vector<SetWayBlk *> set = sets[extractSet(addr)];
-        SetWayBlk *victim = policy->findVictim(set);
-        assert(victim != nullptr);
-
-        return victim;
-    }
-
-    void invalidate(SetWayBlk* victim) override
-    {
-        victim->invalidate();
-        policy->downgrade(victim);
-        assert(!victim->isValid());
-    }
-
-    void insertBlock(Addr addr, SetWayBlk* victim, Tick cur_clk = 0) override
-    {
-        assert(!victim->isValid());
-
-        victim->insert(extractTag(addr));
-
-        policy->upgrade(victim, cur_clk);
-    }
-
     Addr regenerateAddr(SetWayBlk *blk) const override
     {
         return (blk->tag << tag_shift) | (blk->getSet() << set_shift);
     }
 
-  protected:
     SetWayBlk* findBlock(Addr addr) const override
     {
         // Extract block tag
@@ -150,6 +139,27 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         }
 
         return nullptr;
+    }
+
+    std::tuple<bool, Addr, SetWayBlk*> findVictim(Addr addr) override
+    {
+        // Extract the set
+        const std::vector<SetWayBlk *> set = sets[extractSet(addr)];
+
+        // Get the victim block based on replacement policy
+        auto [wb_required, victim] = policy->findVictim(set);
+        assert(victim != nullptr);
+
+        Addr victim_addr = MaxAddr;
+        if (wb_required) { invalidate(victim); victim_addr = regenerateAddr(victim); }
+        return std::make_tuple(wb_required, victim_addr, victim);
+    }
+
+    void invalidate(SetWayBlk* victim) override
+    {
+        victim->invalidate();
+        policy->downgrade(victim);
+        assert(!victim->isValid());
     }
 };
 

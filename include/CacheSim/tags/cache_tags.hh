@@ -15,6 +15,7 @@ class Tags
   public:
     typedef uint64_t Addr;
     typedef uint64_t Tick;
+    const Addr MaxAddr = (Addr) - 1;
 
     typedef Simulator::Config Config;
 
@@ -23,7 +24,7 @@ class Tags
     Tags(int level, Config &cfg)
         : block_size(cfg.block_size),
           block_mask(block_size - 1),
-          size(cfg.caches[level].size * 1024),
+          size(cfg.caches[level].size),
           num_blocks(size / block_size),
           blks(new T[num_blocks])
     {}
@@ -38,28 +39,37 @@ class Tags
     std::unique_ptr<T[]> blks; // All cache blocks
 
   public:
+
+    // return val: <hit in cache?, block-aligned address>
+    virtual std::pair<bool, Addr> accessBlock(Addr addr, Tick cur_clk = 0) = 0;
+
+    // return val: <write-back required?, write-back address>
+    virtual std::pair<bool, Addr> insertBlock(Addr addr, Tick cur_clk = 0) = 0;
+    
+  protected:
+
+    // Initialize tag
     virtual void tagsInit() {}
 
-    virtual Addr extractTag(Addr addr) const = 0;
-
-    virtual T* accessBlock(Addr addr, Tick cur_clk = 0) = 0;
-
-    virtual T* findVictim(Addr addr) = 0;
-
-    virtual void insertBlock(Addr addr, T* victim, Tick cur_clk = 0) {}
-
-    virtual void invalidate(T* victim) {}
-
-    // This is a universal function
     Addr blkAlign(Addr addr) const
     {
         return addr & ~block_mask;
     }
 
+    // Regenerate the original physical address
     virtual Addr regenerateAddr(T *blk) const = 0;
+    
+    // Extract tag for a given address
+    virtual Addr extractTag(Addr addr) const = 0;
 
-  protected:
+    // Locate the cache block based on physical address
     virtual T* findBlock(Addr addr) const = 0;    
+    
+    // Find the victim block to be replaced
+    virtual std::tuple<bool, Addr, T*> findVictim(Addr addr) = 0;
+    
+    // 
+    virtual void invalidate(T* victim) {}
 };
 
 class TagsWithFABlk : public Tags<FABlk>
