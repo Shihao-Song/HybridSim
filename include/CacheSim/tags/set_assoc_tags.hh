@@ -57,12 +57,6 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         }
 
         tagsInit();
-
-        std::cout << "\nNumber of blocks: " << num_blocks << "\n";
-        std::cout << "Num of sets: " << sets.size() << "\n";
-        std::cout << "Set shift: " << set_shift << "\n";
-        std::cout << "Set mask: " << set_mask << "\n";
-        std::cout << "Tag shift: " << tag_shift << "\n\n";
     }
 
     std::pair<bool, Addr> accessBlock(Addr addr, Tick cur_clk = 0) override
@@ -87,7 +81,8 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         auto [wb_required, victim_addr, victim] = findVictim(addr);
 
         victim->insert(extractTag(addr));
-
+        std::cout << "Set: " << victim->set << "; "
+                  << "Way: " << victim->way << "; ";
         policy->upgrade(victim, cur_clk);
 
         return std::make_pair(wb_required, victim_addr);
@@ -164,8 +159,6 @@ class SetWayAssocTags : public TagsWithSetWayBlk
 };
 
 typedef SetWayAssocTags<SetWayAssocLRU> LRUSetWayAssocTags;
-// TODO, should be another factory to create SetWayAssocTags;
-// auto createSetWayAssocTags
 }
 
 #endif
