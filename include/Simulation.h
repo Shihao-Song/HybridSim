@@ -3,6 +3,8 @@
 
 #include "Sim/config.hh"
 #include "Sim/trace.hh"
+
+#include "CacheSim/cache.hh"
 #include "PCMSim/Memory_System/pcm_sim_memory_system.hh"
 
 typedef Simulator::Config Config;

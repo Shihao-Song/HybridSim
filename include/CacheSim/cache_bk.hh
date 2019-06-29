@@ -209,9 +209,6 @@ class Cache
     }
 
   private:
-    Tick cur_clk;
-
-  private:
     std::deque<Request> pending_queue_for_hits; // for read/write hits
 
     // TODO, should also invoke call-back function as well.
@@ -258,9 +255,6 @@ class Cache
 
   // This section deals with MSHR handling and WB handling
   private:
-    std::function<void(Request&)> mshr_cb_func;
-    std::function<void(Request&)> wb_cb_func;
-
     void sendMSHRReq(Addr addr)
     {
         Request req(addr, Request::Request_Type::READ, mshr_cb_func);
@@ -317,42 +311,6 @@ class Cache
         // Invalidate this block
         tags->invalidate(victim);
         assert(!victim->isValid());
-    }
-
-  private:
-    T *tags;
-    Deferred_Set *mshrs;
-    Deferred_Set *wb_queue;
-
-  public:
-    void setNextLevel(Cache *_next_level);
-    void setNextLevel(PCMSimMemorySystem *_pcm)
-    {
-        pcm = _pcm;
-    }
-    void setTags(T *_tags){ tags = _tags; }
-
-  private:
-    PCMSimMemorySystem *pcm;
-
-  private:
-    uint64_t num_read_allos;
-    uint64_t num_write_allos;
-    uint64_t num_evicts;
-    uint64_t num_read_hits;
-    uint64_t num_write_hits;
-    uint64_t num_mshr_hits;
-    uint64_t num_wb_queue_hits;
-  public:
-    void printStats()
-    {
-        std::cout << "Num of read allocations: " << num_read_allos << "\n";
-        std::cout << "Num of write allocations: " << num_write_allos << "\n";
-	std::cout << "Num of evictions: " << num_evicts << "\n";	
-	std::cout << "Num of read hits: " << num_read_hits << "\n";
-        std::cout << "Num of write hits: " << num_write_hits << "\n";
-        std::cout << "Num of MSHR hits: " << num_mshr_hits << "\n";
-        std::cout << "Num of wb queue hits: " << num_wb_queue_hits << "\n";
     }
 };
 }

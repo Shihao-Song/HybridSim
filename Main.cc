@@ -2,10 +2,6 @@
 
 #include "Simulation.h"
 
-#include "CacheSim/cache_queue.hh"
-#include "CacheSim/tags/set_assoc_tags.hh"
-#include "CacheSim/tags/fa_tags.hh"
-
 int main(int argc, const char *argv[])
 {
     if (argc != 3)
@@ -23,6 +19,7 @@ int main(int argc, const char *argv[])
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
+    /*
     CacheSimulator::LRUSetWayAssocTags tags(int (Config::Cache_Level::L3), cfg);
     //CacheSimulator::LRUFATags tags(int (Config::Cache_Level::eDRAM), cfg);
 
@@ -54,7 +51,7 @@ int main(int argc, const char *argv[])
         }
         clk++;
     }
-
+    */
     exit(0);
     /* Simulation */
     // runMemTrace(PCM.get(), argv[2]);
