@@ -41,7 +41,6 @@ class FATags : public TagsWithFABlk
         : TagsWithFABlk(level, cfg),
           policy(new P())
     {
-        std::cout << "\nFA: " << num_blocks << "\n";
         tagsInit();
     }
     

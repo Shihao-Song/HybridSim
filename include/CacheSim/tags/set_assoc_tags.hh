@@ -3,9 +3,10 @@
 
 #include <assert.h>
 
+#include "Sim/config.hh"
+
 #include "CacheSim/tags/cache_tags.hh"
 #include "CacheSim/tags/replacement_policies/set_way_lru.hh"
-#include "Sim/config.hh"
 
 namespace CacheSimulator
 {
@@ -81,8 +82,6 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         auto [wb_required, victim_addr, victim] = findVictim(addr);
 
         victim->insert(extractTag(addr));
-        std::cout << "Set: " << victim->set << "; "
-                  << "Way: " << victim->way << "; ";
         policy->upgrade(victim, cur_clk);
 
         return std::make_pair(wb_required, victim_addr);

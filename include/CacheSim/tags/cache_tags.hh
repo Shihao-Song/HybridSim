@@ -4,9 +4,6 @@
 #include "Sim/config.hh"
 #include "Sim/request.hh"
 
-#include "CacheSim/cache_blk.hh"
-#include "CacheSim/tags/replacement_policies/replacement_policy.hh"
-
 namespace CacheSimulator
 {
 template<class T>

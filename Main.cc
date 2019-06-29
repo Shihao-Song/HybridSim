@@ -23,8 +23,8 @@ int main(int argc, const char *argv[])
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
-    //CacheSimulator::LRUSetWayAssocTags tags(int (Config::Cache_Level::L3), cfg);
-    CacheSimulator::LRUFATags tags(int (Config::Cache_Level::eDRAM), cfg);
+    CacheSimulator::LRUSetWayAssocTags tags(int (Config::Cache_Level::L3), cfg);
+    //CacheSimulator::LRUFATags tags(int (Config::Cache_Level::eDRAM), cfg);
 
     Trace mem_trace(argv[2]);
     bool end = false;
