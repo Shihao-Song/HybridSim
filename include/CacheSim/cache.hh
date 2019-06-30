@@ -39,6 +39,7 @@ class Cache : public Simulator::MemObject
 
     std::unique_ptr<CacheQueue> mshr_queue;
     std::unique_ptr<CacheQueue> wb_queue;
+    bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
 
   protected:
     auto nclksToTick(auto &cfg)
@@ -66,8 +67,29 @@ class Cache : public Simulator::MemObject
     Simulator::MemObject *next_level;
 
   protected:
-    std::function<void(Request&)> mshrCallback;
-    std::function<void(Request&)> wbCallback;
+    void mshrComplete(Addr addr)
+    {
+        std::cout << "A MSHR request for addr " << addr << " is finished.\n";
+    }
+    auto mshrCallback(auto &mem_obj)
+    {
+        return [&](Addr addr)
+        {
+           mem_obj.mshrComplete(addr); 
+        };
+    }
+
+    void wbComplete(Addr addr)
+    {
+        std::cout << "A write-back request for addr " << addr << " is finished.\n";
+    }
+    auto wbCallback(auto &mem_obj)
+    {
+        return [&](Addr addr)
+        {
+            mem_obj.wbComplete(addr);
+        };
+    }
 
   protected:
     uint64_t num_hits;
