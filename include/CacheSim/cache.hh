@@ -20,7 +20,7 @@ struct NormalMode{};
 struct ReadOnly{}; // The cache is read only
 struct WriteOnly{}; // The cache is write only
 
-template<class Block, class Tag, class Mode, class Position>
+template<class Tag, class Mode, class Position>
 class Cache : public Simulator::MemObject
 {
   public:
@@ -38,7 +38,63 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<Tag> tags;
 
     std::unique_ptr<CacheQueue> mshr_queue;
+    auto mshrCallback(auto &mem_obj)
+    {
+        return [&](Addr addr)
+        {
+            mem_obj.mshrComplete(addr);
+        };
+    }
+    auto sendMSHRReq(Addr addr)
+    {
+        return [&]()
+               {
+                   Request req(addr, Request::Request_Type::READ, mshrCallback(this));
+
+                   if (next_level->send(req))
+                   {
+                       mshr_queue->entryOnBoard(addr);
+                   }
+               };
+    }
+    auto mshrComplete(Addr addr)
+    {
+        std::cout << "A MSHR request for addr " << addr << " is finished.\n";
+        if (auto [wb_required, wb_addr] = tags.insertBlock(addr, clk);
+            wb_required)
+        {
+            wb_queue->allocate(wb_addr, clk);
+        }
+        mshr_queue->deAllocate(addr);
+        // TODO, search queue and delete.
+    }
+    
     std::unique_ptr<CacheQueue> wb_queue;
+    auto wbCallback(auto &mem_obj)
+    {
+        return [&](Addr addr)
+        {
+            mem_obj.wbComplete(addr);
+        };
+    }
+    auto sendWBReq(Addr addr)
+    {
+        return [&]()
+               {
+                   Request req(addr, Request::Request_Type::WRITE, wbCallback(this));
+
+                   if (next_level->send(req))
+                   {
+                       wb_queue->entryOnBoard(addr);
+                   }
+               };
+    }
+    void wbComplete(Addr addr)
+    {
+        std::cout << "A write-back request for addr " << addr << " is finished.\n";
+        wb_queue->deAllocate(addr);
+    }
+    
     bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
 
   protected:
@@ -63,34 +119,25 @@ class Cache : public Simulator::MemObject
   protected:
     std::deque<Request> pending_queue_for_hit_reqs;
     std::deque<Request> pending_queue_for_non_hit_reqs;
+    auto servePendings()
+    {
+        // See if any of the hit requests has resolved its lookup latency.
+        if (!pending_queue_for_hit_reqs.size())
+        {
+            return;
+        }
+        Request &req = pending_queue_for_hit_reqs[0];
+        if (req.end_exe <= clk)
+        {
+            // TODO, callback
+            pending_queue_for_hit_reqs.pop_front();
+        }
+
+        // 
+    }
 
   protected:
     Simulator::MemObject *next_level;
-
-  protected:
-    void mshrComplete(Addr addr)
-    {
-        std::cout << "A MSHR request for addr " << addr << " is finished.\n";
-    }
-    auto mshrCallback(auto &mem_obj)
-    {
-        return [&](Addr addr)
-        {
-           mem_obj.mshrComplete(addr); 
-        };
-    }
-
-    void wbComplete(Addr addr)
-    {
-        std::cout << "A write-back request for addr " << addr << " is finished.\n";
-    }
-    auto wbCallback(auto &mem_obj)
-    {
-        return [&](Addr addr)
-        {
-            mem_obj.wbComplete(addr);
-        };
-    }
 
   protected:
     uint64_t num_hits;
@@ -170,7 +217,7 @@ class Cache : public Simulator::MemObject
     {
         clk++;
 
-//        servePendings();
+        servePendings();
 
         if (clk % nclks_to_tick_next_level == 0)
         {
