@@ -1,91 +1,18 @@
 #ifndef __CACHE_HH__
 #define __CACHE_HH__
 
-#include "Sim/config.hh"
-#include "CacheSim/cache_queue.hh"
-#include "CacheSim/tags/fa_tags.hh"
-#include "CacheSim/tags/set_assoc_tags.hh"
-
-#include <deque>
-#include <string>
-
 namespace CacheSimulator
 {
 template<class B, class T>
 class Cache
 {
-    typedef Configuration::Config Config;
-    typedef PCMSim::Request Request;
-    typedef PCMSim::PCMSimMemorySystem PCMSimMemorySystem;
-
-  private:
-    Config::Cache_Level level;
-
-    std::string getLevel()
-    {
-        if (level == Config::Cache_Level::L1I)
-        {
-            return "L1I";
-        }
-        else if (level == Config::Cache_Level::L1D)
-        {
-            return "L1D";
-        }
-        else if (level == Config::Cache_Level::L2)
-        {
-            return "L2";
-        }
-        else if (level == Config::Cache_Level::L3)
-        {
-            return "L3";
-        }
-        else if (level == Config::Cache_Level::eDRAM)
-        {
-            return "eDRAM";
-        }
-    }
-
-    bool write_only;
-    unsigned off_chip_tick;
-    unsigned tag_lookup_latency;
-
   public:
     Cache(Config::Cache_Level _level, Config &cfg)
-        : level(_level),
-          cur_clk(0),
           mshr_cb_func(std::bind(&Cache::MSHRComplete, this,
                                  std::placeholders::_1)),
           wb_cb_func(std::bind(&Cache::WBComplete, this,
                                std::placeholders::_1)),
-          num_read_allos(0),
-          num_write_allos(0),
-          num_evicts(0),
-          num_read_hits(0),
-          num_write_hits(0),
-          num_mshr_hits(0),
-          num_wb_queue_hits(0)
     {
-        // Only cache write requests?
-        write_only = cfg.caches[int(level)].write_only;
-        // When should we tick off-chip component?
-        off_chip_tick = cfg.on_chip_frequency / cfg.off_chip_frequency;
-        // Do we care about cache latency?
-        if (cfg.cache_detailed)
-        {
-            tag_lookup_latency = cfg.caches[int(level)].tag_lookup_latency;
-        }
-        else
-        {
-            tag_lookup_latency = 0;
-        }
-
-        // MSHRs and WB buffer    
-        mshrs = new Deferred_Set(cfg.caches[int(level)].num_mshrs);
-        wb_queue = new Deferred_Set(cfg.caches[int(level)].num_wb_entries);
-
-        std::cout << getLevel()
-                  << ", Write-only mode: " << write_only << "\n";
-        std::cout << "Lookup latency: " << tag_lookup_latency << "\n";
     }
 
     bool blocked() { return (mshrs->isFull() || wb_queue->isFull()); }
