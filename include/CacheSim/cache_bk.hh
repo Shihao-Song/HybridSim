@@ -15,32 +15,8 @@ class Cache
     {
     }
 
-    bool blocked() { return (mshrs->isFull() || wb_queue->isFull()); }
-
     bool access(Request &req)
     {
-        B *blk = tags->accessBlock(req.addr, cur_clk);
-
-        if (blk && blk->isValid())
-        {
-            // insert to pending queue
-            req.begin_exe = cur_clk;
-            req.end_exe = cur_clk + tag_lookup_latency;
-            pending_queue_for_hits.push_back(req);
-
-            if (req.req_type == Request::Request_Type::WRITE)
-            {
-                num_write_hits++;
-                blk->dirty = true;
-            }
-            else
-            {
-                num_read_hits++;
-            }
-
-            return true;
-        }
-
         // Hit on MSHR queue, return true.
         // (1) A read followed by a write, can get data directly;
         // (2) A write followed by a write, update the data (in buffer) directly;

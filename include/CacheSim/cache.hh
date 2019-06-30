@@ -116,6 +116,29 @@ class Cache : public Simulator::MemObject
         return pending_queue.size(); 
     }
 
+    bool send(Request &req) override
+    {
+        // Step one, check whether it is a hit or not
+        if (auto [hit, aligned_addr] = tags.accessBlock(req.addr, clk);
+            hit)
+        {
+            req.begin_exe = clk;
+            req.end_exe = clk + tag_lookup_latency;
+            pending_queue.push_back(req);
+
+            ++num_hits;
+        }
+        else
+        {
+            
+        }
+    }
+
+    void tick() override
+    {
+    
+    }
+
     void setNextLevel(Simulator::MemObject *_next_level)
     {
         next_level = _next_level;
