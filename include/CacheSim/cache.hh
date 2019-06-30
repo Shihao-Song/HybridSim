@@ -42,7 +42,7 @@ class Cache : public Simulator::MemObject
     bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
 
   protected:
-    auto nclksToTick(auto &cfg)
+    auto nclksToTickNextLevel(auto &cfg)
     {
         return [&]()
         {
@@ -61,7 +61,8 @@ class Cache : public Simulator::MemObject
     const unsigned nclks_to_tick_next_level;
 
   protected:
-    std::deque<Request> pending_queue;
+    std::deque<Request> pending_queue_for_hit_reqs;
+    std::deque<Request> pending_queue_for_non_hit_reqs;
 
   protected:
     Simulator::MemObject *next_level;
@@ -93,8 +94,6 @@ class Cache : public Simulator::MemObject
 
   protected:
     uint64_t num_hits;
-    uint64_t num_mshr_hits;
-    uint64_t num_wb_queue_hits;
 
   public:
     Cache(Config::Cache_Level _level, Config &cfg)
@@ -105,15 +104,14 @@ class Cache : public Simulator::MemObject
           mshr_queue(new CacheQueue(cfg.caches[int(_level)].num_mshrs)),
           wb_queue(new CacheQueue(cfg.caches[int(_level)].num_wb_entries)),
           tag_lookup_latency(cfg.caches[int(_level)].tag_lookup_latency),
-          nclks_to_tick_next_level(nclksToTick(cfg)),
-          num_hits(0),
-          num_mshr_hits(0),
-          num_wb_queue_hits(0)
+          nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
+          num_hits(0)
     {}
 
     int pendingRequests() override
     {
-        return pending_queue.size(); 
+        return pending_queue_for_hit_reqs.size() +
+               pending_queue_for_non_hit_reqs.size();
     }
 
     bool send(Request &req) override
@@ -124,19 +122,60 @@ class Cache : public Simulator::MemObject
         {
             req.begin_exe = clk;
             req.end_exe = clk + tag_lookup_latency;
-            pending_queue.push_back(req);
+            pending_queue_for_hit_reqs.push_back(req);
 
             ++num_hits;
         }
         else
         {
-            
+            if constexpr(std::is_same<NormalMode, Mode>::value)
+            {
+                if (!blocked())
+                {
+                    assert(!mshr_queue->isFull());
+                    assert(!wb_queue->isFull());
+
+                    mshr_queue->allocate(aligned_addr, clk + tag_lookup_latency);
+                    pending_queue_for_non_hit_reqs.push_back(req);
+                    return true;
+                }
+                return false;
+            }
+            else if constexpr(std::is_same<WriteOnly, Mode>::value)
+            {
+                if (!blocked())
+                {
+                    assert(!mshr_queue->isFull());
+                    assert(!wb_queue->isFull());
+
+                    if (req.req_type == Request::Request_Type::WRITE)
+                    {
+                        mshr_queue->allocate(aligned_addr, clk + tag_lookup_latency);
+                        pending_queue_for_non_hit_reqs.push_back(req);
+                        return true;
+                    }
+                    else
+                    {
+                        assert(req.req_type == Request::Request_Type::READ);
+                        // Forward to next level directly.
+                        return next_level->send(req);
+                    }
+                }
+                return false;
+            }
         }
     }
 
     void tick() override
     {
-    
+        clk++;
+
+//        servePendings();
+
+        if (clk % nclks_to_tick_next_level == 0)
+        {
+            next_level->tick();
+        }
     }
 
     void setNextLevel(Simulator::MemObject *_next_level)
