@@ -186,6 +186,26 @@ class Cache : public Simulator::MemObject
         }
         else
         {
+            // Step two, to ensure data consistency. Check if the current request can be
+            // served by a write-back queue.
+            // For example, if the request is a LOAD, it can get data directly;
+            // if the request is a STORE, it can simply re-write the entry.
+            // TODO, explain this in more details in the future.
+            if (wb_queue->isInQueue(aligned_addr))
+            {
+                req.begin_exe = clk;
+                req.end_exe = clk + tag_lookup_latency;
+                pending_queue_for_hit_reqs.push_back(req);
+
+                // Erase this entry and bring back to cache (may cause eviction)
+                wb_queue->deAllocate(aligned_addr, false);
+                if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr, clk);
+                    wb_required)
+                {
+                    wb_queue->allocate(wb_addr, clk);
+                }
+            }
+
             if constexpr(std::is_same<NormalMode, Mode>::value)
             {
                 if (!blocked())
@@ -193,8 +213,12 @@ class Cache : public Simulator::MemObject
                     assert(!mshr_queue->isFull());
                     assert(!wb_queue->isFull());
 
-                    mshr_queue->allocate(aligned_addr, clk + tag_lookup_latency);
-                    pending_queue_for_non_hit_reqs.push_back(req);
+                    if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
+                                                             clk + tag_lookup_latency);
+                        !hit_in_mshr_queue)
+                    {
+                        pending_queue_for_non_hit_reqs.push_back(req);
+                    }
                     return true;
                 }
                 return false;
@@ -208,8 +232,12 @@ class Cache : public Simulator::MemObject
 
                     if (req.req_type == Request::Request_Type::WRITE)
                     {
-                        mshr_queue->allocate(aligned_addr, clk + tag_lookup_latency);
-                        pending_queue_for_non_hit_reqs.push_back(req);
+                        if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
+                                                                 clk + tag_lookup_latency);
+                            !hit_in_mshr_queue)
+                        {
+                            pending_queue_for_non_hit_reqs.push_back(req);
+                        }
                         return true;
                     }
                     else

@@ -45,13 +45,15 @@ class CacheQueue
         entries_on_flight.insert(addr);
     }
 
-    void allocate(Addr addr, Tick when)
+    auto allocate(Addr addr, Tick when)
     {
         if (auto [iter, success] = all_entries.insert(addr);
             success)
         {
             when_ready.insert({addr, when});
+            return false; // Not hit in queue
         }
+        return true; // Hit in queue.
     }
 
     void deAllocate(Addr addr, bool on_board = true)
@@ -72,20 +74,7 @@ class CacheQueue
         assert(iter != when_ready.end());
         return (iter->second <= cur_clk);
     }
-
-    // This functions is used to detect write-back queue hit
-    bool isInQueueNotOnBoard(Addr addr)
-    {
-        // This address must be in queue
-        bool in_all = (all_entries.find(addr) != all_entries.end());
-        // We haven't sent out this address
-        bool not_on_board = (entries_on_flight.find(addr) ==
-                             entries_on_flight.end());
-
-        return (in_all && not_on_board);
-    }
-
-    // This function is used to detect mshr queue hit
+    
     bool isInQueue(Addr addr)
     {
         bool in_all = (all_entries.find(addr) != all_entries.end());
