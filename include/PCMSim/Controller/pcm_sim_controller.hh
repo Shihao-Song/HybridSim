@@ -173,7 +173,7 @@ class SampleController : public BaseController
         {
             if (req.callback)
             {
-                req.callback(req);
+                req.callback(req.addr);
             }
             // displayReqInfo(req); // To review request info in run-time
             r_w_pending_queue.pop_front();

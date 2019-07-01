@@ -43,7 +43,7 @@ class Request
     // call-back function
     // TODO, this may need to be updated as a vector of callbacks
     // because of multiple layers of memory (cache).
-    std::function<void(Request&)> callback;
+    std::function<void(Addr)> callback;
 
     // TODO, should have something like Builder or Factory to create different
     // types of Request object.
@@ -82,7 +82,7 @@ class Request
 
     // TODO, callback should be pushed into the vector
     Request(Addr _addr, Request_Type _type,
-            std::function<void(Request&)> _callback) :
+            std::function<void(Addr)> _callback) :
         addr(_addr),
         req_type(_type),
         callback(_callback),

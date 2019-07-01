@@ -38,56 +38,64 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<Tag> tags;
 
     std::unique_ptr<CacheQueue> mshr_queue;
-    auto mshrCallback(auto &mem_obj)
+    auto mshrCallback(auto *mem_obj)
     {
         return [&](Addr addr)
         {
-            mem_obj.mshrComplete(addr);
+            mem_obj->mshrComplete(addr);
         };
     }
     auto sendMSHRReq(Addr addr)
     {
-        return [&]()
-               {
-                   Request req(addr, Request::Request_Type::READ, mshrCallback(this));
+        std::cout << clk << ": A MSHR request for addr " << addr << " is sent.\n";
+        Request req(addr, Request::Request_Type::READ, mshrCallback(this));
 
-                   if (next_level->send(req))
-                   {
-                       mshr_queue->entryOnBoard(addr);
-                   }
-               };
+        if (next_level->send(req))
+        {
+
+            mshr_queue->entryOnBoard(addr);
+        }
     }
     auto mshrComplete(Addr addr)
     {
-        std::cout << "A MSHR request for addr " << addr << " is finished.\n";
-        if (auto [wb_required, wb_addr] = tags.insertBlock(addr, clk);
+        std::cout << clk << ": A MSHR request for addr " << addr << " is finished.\n";
+        if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
         {
             wb_queue->allocate(wb_addr, clk);
         }
         mshr_queue->deAllocate(addr);
-        // TODO, search queue and delete.
+
+        auto iter = pending_queue_for_non_hit_reqs.begin();
+        while (iter != pending_queue_for_non_hit_reqs.end())
+        {
+            if (iter->addr == addr)
+            {
+                iter = pending_queue_for_non_hit_reqs.erase(iter);
+            }
+            else
+            {
+                ++iter;
+            }
+        }
     }
     
     std::unique_ptr<CacheQueue> wb_queue;
-    auto wbCallback(auto &mem_obj)
+    auto wbCallback(auto *mem_obj)
     {
         return [&](Addr addr)
         {
-            mem_obj.wbComplete(addr);
+            mem_obj->wbComplete(addr);
         };
     }
     auto sendWBReq(Addr addr)
     {
-        return [&]()
-               {
-                   Request req(addr, Request::Request_Type::WRITE, wbCallback(this));
+        Request req(addr, Request::Request_Type::WRITE, wbCallback(this));
 
-                   if (next_level->send(req))
-                   {
-                       wb_queue->entryOnBoard(addr);
-                   }
-               };
+        if (next_level->send(req))
+        {
+            wb_queue->entryOnBoard(addr);
+        }
     }
     void wbComplete(Addr addr)
     {
@@ -100,17 +108,14 @@ class Cache : public Simulator::MemObject
   protected:
     auto nclksToTickNextLevel(auto &cfg)
     {
-        return [&]()
+        if constexpr (std::is_same<OnChipToOffChip, Position>::value) 
         {
-            if constexpr (std::is_same<OnChipToOffChip, Position>::value) 
-            {
-                return cfg.on_chip_frequency / cfg.off_chip_frequency;
-            }
-            else
-            {
-                return cfg.on_chip_frequency / cfg.on_chip_frequency;
-            }
-        };
+            return cfg.on_chip_frequency / cfg.off_chip_frequency;
+        }
+        else
+        {
+            return cfg.on_chip_frequency / cfg.on_chip_frequency;
+        }
     }
 
     const unsigned tag_lookup_latency;
@@ -118,31 +123,34 @@ class Cache : public Simulator::MemObject
 
   protected:
     std::deque<Request> pending_queue_for_hit_reqs;
-    std::deque<Request> pending_queue_for_non_hit_reqs;
+    std::list<Request> pending_queue_for_non_hit_reqs;
     auto servePendings()
     {
         // See if any of the hit requests has resolved its lookup latency.
-        if (!pending_queue_for_hit_reqs.size())
+        if (pending_queue_for_hit_reqs.size())
         {
-            return;
-        }
-        Request &req = pending_queue_for_hit_reqs[0];
-        if (req.end_exe <= clk)
-        {
-            // TODO, callback
-            pending_queue_for_hit_reqs.pop_front();
+            Request &req = pending_queue_for_hit_reqs[0];
+            if (req.end_exe <= clk)
+            {
+                // TODO, callback
+                pending_queue_for_hit_reqs.pop_front();
+            }
         }
 
         // Note, we are not serving non-hit reqs directly but sending out corres. MSHR request
         // to next level.
         auto [write_back_entry_ready, write_back_addr] = wb_queue->getEntry(clk);
         auto [mshr_entry_ready, mshr_req_addr] = mshr_queue->getEntry(clk);
-        if (write_back_entry_ready && wb_queue->isFull() || !mshr_entry_ready)
+
+	if (write_back_entry_ready && wb_queue->isFull() ||
+            !mshr_entry_ready && wb_queue->numEntries())
         {
+            assert(wb_queue->numEntries());
             sendWBReq(write_back_addr);
         }
         else if (mshr_entry_ready)
         {
+            assert(mshr_queue->numEntries());
             sendMSHRReq(mshr_req_addr);
         }
     }
@@ -164,7 +172,8 @@ class Cache : public Simulator::MemObject
           tag_lookup_latency(cfg.caches[int(_level)].tag_lookup_latency),
           nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
           num_hits(0)
-    {}
+    {
+    }
 
     int pendingRequests() override
     {
@@ -175,7 +184,7 @@ class Cache : public Simulator::MemObject
     bool send(Request &req) override
     {
         // Step one, check whether it is a hit or not
-        if (auto [hit, aligned_addr] = tags.accessBlock(req.addr, clk);
+        if (auto [hit, aligned_addr] = tags->accessBlock(req.addr, clk);
             hit)
         {
             req.begin_exe = clk;
@@ -190,7 +199,6 @@ class Cache : public Simulator::MemObject
             // served by a write-back queue.
             // For example, if the request is a LOAD, it can get data directly;
             // if the request is a STORE, it can simply re-write the entry.
-            // TODO, explain this in more details in the future.
             if (wb_queue->isInQueue(aligned_addr))
             {
                 req.begin_exe = clk;
@@ -199,7 +207,7 @@ class Cache : public Simulator::MemObject
 
                 // Erase this entry and bring back to cache (may cause eviction)
                 wb_queue->deAllocate(aligned_addr, false);
-                if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr, clk);
+                if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
                     wb_required)
                 {
                     wb_queue->allocate(wb_addr, clk);
@@ -229,8 +237,8 @@ class Cache : public Simulator::MemObject
                 {
                     assert(!mshr_queue->isFull());
                     assert(!wb_queue->isFull());
-
-                    if (req.req_type == Request::Request_Type::WRITE)
+                    
+		    if (req.req_type == Request::Request_Type::WRITE)
                     {
                         if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
                                                                  clk + tag_lookup_latency);
@@ -260,38 +268,75 @@ class Cache : public Simulator::MemObject
 
         if (clk % nclks_to_tick_next_level == 0)
         {
+            std::cout << clk << ": Tick next level.\n";
             next_level->tick();
         }
     }
 
-    void setNextLevel(Simulator::MemObject *_next_level)
+    void setNextLevel(Simulator::MemObject *_next_level) override
     {
         next_level = _next_level;
     }
+};
 
-    std::string getLevel()
+typedef Cache<LRUFATags,NormalMode,OnChipToOffChip> FA_LRU_LLC;
+typedef Cache<LRUFATags,WriteOnly,OnChipToOffChip> FA_LRU_LLC_WRITE_ONLY;
+typedef Cache<LRUSetWayAssocTags,NormalMode,OnChipToOffChip> SET_WAY_LRU_LLC;
+typedef Cache<LRUSetWayAssocTags,NormalMode,OnChipToOnChip> SET_WAY_LRU_NON_LLC;
+
+class CacheFactory
+{
+    typedef Simulator::Config Config;
+    typedef Simulator::MemObject MemObject;
+
+  private:
+    std::unordered_map<std::string,
+         std::function<std::unique_ptr<MemObject>(Config::Cache_Level,Config&)>> factories;
+
+  public:
+    CacheFactory()
     {
-        if (level == Config::Cache_Level::L1I)
+        factories["FA_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
+                                  {
+                                      return std::make_unique<FA_LRU_LLC>(level, cfg);
+                                  };
+
+        factories["FA_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg)
+                                  {
+                                      return std::make_unique<FA_LRU_LLC_WRITE_ONLY>(level,
+                                                                                     cfg);
+                                  };
+
+        factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
+                                  {
+                                      return std::make_unique<SET_WAY_LRU_LLC>(level, cfg);
+                                  };
+
+        factories["SET_WAY_LRU_NON_LLC"] = [](Config::Cache_Level level, Config &cfg)
+                                  {
+                                      return std::make_unique<SET_WAY_LRU_NON_LLC>(level, cfg);
+                                  };
+    }
+
+    auto createCache(Config::Cache_Level level, Config &cfg)
+    {
+        // TODO, need to make it more flexible in the future.
+        if (int(level) < int(Config::Cache_Level::eDRAM))
         {
-            return "L1I";
+            return factories["SET_WAY_LRU_NON_LLC"](level, cfg);
         }
-        else if (level == Config::Cache_Level::L1D)
+        else if (int(level) == int(Config::Cache_Level::eDRAM))
         {
-            return "L1D";
-        }
-        else if (level == Config::Cache_Level::L2)
-        {
-            return "L2";
-        }
-        else if (level == Config::Cache_Level::L3)
-        {
-            return "L3";
-        }
-        else if (level == Config::Cache_Level::eDRAM)
-        {
-            return "eDRAM";
+            return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg);
         }
     }
 };
+
+static CacheFactory CacheFactories;
+auto createCache(Simulator::Config::Cache_Level level,
+                 Simulator::Config &cfg)
+{
+    return CacheFactories.createCache(level, cfg);
+}
 }
 #endif

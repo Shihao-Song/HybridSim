@@ -38,13 +38,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
         std::cout << "\nMemory Controller: " << cfg.mem_controller_type << ".\n";
 
         std::cout << "\nPCM System: " << cfg.sizeOfPCMInGB() << " GB.\n";
-
-        /*
-        for (int i = 0; i < memory_addr_decoding_bits.size(); i++)
-        {
-            std::cout << memory_addr_decoding_bits[i] << "\n";
-        }
-        */
     }
 
     int pendingRequests() override
