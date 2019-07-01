@@ -133,7 +133,18 @@ class Cache : public Simulator::MemObject
             pending_queue_for_hit_reqs.pop_front();
         }
 
-        // 
+        // Note, we are not serving non-hit reqs directly but sending out corres. MSHR request
+        // to next level.
+        auto [write_back_entry_ready, write_back_addr] = wb_queue->getEntry(clk);
+        auto [mshr_entry_ready, mshr_req_addr] = mshr_queue->getEntry(clk);
+        if (write_back_entry_ready && wb_queue->isFull() || !mshr_entry_ready)
+        {
+            sendWBReq(write_back_addr);
+        }
+        else if (mshr_entry_ready)
+        {
+            sendMSHRReq(mshr_req_addr);
+        }
     }
 
   protected:
