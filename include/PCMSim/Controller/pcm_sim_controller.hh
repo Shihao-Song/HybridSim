@@ -173,10 +173,11 @@ class SampleController : public BaseController
         {
             if (req.callback)
             {
-                req.callback(req.addr);
+                if (req.callback(req.addr))
+                {
+                    r_w_pending_queue.pop_front();
+                }
             }
-            // displayReqInfo(req); // To review request info in run-time
-            r_w_pending_queue.pop_front();
         }
     }
 

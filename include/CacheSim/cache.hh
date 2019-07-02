@@ -41,15 +41,18 @@ class Cache : public Simulator::MemObject
     auto sendMSHRReq(Addr addr)
     {
         Request req(addr, Request::Request_Type::READ,
-                    [this](Addr _addr){this->mshrComplete(_addr);});
+                    [this](Addr _addr){ return this->mshrComplete(_addr); });
 
         if (next_level->send(req))
         {
             mshr_queue->entryOnBoard(addr);
         }
     }
-    auto mshrComplete(Addr addr)
+    bool mshrComplete(Addr addr)
     {
+        // Insertion may trigger eviction, need to make sure write-back queue is not full.
+        if (wb_queue->isFull()) { return false; }
+
         mshr_queue->deAllocate(addr, true);
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
@@ -74,6 +77,7 @@ class Cache : public Simulator::MemObject
                 ++iter;
             }
         }
+        return true;
     }
     
     std::unique_ptr<CacheQueue> wb_queue;
@@ -196,7 +200,8 @@ class Cache : public Simulator::MemObject
             // directly.
             if (req.req_type == Request::Request_Type::WRITE_BACK)
             {
-                if (!blocked())
+                // We need to make sure that the write-back queue is not full.
+                if (!wb_queue->isFull())
                 {
                     if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
                         wb_required)
