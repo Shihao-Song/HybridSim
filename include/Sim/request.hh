@@ -28,6 +28,7 @@ class Request
     {
         READ,
         WRITE,
+        WRITE_BACK,
         MAX
     }req_type;
 

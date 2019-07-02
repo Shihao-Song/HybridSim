@@ -45,11 +45,12 @@ class Cache : public Simulator::MemObject
 
         if (next_level->send(req))
         {
-            mshr_queue->deAllocate(addr);
+            mshr_queue->entryOnBoard(addr);
         }
     }
     auto mshrComplete(Addr addr)
     {
+        mshr_queue->deAllocate(addr, true);
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
         {
@@ -78,11 +79,21 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> wb_queue;
     auto sendWBReq(Addr addr)
     {
-        Request req(addr, Request::Request_Type::WRITE);
-
-        if (next_level->send(req))
+        if constexpr(std::is_same<OnChipToOffChip, Position>::value)
         {
-            wb_queue->deAllocate(addr);
+            Request req(addr, Request::Request_Type::WRITE);
+            if (next_level->send(req))
+            {
+                wb_queue->deAllocate(addr);
+            }
+        }
+        else
+	{    
+            Request req(addr, Request::Request_Type::WRITE_BACK);
+            if (next_level->send(req))
+            {
+                wb_queue->deAllocate(addr);
+            }
         }
     }
 
@@ -157,8 +168,7 @@ class Cache : public Simulator::MemObject
           nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
           num_hits(0),
           num_evicts(0)
-    {
-    }
+    {}
 
     int pendingRequests() override
     {
@@ -182,6 +192,24 @@ class Cache : public Simulator::MemObject
         }
         else
         {
+            // Step two, if there is a write-back (eviction). We should allocate the space
+            // directly.
+            if (req.req_type == Request::Request_Type::WRITE_BACK)
+            {
+                if (!blocked())
+                {
+                    if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
+                        wb_required)
+                    {
+                        ++num_evicts;
+                        wb_queue->allocate(wb_addr, clk);
+                    }
+
+                    return true;
+                }
+                return false;
+            }
+
             // Step two, to ensure data consistency. Check if the current request can be
             // served by a write-back queue.
             // For example, if the request is a LOAD, it can get data directly;
@@ -195,6 +223,7 @@ class Cache : public Simulator::MemObject
                 return true;
             }
 
+            // Step four, accept normal READ or WRITES.
             if constexpr(std::is_same<NormalMode, Mode>::value)
             {
                 if (!blocked())
@@ -244,8 +273,8 @@ class Cache : public Simulator::MemObject
     void tick() override
     {
         clk++;
-
-        servePendings();
+        
+	servePendings();
 
         if (clk % nclks_to_tick_next_level == 0)
         {

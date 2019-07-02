@@ -25,9 +25,12 @@ class CacheQueue
     {
         for (auto ite = all_entries.begin(); ite != all_entries.end(); ite++)
         {
-            if (isReady(*ite, cur_clk))
+            if (entries_on_flight.find(*ite) == entries_on_flight.end())
             {
-                return std::make_pair(true, *ite);
+                if (isReady(*ite, cur_clk))
+                {
+                    return std::make_pair(true, *ite);
+                }
             }
         }
         
@@ -45,9 +48,16 @@ class CacheQueue
         return true; // Hit in queue.
     }
 
-    void deAllocate(Addr addr)
+    void entryOnBoard(Addr addr)
+    {
+        assert(isInQueue(addr));
+        entries_on_flight.insert(addr);
+    }
+
+    void deAllocate(Addr addr, bool board = false)
     {
 	assert(all_entries.erase(addr));
+        if (board) {assert(entries_on_flight.erase(addr));}
         assert(when_ready.erase(addr));
     }
 
@@ -71,6 +81,7 @@ class CacheQueue
   protected:
     int max;
     std::set<Addr> all_entries;
+    std::set<Addr> entries_on_flight;
 };
 }
 

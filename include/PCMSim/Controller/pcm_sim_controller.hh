@@ -231,6 +231,11 @@ class SampleController : public BaseController
             bank_latency = bankDelayCausedBySingleWrite;
             channel_latency = dataTransferLatency;
         }
+        else
+        {
+            std::cerr << "Unknown request type. \n";
+            exit(0);
+        }
 
         scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
 
