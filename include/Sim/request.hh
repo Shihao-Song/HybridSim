@@ -42,7 +42,7 @@ class Request
     Addr end_exe;
 
     // call-back function
-    std::function<bool(Addr)> callback;
+    std::function<void(Addr)> callback;
 
     // TODO, should have something like Builder or Factory to create different
     // types of Request object.
@@ -81,7 +81,7 @@ class Request
 
     // TODO, callback should be pushed into the vector
     Request(Addr _addr, Request_Type _type,
-            std::function<bool(Addr)> _callback) :
+            std::function<void(Addr)> _callback) :
         addr(_addr),
         req_type(_type),
         callback(_callback),
