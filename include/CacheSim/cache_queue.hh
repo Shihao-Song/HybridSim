@@ -25,26 +25,15 @@ class CacheQueue
     {
         for (auto ite = all_entries.begin(); ite != all_entries.end(); ite++)
         {
-            // Have we sent out this address already?
-            if (entries_on_flight.find(*ite) == entries_on_flight.end())
+            if (isReady(*ite, cur_clk))
             {
-                // Good, we haven't sent out this entry
-                if (isReady(*ite, cur_clk))
-                {
-                    // Even better, we're ready to send out.
-                    return std::make_pair(true, *ite);
-                }
+                return std::make_pair(true, *ite);
             }
         }
         
         return std::make_pair(false, MAX_ADDR);
     }
-
-    void entryOnBoard(Addr addr)
-    {
-        entries_on_flight.insert(addr);
-    }
-
+    
     auto allocate(Addr addr, Tick when)
     {
         if (auto [iter, success] = all_entries.insert(addr);
@@ -56,16 +45,10 @@ class CacheQueue
         return true; // Hit in queue.
     }
 
-    void deAllocate(Addr addr, bool on_board = true)
+    void deAllocate(Addr addr)
     {
 	assert(all_entries.erase(addr));
-        if (on_board)
-        {
-            assert(entries_on_flight.erase(addr));
-        }
         assert(when_ready.erase(addr));
-
-        assert(when_ready.find(addr) == when_ready.end());
     }
 
     bool isReady(Addr addr, Tick cur_clk)
@@ -82,14 +65,12 @@ class CacheQueue
         return in_all;
     }
 
-    // TODO, this hash will be more complicated in the future.
     typedef std::unordered_map<Addr, Tick> TickHash;
     TickHash when_ready;
 
   protected:
     int max;
     std::set<Addr> all_entries;
-    std::set<Addr> entries_on_flight;
 };
 }
 

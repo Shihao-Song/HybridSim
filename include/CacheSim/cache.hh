@@ -45,8 +45,7 @@ class Cache : public Simulator::MemObject
 
         if (next_level->send(req))
         {
-
-            mshr_queue->entryOnBoard(addr);
+            mshr_queue->deAllocate(addr);
         }
     }
     auto mshrComplete(Addr addr)
@@ -56,7 +55,6 @@ class Cache : public Simulator::MemObject
         {
             wb_queue->allocate(wb_addr, clk);
         }
-        mshr_queue->deAllocate(addr);
 
         auto iter = pending_queue_for_non_hit_reqs.begin();
         while (iter != pending_queue_for_non_hit_reqs.end())
@@ -79,7 +77,6 @@ class Cache : public Simulator::MemObject
 
         if (next_level->send(req))
         {
-            wb_queue->entryOnBoard(addr);
             wb_queue->deAllocate(addr);
         }
     }
@@ -189,7 +186,7 @@ class Cache : public Simulator::MemObject
                 pending_queue_for_hit_reqs.push_back(req);
 
                 // Erase this entry and bring back to cache (may cause eviction)
-                wb_queue->deAllocate(aligned_addr, false);
+                wb_queue->deAllocate(aligned_addr);
                 if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
                     wb_required)
                 {
