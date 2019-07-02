@@ -40,7 +40,6 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
-        std::cout << clk << ": A MSHR request for addr " << addr << " is sent.\n";
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){this->mshrComplete(_addr);});
 
@@ -52,7 +51,6 @@ class Cache : public Simulator::MemObject
     }
     auto mshrComplete(Addr addr)
     {
-        std::cout << clk << ": A MSHR request for addr " << addr << " is finished.\n";
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
         {
@@ -75,29 +73,17 @@ class Cache : public Simulator::MemObject
     }
     
     std::unique_ptr<CacheQueue> wb_queue;
-    auto wbCallback(auto *mem_obj)
-    {
-        return [&](Addr addr)
-        {
-            mem_obj->wbComplete(addr);
-        };
-    }
     auto sendWBReq(Addr addr)
     {
-        Request req(addr, Request::Request_Type::WRITE,
-                    [this](Addr _addr){return this->wbComplete(_addr);});
+        Request req(addr, Request::Request_Type::WRITE);
 
         if (next_level->send(req))
         {
             wb_queue->entryOnBoard(addr);
+            wb_queue->deAllocate(addr);
         }
     }
-    void wbComplete(Addr addr)
-    {
-        std::cout << "A write-back request for addr " << addr << " is finished.\n";
-        wb_queue->deAllocate(addr);
-    }
-    
+
     bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
 
   protected:
@@ -127,7 +113,7 @@ class Cache : public Simulator::MemObject
             Request &req = pending_queue_for_hit_reqs[0];
             if (req.end_exe <= clk)
             {
-                // TODO, callback
+                if (req.callback) { req.callback(req.addr); }
                 pending_queue_for_hit_reqs.pop_front();
             }
         }
@@ -173,7 +159,9 @@ class Cache : public Simulator::MemObject
     int pendingRequests() override
     {
         return pending_queue_for_hit_reqs.size() +
-               pending_queue_for_non_hit_reqs.size();
+               pending_queue_for_non_hit_reqs.size() +
+               mshr_queue->numEntries() +
+               wb_queue->numEntries();
     }
 
     bool send(Request &req) override
@@ -263,7 +251,6 @@ class Cache : public Simulator::MemObject
 
         if (clk % nclks_to_tick_next_level == 0)
         {
-            std::cout << clk << ": Tick next level.\n";
             next_level->tick();
         }
     }
