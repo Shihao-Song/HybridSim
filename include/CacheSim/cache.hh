@@ -38,17 +38,11 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<Tag> tags;
 
     std::unique_ptr<CacheQueue> mshr_queue;
-    auto mshrCallback(auto *mem_obj)
-    {
-        return [&](Addr addr)
-        {
-            mem_obj->mshrComplete(addr);
-        };
-    }
     auto sendMSHRReq(Addr addr)
     {
         std::cout << clk << ": A MSHR request for addr " << addr << " is sent.\n";
-        Request req(addr, Request::Request_Type::READ, mshrCallback(this));
+        Request req(addr, Request::Request_Type::READ,
+                    [this](Addr _addr){this->mshrComplete(_addr);});
 
         if (next_level->send(req))
         {
@@ -90,7 +84,8 @@ class Cache : public Simulator::MemObject
     }
     auto sendWBReq(Addr addr)
     {
-        Request req(addr, Request::Request_Type::WRITE, wbCallback(this));
+        Request req(addr, Request::Request_Type::WRITE,
+                    [this](Addr _addr){return this->wbComplete(_addr);});
 
         if (next_level->send(req))
         {
