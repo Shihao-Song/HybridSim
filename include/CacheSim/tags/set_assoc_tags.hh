@@ -87,6 +87,12 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         return std::make_pair(wb_required, victim_addr);
     }
 
+    void printTagInfo() override
+    {
+        std::cout << "Assoc: " << assoc << "\n";
+        std::cout << "Number of sets: " << num_sets << "\n";
+    }
+
   protected:
     void tagsInit() override
     {

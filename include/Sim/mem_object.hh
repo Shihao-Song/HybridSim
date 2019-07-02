@@ -16,6 +16,8 @@ class MemObject
     virtual bool send(Request &req) = 0;
     virtual void tick() {}
     virtual void setNextLevel(MemObject *) {}
+
+    virtual void debugPrint(){}
 };
 }
 

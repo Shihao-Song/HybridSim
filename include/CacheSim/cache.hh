@@ -53,6 +53,7 @@ class Cache : public Simulator::MemObject
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
         {
+            ++num_evicts;
             wb_queue->allocate(wb_addr, clk);
         }
 
@@ -61,6 +62,10 @@ class Cache : public Simulator::MemObject
         {
             if (iter->addr == addr)
             {
+                if (iter->callback)
+                {
+                    iter->callback(iter->addr);
+                }
                 iter = pending_queue_for_non_hit_reqs.erase(iter);
             }
             else
@@ -138,6 +143,7 @@ class Cache : public Simulator::MemObject
 
   protected:
     uint64_t num_hits;
+    uint64_t num_evicts;
 
   public:
     Cache(Config::Cache_Level _level, Config &cfg)
@@ -149,7 +155,8 @@ class Cache : public Simulator::MemObject
           wb_queue(new CacheQueue(cfg.caches[int(_level)].num_wb_entries)),
           tag_lookup_latency(cfg.caches[int(_level)].tag_lookup_latency),
           nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
-          num_hits(0)
+          num_hits(0),
+          num_evicts(0)
     {
     }
 
@@ -190,6 +197,7 @@ class Cache : public Simulator::MemObject
                 if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
                     wb_required)
                 {
+                    ++num_evicts;
                     wb_queue->allocate(wb_addr, clk);
                 }
             }
@@ -255,6 +263,22 @@ class Cache : public Simulator::MemObject
     void setNextLevel(Simulator::MemObject *_next_level) override
     {
         next_level = _next_level;
+    }
+
+    void debugPrint() override
+    {
+        std::cout << "\n";
+        if constexpr (std::is_same<LRUFATags, Tag>::value)
+        {
+            std::cout << "A Fully-associative Cache (LRU): \n";
+        }
+        else if constexpr (std::is_same<LRUSetWayAssocTags, Tag>::value)
+        {
+            std::cout << "A Set-associative Cache (LRU): \n";
+        }
+        tags->printTagInfo();
+        std::cout << "Number of hits: " << num_hits << "\n";
+        std::cout << "Number of evictions: " << num_evicts << "\n";
     }
 };
 
