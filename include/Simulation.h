@@ -69,7 +69,9 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
     {
         if (!end && !stall)
         {
+            static uint64_t num_reqs = 0;
             end = !(mem_trace.getMemtraceRequest(req));
+            std::cout << ++num_reqs << "\n";
         }
 
         if (!end)

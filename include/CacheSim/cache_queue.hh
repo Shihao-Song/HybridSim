@@ -18,7 +18,7 @@ class CacheQueue
   public:
     CacheQueue(int _max) : max(_max) {}
 
-    bool isFull() { return all_entries.size() == max; }
+    bool isFull() { return all_entries.size() >= max; }
     int numEntries() { return all_entries.size(); }
 
     auto getEntry(Tick cur_clk)

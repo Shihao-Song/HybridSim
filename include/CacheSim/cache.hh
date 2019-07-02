@@ -192,14 +192,7 @@ class Cache : public Simulator::MemObject
                 req.end_exe = clk + tag_lookup_latency;
                 pending_queue_for_hit_reqs.push_back(req);
 
-                // Erase this entry and bring back to cache (may cause eviction)
-                wb_queue->deAllocate(aligned_addr);
-                if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
-                    wb_required)
-                {
-                    ++num_evicts;
-                    wb_queue->allocate(wb_addr, clk);
-                }
+                return true;
             }
 
             if constexpr(std::is_same<NormalMode, Mode>::value)

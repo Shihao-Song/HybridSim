@@ -41,8 +41,6 @@ class Request
     Addr end_exe;
 
     // call-back function
-    // TODO, this may need to be updated as a vector of callbacks
-    // because of multiple layers of memory (cache).
     std::function<void(Addr)> callback;
 
     // TODO, should have something like Builder or Factory to create different
