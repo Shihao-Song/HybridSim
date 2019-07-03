@@ -55,6 +55,10 @@ auto createMemObject(Config &cfg, Memories mem_type)
     }
 }
 
+auto createSystem()
+{}
+
+/*
 // Run simulation
 auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 {
@@ -87,6 +91,7 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 
     std::cout << "\nEnd Execution Time: " << Tick << "\n";
 }
+*/
 
 void parse_args(int argc, const char *argv[],
                 std::vector<const char*> &trace_lists)
@@ -138,5 +143,7 @@ auto runCPUTrace(int argc, const char *argv[])
         std::cout << "Core " << i
                   << " is running trace: " << trace_lists[i] << "\n";
     }
+
+    
 }
 #endif
