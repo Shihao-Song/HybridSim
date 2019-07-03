@@ -1,6 +1,8 @@
 #ifndef __INSTRUCTION_HH__
 #define __INSTRUCTION_HH__
 
+#include <string>
+
 namespace Simulator
 {
 class Instruction
@@ -11,13 +13,13 @@ class Instruction
   public:
     Instruction(){}
 
-    enum class Instruction_Type : int
+    enum class Operation : int
     {
         LOAD,
         STORE,
         EXE,
         MAX	
-    }instr_type;
+    }opr;
     
     Addr eip;
     Addr target_addr; // For load and store

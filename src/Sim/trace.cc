@@ -31,20 +31,30 @@ bool Trace::getInstruction(Instruction &inst)
 
     assert(tokens.size() != 0);
 
-    /*
     if (tokens.size() == 2)
     {
-        inst.op_type = tokens[0];
-        inst.EIP = std::stoull(tokens[1], NULL, 10);
+        inst.opr = Instruction::Operation::EXE;
+        inst.eip = std::stoull(tokens[1], NULL, 10);
         inst.target_addr = Addr(0) - 1;
     }
     else
     {
-        inst.op_type = tokens[0];
-        inst.EIP = std::stoull(tokens[1], NULL, 10);
+        if (tokens[0] == "Load")
+        {
+            inst.opr = Instruction::Operation::LOAD;
+        }
+        else if (tokens[0] == "Store")
+        {
+            inst.opr = Instruction::Operation::STORE;
+        }
+        else
+        {
+            std::cerr << "Unsupported operation. \n";
+        }
+        inst.eip = std::stoull(tokens[1], NULL, 10);
         inst.target_addr = std::stoull(tokens[2], NULL, 10);
     }
-    */
+
     return true;
 }
 

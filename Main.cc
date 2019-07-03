@@ -4,6 +4,8 @@
 
 int main(int argc, const char *argv[])
 {
+    runCPUTrace(argc, argv);
+    /*
     if (argc != 3)
     {
         std::cerr << "Usage: " << argv[0]
@@ -12,10 +14,11 @@ int main(int argc, const char *argv[])
                   << "\n";
         return 0;
     }
+    */
 
     /* Object Creation */
-    Config cfg(argv[1]);
-
+//    Config cfg(argv[1]);
+/*
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
@@ -34,12 +37,12 @@ int main(int argc, const char *argv[])
     // Create L1-D
     std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
     L1_D->setNextLevel(L2.get());
-
+*/
     /* Simulation */
-    runMemTrace(L1_D.get(), argv[2]);
+//    runMemTrace(L1_D.get(), argv[2]);
 
-    L1_D->debugPrint();
-    L2->debugPrint();
-    L3->debugPrint();
-    eDRAM->debugPrint();
+//    L1_D->debugPrint();
+//    L2->debugPrint();
+//    L3->debugPrint();
+//    eDRAM->debugPrint();
 }

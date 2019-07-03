@@ -1,6 +1,8 @@
 #ifndef __SIMULATION_HH__
 #define __SIMULATION_HH__
 
+#include <cstring>
+
 #include "Sim/config.hh"
 #include "Sim/trace.hh"
 
@@ -86,4 +88,55 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
     std::cout << "\nEnd Execution Time: " << Tick << "\n";
 }
 
+void parse_args(int argc, const char *argv[],
+                std::vector<const char*> &trace_lists)
+{
+    int trace_start = -1;
+    int config_start = -1;
+
+    for (int i = 0; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--traces") == 0)
+        {
+            trace_start = i + 1;
+        }
+
+        if (strcmp(argv[i], "--config") == 0)
+        {
+            config_start = i + 1;
+        }
+    }
+    assert(config_start != -1);
+    assert(config_start < argc);
+
+    assert(trace_start != -1);
+    assert(trace_start < argc);
+
+    int num_traces;
+    if (config_start < trace_start)
+    {
+        num_traces = argc - trace_start;
+    }
+    else
+    {
+        num_traces = config_start - 1 - trace_start;
+    }
+
+    for (int i = 0; i < num_traces; i++)
+    {
+        trace_lists.push_back(argv[trace_start + i]);
+    }
+}
+
+auto runCPUTrace(int argc, const char *argv[])
+{
+    std::vector<const char*> trace_lists;
+    parse_args(argc, argv, trace_lists);
+    assert(trace_lists.size() != 0);
+    for (int i = 0; i < trace_lists.size(); i++)
+    {
+        std::cout << "Core " << i
+                  << " is running trace: " << trace_lists[i] << "\n";
+    }
+}
 #endif
