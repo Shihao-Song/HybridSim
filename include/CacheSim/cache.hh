@@ -50,7 +50,10 @@ class Cache : public Simulator::MemObject
     }
     bool mshrComplete(Addr addr)
     {
+        // To insert a new block may cause a eviction, need to make sure the write-back
+        // is not full.
         if (wb_queue->isFull()) { return false; }
+
         mshr_queue->deAllocate(addr, true);
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
@@ -121,7 +124,6 @@ class Cache : public Simulator::MemObject
 
     auto servePendings()
     {
-        // See if any of the hit requests has resolved its lookup latency.
         if (pending_commits.size())
         {
             Request &req = pending_commits[0];
