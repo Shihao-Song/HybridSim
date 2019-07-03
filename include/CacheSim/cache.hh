@@ -116,8 +116,11 @@ class Cache : public Simulator::MemObject
     const unsigned nclks_to_tick_next_level;
 
   protected:
+    // TODO, rename pending_..._hits to pending_commits.
     std::deque<Request> pending_queue_for_hit_reqs;
     std::list<Request> pending_queue_for_non_hit_reqs;
+
+    // std::deque<Request> pending_commits;
     auto servePendings()
     {
         // See if any of the hit requests has resolved its lookup latency.
