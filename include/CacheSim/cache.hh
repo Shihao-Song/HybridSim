@@ -41,15 +41,16 @@ class Cache : public Simulator::MemObject
     auto sendMSHRReq(Addr addr)
     {
         Request req(addr, Request::Request_Type::READ,
-                    [this](Addr _addr){ this->mshrComplete(_addr); });
+                    [this](Addr _addr){ return this->mshrComplete(_addr); });
 
         if (next_level->send(req))
         {
             mshr_queue->entryOnBoard(addr);
         }
     }
-    auto mshrComplete(Addr addr)
+    bool mshrComplete(Addr addr)
     {
+        if (wb_queue->isFull()) { return false; }
         mshr_queue->deAllocate(addr, true);
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
             wb_required)
@@ -63,10 +64,8 @@ class Cache : public Simulator::MemObject
         {
             if (iter->addr == addr)
             {
-                if (iter->callback)
-                {
-                    iter->callback(iter->addr);
-                }
+                iter->end_exe = clk;
+                pending_commits.push_back(*iter);
                 iter = pending_queue_for_non_hit_reqs.erase(iter);
             }
             else
@@ -74,6 +73,7 @@ class Cache : public Simulator::MemObject
                 ++iter;
             }
         }
+        return true;
     }
     
     std::unique_ptr<CacheQueue> wb_queue;
@@ -116,21 +116,28 @@ class Cache : public Simulator::MemObject
     const unsigned nclks_to_tick_next_level;
 
   protected:
-    // TODO, rename pending_..._hits to pending_commits.
-    std::deque<Request> pending_queue_for_hit_reqs;
+    std::deque<Request> pending_commits;
     std::list<Request> pending_queue_for_non_hit_reqs;
 
-    // std::deque<Request> pending_commits;
     auto servePendings()
     {
         // See if any of the hit requests has resolved its lookup latency.
-        if (pending_queue_for_hit_reqs.size())
+        if (pending_commits.size())
         {
-            Request &req = pending_queue_for_hit_reqs[0];
+            Request &req = pending_commits[0];
             if (req.end_exe <= clk)
             {
-                if (req.callback) { req.callback(req.addr); }
-                pending_queue_for_hit_reqs.pop_front();
+                if (req.callback)
+                {
+                    if (req.callback(req.addr))
+                    {
+                        pending_commits.pop_front();
+                    }
+                }
+                else
+                {
+                    pending_commits.pop_front();
+                }
             }
         }
 
@@ -175,7 +182,7 @@ class Cache : public Simulator::MemObject
 
     int pendingRequests() override
     {
-        return pending_queue_for_hit_reqs.size() +
+        return pending_commits.size() +
                pending_queue_for_non_hit_reqs.size() +
                mshr_queue->numEntries() +
                wb_queue->numEntries();
@@ -189,7 +196,7 @@ class Cache : public Simulator::MemObject
         {
             req.begin_exe = clk;
             req.end_exe = clk + tag_lookup_latency;
-            pending_queue_for_hit_reqs.push_back(req);
+            pending_commits.push_back(req);
 
             ++num_hits;
         }
@@ -222,7 +229,7 @@ class Cache : public Simulator::MemObject
             {
                 req.begin_exe = clk;
                 req.end_exe = clk + tag_lookup_latency;
-                pending_queue_for_hit_reqs.push_back(req);
+                pending_commits.push_back(req);
 
                 return true;
             }
@@ -239,6 +246,7 @@ class Cache : public Simulator::MemObject
                                                              clk + tag_lookup_latency);
                         !hit_in_mshr_queue)
                     {
+                        req.begin_exe = clk;
                         pending_queue_for_non_hit_reqs.push_back(req);
                     }
                     return true;
@@ -258,6 +266,7 @@ class Cache : public Simulator::MemObject
                                                                  clk + tag_lookup_latency);
                             !hit_in_mshr_queue)
                         {
+                            req.begin_exe = clk;
                             pending_queue_for_non_hit_reqs.push_back(req);
                         }
                         return true;
