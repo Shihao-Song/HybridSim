@@ -1,11 +1,15 @@
 #ifndef __SIM_TRACE_HH__
 #define __SIM_TRACE_HH__
 
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <iterator>
+#include <sstream>
 #include <string>
 
+#include "Sim/instruction.hh"
 #include "Sim/request.hh"
 
 namespace Simulator
@@ -18,6 +22,7 @@ class Trace
     Trace(const std::string trace_fname);
 
     bool getMemtraceRequest(Request &req);
+    bool getInstruction(Instruction &inst);
 
   private:
     std::ifstream file;

@@ -1,5 +1,5 @@
-#ifndef __REQUEST_H__
-#define __REQUEST_H__
+#ifndef __REQUEST_HH__
+#define __REQUEST_HH__
 
 #include <cstdint> // Addr
 #include <functional>
@@ -44,9 +44,26 @@ class Request
     // call-back function
     std::function<bool(Addr)> callback;
 
-    // TODO, should have something like Builder or Factory to create different
-    // types of Request object.
+    /* Constructors */
+    Request() : addr(0), req_type(Request_Type::MAX)
+    {}
 
+    Request(Addr _addr, Request_Type _type) :
+        addr(_addr),
+        req_type(_type)
+    {}
+
+    Request(Addr _addr, Request_Type _type,
+            std::function<bool(Addr)> _callback) :
+        addr(_addr),
+        req_type(_type),
+        callback(_callback)
+    {}
+};
+
+class PLPRequest : public Request
+{
+  public:
     // when OoO is enabled
     int OrderID;
 
@@ -68,25 +85,7 @@ class Request
     std::list<Request>::iterator slave_req;
     // PLP related, slave maintains a pointer to master
     std::list<Request>::iterator master_req;
-
-    /* Constructors */
-    Request() : addr(0), req_type(Request_Type::MAX)
-    { }
-
-    Request(Addr _addr, Request_Type _type) :
-        addr(_addr),
-        req_type(_type),
-        pair_type(Pairing_Type::MAX)
-    {}
-
-    // TODO, callback should be pushed into the vector
-    Request(Addr _addr, Request_Type _type,
-            std::function<bool(Addr)> _callback) :
-        addr(_addr),
-        req_type(_type),
-        callback(_callback),
-        pair_type(Pairing_Type::MAX)
-    {}
 };
+
 }
 #endif

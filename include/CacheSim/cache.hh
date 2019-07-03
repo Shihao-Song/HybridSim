@@ -165,6 +165,8 @@ class Cache : public Simulator::MemObject
     Simulator::MemObject *next_level;
 
   protected:
+    // TODO, record hit ratio; also, hit in mshr should be counted
+    // as hits as well.
     uint64_t num_hits;
     uint64_t num_evicts;
 
@@ -223,7 +225,7 @@ class Cache : public Simulator::MemObject
                 return false;
             }
 
-            // Step two, to ensure data consistency. Check if the current request can be
+            // Step three, to ensure data consistency. Check if the current request can be
             // served by a write-back queue.
             // For example, if the request is a LOAD, it can get data directly;
             // if the request is a STORE, it can simply re-write the entry.
