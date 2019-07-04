@@ -13,6 +13,9 @@ int main(int argc, const char *argv[])
                   << " is running trace: " << trace_lists[i] << "\n";
     }
 
+    /* Create Processor */
+    
+
     // runCPUTrace(argc, argv);
     /*
     if (argc != 3)
