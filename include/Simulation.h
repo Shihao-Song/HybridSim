@@ -24,6 +24,47 @@ enum class Memories : int
     PCM
 };
 
+auto parse_args(int argc, const char *argv[])
+{
+    int trace_start = -1;
+    int config_start = -1;
+
+    for (int i = 0; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--traces") == 0)
+        {
+            trace_start = i + 1;
+        }
+
+        if (strcmp(argv[i], "--config") == 0)
+        {
+            config_start = i + 1;
+        }
+    }
+    assert(config_start != -1);
+    assert(config_start < argc);
+
+    assert(trace_start != -1);
+    assert(trace_start < argc);
+
+    int num_traces;
+    if (config_start < trace_start)
+    {
+        num_traces = argc - trace_start;
+    }
+    else
+    {
+        num_traces = config_start - 1 - trace_start;
+    }
+
+    std::vector<const char*> trace_lists;
+    for (int i = 0; i < num_traces; i++)
+    {
+        trace_lists.push_back(argv[trace_start + i]);
+    }
+    return std::make_pair(argv[config_start], trace_lists);
+}
+
 auto createMemObject(Config &cfg, Memories mem_type)
 {
     if (mem_type == Memories::PCM)
@@ -57,6 +98,18 @@ auto createMemObject(Config &cfg, Memories mem_type)
 
 auto createSystem()
 {}
+
+auto runCPUTrace(int argc, const char *argv[])
+{
+    auto [cfg_file, trace_lists] = parse_args(argc, argv);
+    assert(trace_lists.size() != 0);
+    std::cout << "Configuration file: " << cfg_file << "\n";
+    for (int i = 0; i < trace_lists.size(); i++)
+    {
+        std::cout << "Core " << i
+                  << " is running trace: " << trace_lists[i] << "\n";
+    }
+}
 
 /*
 // Run simulation
@@ -93,57 +146,4 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 }
 */
 
-void parse_args(int argc, const char *argv[],
-                std::vector<const char*> &trace_lists)
-{
-    int trace_start = -1;
-    int config_start = -1;
-
-    for (int i = 0; i < argc; i++)
-    {
-        if (strcmp(argv[i], "--traces") == 0)
-        {
-            trace_start = i + 1;
-        }
-
-        if (strcmp(argv[i], "--config") == 0)
-        {
-            config_start = i + 1;
-        }
-    }
-    assert(config_start != -1);
-    assert(config_start < argc);
-
-    assert(trace_start != -1);
-    assert(trace_start < argc);
-
-    int num_traces;
-    if (config_start < trace_start)
-    {
-        num_traces = argc - trace_start;
-    }
-    else
-    {
-        num_traces = config_start - 1 - trace_start;
-    }
-
-    for (int i = 0; i < num_traces; i++)
-    {
-        trace_lists.push_back(argv[trace_start + i]);
-    }
-}
-
-auto runCPUTrace(int argc, const char *argv[])
-{
-    std::vector<const char*> trace_lists;
-    parse_args(argc, argv, trace_lists);
-    assert(trace_lists.size() != 0);
-    for (int i = 0; i < trace_lists.size(); i++)
-    {
-        std::cout << "Core " << i
-                  << " is running trace: " << trace_lists[i] << "\n";
-    }
-
-    
-}
 #endif
