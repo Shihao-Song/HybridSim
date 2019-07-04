@@ -8,11 +8,14 @@
 
 #include "CacheSim/cache.hh"
 #include "PCMSim/Memory_System/pcm_sim_memory_system.hh"
+#include "Processor/processor.hh"
 
 typedef Simulator::Config Config;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
 typedef Simulator::Trace Trace;
+
+typedef CoreSystem::Processor Processor;
 
 enum class Memories : int
 {
@@ -24,7 +27,43 @@ enum class Memories : int
     PCM
 };
 
-auto parse_args(int argc, const char *argv[])
+std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[]);
+auto createMemObject(Config &cfg, Memories mem_type)
+{
+    if (mem_type == Memories::PCM)
+    {
+        return PCMSim::createPCMSimMemorySystem(cfg);
+    }
+    else
+    {
+        if (mem_type == Memories::L1_I_CACHE)
+        {
+            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg);
+        }
+        else if (mem_type == Memories::L1_D_CACHE)
+        {
+            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg);
+        }
+        else if (mem_type == Memories::L2_CACHE)
+        {
+            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg);
+        }
+        else if (mem_type == Memories::L3_CACHE)
+        {
+            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg);
+        }
+        else if (mem_type == Memories::eDRAM)
+        {
+            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg);
+        }
+    }
+}
+
+auto runCPUTrace(Processor *processor)
+{
+}
+
+std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[])
 {
     int trace_start = -1;
     int config_start = -1;
@@ -65,53 +104,6 @@ auto parse_args(int argc, const char *argv[])
     return std::make_pair(argv[config_start], trace_lists);
 }
 
-auto createMemObject(Config &cfg, Memories mem_type)
-{
-    if (mem_type == Memories::PCM)
-    {
-        return PCMSim::createPCMSimMemorySystem(cfg);
-    }
-    else
-    {
-        if (mem_type == Memories::L1_I_CACHE)
-        {
-            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg);
-        }
-        else if (mem_type == Memories::L1_D_CACHE)
-        {
-            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg);
-        }
-        else if (mem_type == Memories::L2_CACHE)
-        {
-            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg);
-        }
-        else if (mem_type == Memories::L3_CACHE)
-        {
-            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg);
-        }
-        else if (mem_type == Memories::eDRAM)
-        {
-            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg);
-        }
-    }
-}
-
-auto createSystem()
-{}
-
-auto runCPUTrace(int argc, const char *argv[])
-{
-    auto [cfg_file, trace_lists] = parse_args(argc, argv);
-    assert(trace_lists.size() != 0);
-    std::cout << "Configuration file: " << cfg_file << "\n";
-    for (int i = 0; i < trace_lists.size(); i++)
-    {
-        std::cout << "Core " << i
-                  << " is running trace: " << trace_lists[i] << "\n";
-    }
-}
-
-/*
 // Run simulation
 auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 {
@@ -144,6 +136,5 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 
     std::cout << "\nEnd Execution Time: " << Tick << "\n";
 }
-*/
 
 #endif

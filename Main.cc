@@ -4,7 +4,16 @@
 
 int main(int argc, const char *argv[])
 {
-    runCPUTrace(argc, argv);
+    auto [cfg_file, trace_lists] = parse_args(argc, argv);
+    assert(trace_lists.size() != 0);
+    std::cout << "Configuration file: " << cfg_file << "\n";
+    for (int i = 0; i < trace_lists.size(); i++)
+    {
+        std::cout << "Core " << i
+                  << " is running trace: " << trace_lists[i] << "\n";
+    }
+
+    // runCPUTrace(argc, argv);
     /*
     if (argc != 3)
     {

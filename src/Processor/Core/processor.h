@@ -17,24 +17,6 @@ typedef uint64_t Addr;
 typedef uint64_t Tick;
 typedef uint64_t Scalar;
 
-// Data structure for each instruction
-struct Instruction
-{
-    std::string op_type;
-    Addr EIP;
-    Addr target_addr; // only for load/store
-};
-
-class CPUTraceReader
-{
-  public:
-    CPUTraceReader(const char *trace);
-    bool getInstruction(Instruction &inst);
-
-  private:
-    std::ifstream file;
-};
-
 class Window
 {
   public:
