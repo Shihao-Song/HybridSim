@@ -12,15 +12,14 @@
 
 namespace CoreSystem
 {
+typedef uint64_t Addr;
+typedef uint64_t Tick;
+
+typedef Simulator::Instruction Instruction;
+typedef Simulator::Request Request;
+
 class Processor
 {
-  public:
-    typedef uint64_t Addr;
-    typedef uint64_t Tick;
-
-    typedef Simulator::Instruction Instruction;
-    typedef Simulator::Request Request;
-
   private:
     class Window // Instruction window
     {
@@ -96,6 +95,18 @@ class Processor
     {
       public:
         Core(){}
+
+        void tick();
+        bool done();
+
+      private:
+        Tick cycles;
+        int core_id;
+
+        std::unique_ptr<Window> window;
+
+        bool more_insts;
+        Instruction cur_inst;
     };
 
   public:

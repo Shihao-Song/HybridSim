@@ -86,37 +86,3 @@ bool Core::done()
     return !more_insts && window.is_empty();
 }
 
-long Window::retire()
-{
-    assert(load <= depth);
-
-    if (load == 0) return 0;
-
-    int retired = 0;
-    while (load > 0 && retired < ipc)
-    {
-        if (!ready_list.at(tail))
-        {
-            break;
-        }
-	tail = (tail + 1) % depth;
-        load--;
-        retired++;
-    }
-
-    return retired;
-}
-
-void Window::set_ready(Addr addr, int mask)
-{
-    if (load == 0) return;
-
-    // TODO, better use shift (get the block address)
-    for (int i = 0; i < load; i++) {
-        int index = (tail + i) % depth;
-        if ((addr_list.at(index) & mask) != (addr & mask))
-            continue;
-        ready_list.at(index) = true;
-    }
-}
-}
