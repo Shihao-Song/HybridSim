@@ -24,7 +24,7 @@ class Instruction
     Addr eip;
     Addr target_addr; // For load and store
 
-    bool ready_to_commit = true;
+    bool ready_to_commit = false;
 };
 }
 

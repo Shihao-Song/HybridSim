@@ -31,6 +31,7 @@ bool Trace::getInstruction(Instruction &inst)
 
     assert(tokens.size() != 0);
 
+    inst.ready_to_commit = false;
     if (tokens.size() == 2)
     {
         inst.opr = Instruction::Operation::EXE;

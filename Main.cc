@@ -30,8 +30,7 @@ int main(int argc, const char *argv[])
 
     // Create L1-D
     std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
-    // L1_D->setNextLevel(L2.get());
-    L1_D->setNextLevel(PCM.get()); // tmp change for testings.
+    L1_D->setNextLevel(L2.get());
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists));    
@@ -40,8 +39,8 @@ int main(int argc, const char *argv[])
     /* Simulation */
     runCPUTrace(processor.get());
 
-//    L1_D->debugPrint();
-//    L2->debugPrint();
-//    L3->debugPrint();
-//    eDRAM->debugPrint();
+    L1_D->debugPrint();
+    L2->debugPrint();
+    L3->debugPrint();
+    eDRAM->debugPrint();
 }

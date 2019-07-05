@@ -46,7 +46,7 @@ class Processor
             assert(num_issues <= DEPTH);
             pending_instructions.push_back(instr);
             ++num_issues;
-
+/*
             if (instr.opr == Instruction::Operation::EXE)
             {
                 std::cout << "Inserted: Exe ";
@@ -64,6 +64,7 @@ class Processor
                 std::cout << instr.eip << " ";
                 std::cout << instr.target_addr << "\n";
             }
+*/
         }
 
         int retire()
@@ -81,7 +82,7 @@ class Processor
                 {
                     break;
                 }
-
+/*
                 if (instr.opr == Instruction::Operation::EXE)
                 {
                     std::cout << "Retired: Exe ";
@@ -99,7 +100,7 @@ class Processor
                     std::cout << instr.eip << " ";
                     std::cout << instr.target_addr << "\n";
                 }
-
+*/
                 pending_instructions.pop_front();
                 num_issues--;
                 retired++;
@@ -112,16 +113,15 @@ class Processor
         {
             return [this](Addr addr)
             {
+//                std::cout << "Addr " << addr << " has been resolved. \n"; 
                 for (int i = 0; i < num_issues; i++)
                 {
                     Instruction &inst = pending_instructions[i];
                     if ((inst.opr == Instruction::Operation::LOAD) &&
-                        (inst.target_addr & block_mask != addr))
+                        ((inst.target_addr & ~block_mask) == addr))
                     {
-                        // This LOAD instruction is not ready.
-                        continue;
+                        inst.ready_to_commit = true;
                     }
-                    inst.ready_to_commit = true;
                 }
 
                 return true;
@@ -146,20 +146,52 @@ class Processor
 
         void tick()
         {
-            std::cout << "********************************";
-            std::cout << "********************************\n";
+//            std::cout << "********************************";
+//            std::cout << "********************************\n";
             cycles++;
 
+            d_cache->tick();
+
             window.retire();
-            std::cout << "\n";
             if (!more_insts) { return; }
 
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
-                window.insert(cur_inst);
-                inserted++;
-                more_insts = trace.getInstruction(cur_inst);
+                if (cur_inst.opr == Instruction::Operation::EXE)
+                {
+                    cur_inst.ready_to_commit = true;
+                    window.insert(cur_inst);
+                    inserted++;
+                    more_insts = trace.getInstruction(cur_inst);
+                }
+                else
+                {
+                    Request req;
+                    req.addr = cur_inst.target_addr & ~window.block_mask;
+
+                    if (cur_inst.opr == Instruction::Operation::LOAD)
+                    {
+                        req.req_type = Request::Request_Type::READ;
+                        req.callback = window.commit();
+                    }
+                    else if (cur_inst.opr == Instruction::Operation::STORE)
+                    {
+                        req.req_type = Request::Request_Type::WRITE;
+                    }
+
+                    if (d_cache->send(req))
+                    {
+//                        std::cout << "Sending out addr: " << req.addr << "\n";
+                        if (cur_inst.opr == Instruction::Operation::STORE)
+                        {
+                            cur_inst.ready_to_commit = true;
+			}
+                        window.insert(cur_inst);
+                        inserted++;
+                        more_insts = trace.getInstruction(cur_inst);
+                    }
+                }
             }
         }
 
