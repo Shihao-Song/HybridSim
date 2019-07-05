@@ -27,6 +27,10 @@ class Processor
     class Window
     {
       public:
+        // TODO, for debug only
+        Tick cycles = 0;
+
+      public:
         static const int IPC = 4; // instruction per cycle
         static const int DEPTH = 128; // window size
         // TODO, I currently hard-coded block_mask.
@@ -113,7 +117,8 @@ class Processor
         {
             return [this](Addr addr)
             {
-//                std::cout << "Addr " << addr << " has been resolved. \n"; 
+                std::cout << cycles << ": Addr " << addr << " has been resolved "
+                          << "and sent back to Core. \n";	
                 for (int i = 0; i < num_issues; i++)
                 {
                     Instruction &inst = pending_instructions[i];
@@ -149,6 +154,7 @@ class Processor
 //            std::cout << "********************************";
 //            std::cout << "********************************\n";
             cycles++;
+            window.cycles++;
 
             d_cache->tick();
 
@@ -182,7 +188,7 @@ class Processor
 
                     if (d_cache->send(req))
                     {
-//                        std::cout << "Sending out addr: " << req.addr << "\n";
+                        std::cout << cycles << ": Core sending out addr " << req.addr << "\n";
                         if (cur_inst.opr == Instruction::Operation::STORE)
                         {
                             cur_inst.ready_to_commit = true;
