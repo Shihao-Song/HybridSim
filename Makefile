@@ -1,4 +1,4 @@
-SOURCE  := Main.cc src/Sim/config.cc src/Sim/trace.cc src/Processor/processor.cc
+SOURCE  := Main.cc src/Sim/config.cc src/Sim/trace.cc
 
 CC      := g++
 FLAGS   := -O3 -std=c++17 -w -I include

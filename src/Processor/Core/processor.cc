@@ -86,28 +86,6 @@ bool Core::done()
     return !more_insts && window.is_empty();
 }
 
-// Window
-bool Window::is_full()
-{
-    return load == depth;
-}
-
-bool Window::is_empty()
-{
-    return load == 0;
-}
-
-void Window::insert(bool ready, Addr addr)
-{
-    assert(load <= depth);
-
-    ready_list.at(head) = ready;
-    addr_list.at(head) = addr;
-
-    head = (head + 1) % depth;
-    load++;
-}
-
 long Window::retire()
 {
     assert(load <= depth);
