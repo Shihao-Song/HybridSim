@@ -2,6 +2,7 @@
 #define __PROCESSOR_HH__
 
 #include "Sim/instruction.hh"
+#include "Sim/mem_object.hh"
 #include "Sim/request.hh"
 #include "Sim/trace.hh"
 
@@ -16,7 +17,9 @@ typedef uint64_t Addr;
 typedef uint64_t Tick;
 
 typedef Simulator::Instruction Instruction;
+typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
+typedef Simulator::Trace Trace;
 
 class Processor
 {
@@ -64,16 +67,14 @@ class Processor
 
         auto commit()
         {
-            return [&](Addr addr)
+            return [this](Addr addr)
             {
-                if (this->num_issues == 0) {return true;}
-
-                for (int i = 0; i < this->num_issues; i++)
+                for (int i = 0; i < num_issues; i++)
                 {
-                    int index = (this->tail + i) % this->DEPTH;
-                    Instruction &inst = this->pending_instructions[index];
-                    if (inst.opr == Instruction::Operation::LOAD &&
-                        inst.target_addr & this->block_mask != addr)
+                    int index = (tail + i) % DEPTH;
+                    Instruction &inst = pending_instructions[index];
+                    if ((inst.opr == Instruction::Operation::LOAD) &&
+                        (inst.target_addr & block_mask != addr))
                     {
                         continue;
                     }
@@ -94,26 +95,89 @@ class Processor
     class Core
     {
       public:
-        Core(){}
+        Core(int _id, const char* trace_file)
+            : trace(trace_file),
+              cycles(0),
+              core_id(_id)
+        {
+            more_insts = trace.getInstruction(cur_inst);
+            assert(more_insts);
+        }
 
-        void tick();
-        bool done();
+        void setDCache(MemObject* _d_cache) {d_cache = _d_cache;}
+
+        void tick()
+        {
+            cycles++;
+
+            window.retire();
+
+            if (!more_insts) { return; }
+
+            int inserted = 0;
+            while (inserted < window.IPC && !window.isFull() && more_insts)
+            {
+                window.insert(cur_inst);
+                inserted++;
+                more_insts = trace.getInstruction(cur_inst);
+            }
+        }
+
+        bool done()
+        {
+            return !more_insts && window.isEmpty();
+        }
 
       private:
+        Trace trace;
+
         Tick cycles;
         int core_id;
 
-        std::unique_ptr<Window> window;
+        Window window;
 
         bool more_insts;
         Instruction cur_inst;
+
+        MemObject *d_cache;
+        MemObject *i_cache;
     };
 
   public:
-    Processor(std::vector<const char*> trace_lists);
+    Processor(std::vector<const char*> trace_lists) : cycles(0)
+    {
+        unsigned num_of_cores = trace_lists.size();
+        for (int i = 0; i < num_of_cores; i++)
+        {
+            cores.emplace_back(new Core(i, trace_lists[i]));
+        }
+    }
 
-    void tick();
-    bool done();
+    void setDCache(int core_id, MemObject *d_cache)
+    {
+        cores[core_id]->setDCache(d_cache);
+    }
+
+    void tick()
+    {
+        cycles++;
+        for (auto &core : cores)
+        {
+            core->tick();
+        }
+    }
+
+    bool done()
+    {
+        for (auto &core : cores)
+        {
+            if (!core->done())
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 
   private:
     Tick cycles;
