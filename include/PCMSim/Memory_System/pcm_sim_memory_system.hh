@@ -34,10 +34,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         // Initialize
         init(cfg);
-
-        std::cout << "\nMemory Controller: " << cfg.mem_controller_type << ".\n";
-
-        std::cout << "\nPCM System: " << cfg.sizeOfPCMInGB() << " GB.\n";
     }
 
     int pendingRequests() override

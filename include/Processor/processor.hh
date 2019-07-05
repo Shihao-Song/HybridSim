@@ -24,7 +24,7 @@ typedef Simulator::Trace Trace;
 class Processor
 {
   private:
-    class Window // Instruction window
+    class Window
     {
       public:
         static const int IPC = 4; // instruction per cycle
@@ -32,32 +32,75 @@ class Processor
         // TODO, I currently hard-coded block_mask.
         Addr block_mask = 63;
 
+      private:
+        std::deque<Instruction> pending_instructions;
+        int num_issues = 0;
+
       public:
         Window() {}
-        bool isFull() { return num_issues == DEPTH; }
-        bool isEmpty() { return num_issues == 0; } 
+        bool isFull() { return pending_instructions.size() == DEPTH; }
+        bool isEmpty() { return pending_instructions.size() == 0; } 
         void insert(Instruction &instr)
         {
+            assert(pending_instructions.size() <= DEPTH);
             assert(num_issues <= DEPTH);
-            assert(instr.opr == Instruction::Operation::LOAD);
             pending_instructions.push_back(instr);
             ++num_issues;
-            head = (head + 1) % DEPTH;
+
+            if (instr.opr == Instruction::Operation::EXE)
+            {
+                std::cout << "Inserted: Exe ";
+                std::cout << instr.eip << "\n";
+            }
+	    else if (instr.opr == Instruction::Operation::LOAD)
+            {
+                std::cout << "Inserted: Load ";
+                std::cout << instr.eip << " ";
+                std::cout << instr.target_addr << "\n";
+            }
+	    else if (instr.opr == Instruction::Operation::STORE)
+            {
+                std::cout << "Inserted: Store ";
+                std::cout << instr.eip << " ";
+                std::cout << instr.target_addr << "\n";
+            }
         }
 
         int retire()
         {
+            assert(pending_instructions.size() <= DEPTH);
             assert(num_issues <= DEPTH);
+
             if (isEmpty()) { return 0; }
 
             int retired = 0;
             while (num_issues > 0 && retired < IPC)
             {
-                if (!pending_instructions[tail].ready_to_commit)
+                Instruction &instr = pending_instructions[0];
+                if (!instr.ready_to_commit)
                 {
                     break;
                 }
-                tail = (tail + 1) % DEPTH;
+
+                if (instr.opr == Instruction::Operation::EXE)
+                {
+                    std::cout << "Retired: Exe ";
+                    std::cout << instr.eip << "\n";
+                }
+                else if (instr.opr == Instruction::Operation::LOAD)
+                {
+                    std::cout << "Retired: Load ";
+                    std::cout << instr.eip << " ";
+                    std::cout << instr.target_addr << "\n";
+                }
+                else if (instr.opr == Instruction::Operation::STORE)
+                {
+                    std::cout << "Retired: Store ";
+                    std::cout << instr.eip << " ";
+                    std::cout << instr.target_addr << "\n";
+                }
+
+                pending_instructions.pop_front();
                 num_issues--;
                 retired++;
             }
@@ -71,11 +114,11 @@ class Processor
             {
                 for (int i = 0; i < num_issues; i++)
                 {
-                    int index = (tail + i) % DEPTH;
-                    Instruction &inst = pending_instructions[index];
+                    Instruction &inst = pending_instructions[i];
                     if ((inst.opr == Instruction::Operation::LOAD) &&
                         (inst.target_addr & block_mask != addr))
                     {
+                        // This LOAD instruction is not ready.
                         continue;
                     }
                     inst.ready_to_commit = true;
@@ -85,11 +128,6 @@ class Processor
             };
         }
 
-      private:
-        std::deque<Instruction> pending_instructions;
-        int num_issues = 0;
-        int head = 0;
-        int tail = 0;
     };
 
     class Core
@@ -108,10 +146,12 @@ class Processor
 
         void tick()
         {
+            std::cout << "********************************";
+            std::cout << "********************************\n";
             cycles++;
 
             window.retire();
-
+            std::cout << "\n";
             if (!more_insts) { return; }
 
             int inserted = 0;
@@ -149,6 +189,8 @@ class Processor
         unsigned num_of_cores = trace_lists.size();
         for (int i = 0; i < num_of_cores; i++)
         {
+            std::cout << "Core " << i << " is assigned trace: "
+                      << trace_lists[i] << "\n";
             cores.emplace_back(new Core(i, trace_lists[i]));
         }
     }

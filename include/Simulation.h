@@ -61,6 +61,11 @@ auto createMemObject(Config &cfg, Memories mem_type)
 
 auto runCPUTrace(Processor *processor)
 {
+    std::cout << "\nCPU-trace driven simulation...\n";
+    while (!processor->done())
+    {
+        processor->tick();
+    }
 }
 
 std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[])
