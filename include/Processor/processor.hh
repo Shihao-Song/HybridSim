@@ -27,7 +27,7 @@ class Processor
     class Window
     {
       public:
-        // TODO, for debug only
+        // TODO, for debug only, delete it later.
         Tick cycles = 0;
 
       public:
@@ -82,6 +82,7 @@ class Processor
             while (num_issues > 0 && retired < IPC)
             {
                 Instruction &instr = pending_instructions[0];
+
                 if (!instr.ready_to_commit)
                 {
                     break;
@@ -117,15 +118,18 @@ class Processor
         {
             return [this](Addr addr)
             {
-                std::cout << cycles << ": Addr " << addr << " has been resolved "
-                          << "and sent back to Core. \n";	
+                // std::cout << cycles << ": Addr " << addr << " has been resolved "
+                //           << "and sent back to Core. \n";	
                 for (int i = 0; i < num_issues; i++)
                 {
                     Instruction &inst = pending_instructions[i];
-                    if ((inst.opr == Instruction::Operation::LOAD) &&
-                        ((inst.target_addr & ~block_mask) == addr))
+                    if (inst.opr == Instruction::Operation::LOAD)
+                    //    inst.opr == Instruction::Operation::STORE)
                     {
-                        inst.ready_to_commit = true;
+                        if ((inst.target_addr & ~block_mask) == addr)
+                        {
+                            inst.ready_to_commit = true;
+                        }
                     }
                 }
 
@@ -157,8 +161,9 @@ class Processor
             window.cycles++;
 
             d_cache->tick();
-
-            window.retire();
+            static uint64_t retired = 0;
+            retired += window.retire();
+            std::cout << retired << "\n";
             if (!more_insts) { return; }
 
             int inserted = 0;
@@ -186,16 +191,20 @@ class Processor
                         req.req_type = Request::Request_Type::WRITE;
                     }
 
+                    // std::cout << cycles << ": Core sending out addr " << req.addr << "\n";
                     if (d_cache->send(req))
                     {
-                        std::cout << cycles << ": Core sending out addr " << req.addr << "\n";
                         if (cur_inst.opr == Instruction::Operation::STORE)
                         {
-                            cur_inst.ready_to_commit = true;
+                             cur_inst.ready_to_commit = true;
 			}
                         window.insert(cur_inst);
                         inserted++;
                         more_insts = trace.getInstruction(cur_inst);
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
             }

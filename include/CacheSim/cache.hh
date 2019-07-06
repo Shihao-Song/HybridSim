@@ -32,6 +32,26 @@ class Cache : public Simulator::MemObject
 
   protected:
     Config::Cache_Level level;
+    std::string level_name;
+    std::string toString()
+    {
+        if (level == Config::Cache_Level::L1D)
+        {
+            return std::string("L1-D");
+        }
+        else if (level == Config::Cache_Level::L2)
+        {
+            return std::string("L2");
+        }
+        else if (level == Config::Cache_Level::L3)
+        {
+            return std::string("L3");
+        }
+        else if (level == Config::Cache_Level::eDRAM)
+        {
+            return std::string("eDRAM");
+        }
+    }
 
     Tick clk;
 
@@ -40,6 +60,9 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
+//        std::cout << level_name << " " << clk << ": "
+//                      << "Sending MSHR request for addr " << addr << "\n";
+
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
 
@@ -50,6 +73,9 @@ class Cache : public Simulator::MemObject
     }
     bool mshrComplete(Addr addr)
     {
+        // std::cout << level_name << " " << clk << ": "
+        //           << "MSHR request for addr " << addr << " is finished. \n";
+
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
         if (wb_queue->isFull()) { return false; }
@@ -124,6 +150,8 @@ class Cache : public Simulator::MemObject
 
     auto servePendings()
     {
+        //std::cout << level_name << " " << mshr_queue->numEntries()
+        //          << " " << wb_queue->numEntries() << "\n";
         if (pending_commits.size())
         {
             Request &req = pending_commits[0];
@@ -169,11 +197,13 @@ class Cache : public Simulator::MemObject
     // as hits as well.
     uint64_t num_hits;
     uint64_t num_evicts;
+    uint64_t accesses;
 
   public:
     Cache(Config::Cache_Level _level, Config &cfg)
         : Simulator::MemObject(),
           level(_level),
+          level_name(toString()),
           clk(0),
           tags(new Tag(int(_level), cfg)),
           mshr_queue(new CacheQueue(cfg.caches[int(_level)].num_mshrs)),
@@ -181,7 +211,8 @@ class Cache : public Simulator::MemObject
           tag_lookup_latency(cfg.caches[int(_level)].tag_lookup_latency),
           nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
           num_hits(0),
-          num_evicts(0)
+          num_evicts(0),
+          accesses(0)
     {}
 
     int pendingRequests() override
@@ -194,6 +225,7 @@ class Cache : public Simulator::MemObject
 
     bool send(Request &req) override
     {
+        ++accesses;
         // Step one, check whether it is a hit or not
         if (auto [hit, aligned_addr] = tags->accessBlock(req.addr, clk);
             hit)
@@ -231,13 +263,16 @@ class Cache : public Simulator::MemObject
             // if the request is a STORE, it can simply re-write the entry.
             if (wb_queue->isInQueue(aligned_addr))
             {
+                ++num_hits;
+
                 req.begin_exe = clk;
                 req.end_exe = clk + tag_lookup_latency;
                 pending_commits.push_back(req);
 
                 return true;
             }
-
+            // std::cout << level_name << " " << clk << ": "
+            //           << "Addr " << aligned_addr << " missed in cache. \n";
             // Step four, accept normal READ or WRITES.
             if constexpr(std::is_same<NormalMode, Mode>::value)
             {
@@ -248,11 +283,13 @@ class Cache : public Simulator::MemObject
 
                     if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
                                                              clk + tag_lookup_latency);
-                        !hit_in_mshr_queue)
+                        hit_in_mshr_queue)
                     {
-                        req.begin_exe = clk;
-                        pending_queue_for_non_hit_reqs.push_back(req);
+                        ++num_hits;
                     }
+                    req.begin_exe = clk;
+                    pending_queue_for_non_hit_reqs.push_back(req);
+
                     return true;
                 }
                 return false;
@@ -268,11 +305,13 @@ class Cache : public Simulator::MemObject
                     {
                         if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
                                                                  clk + tag_lookup_latency);
-                            !hit_in_mshr_queue)
+                            hit_in_mshr_queue)
                         {
-                            req.begin_exe = clk;
-                            pending_queue_for_non_hit_reqs.push_back(req);
+                            ++num_hits;
                         }
+                        req.begin_exe = clk;
+                        pending_queue_for_non_hit_reqs.push_back(req);
+
                         return true;
                     }
                     else
@@ -289,14 +328,14 @@ class Cache : public Simulator::MemObject
 
     void tick() override
     {
-        clk++;
-        
 	servePendings();
 
         if (clk % nclks_to_tick_next_level == 0)
         {
             next_level->tick();
         }
+        
+	clk++;
     }
 
     void setNextLevel(Simulator::MemObject *_next_level) override
@@ -316,8 +355,10 @@ class Cache : public Simulator::MemObject
             std::cout << "A Set-associative Cache (LRU): \n";
         }
         tags->printTagInfo();
-        std::cout << "Number of hits: " << num_hits << "\n";
-        std::cout << "Number of evictions: " << num_evicts << "\n";
+        double hit_rate = (double)num_hits / (double)accesses;
+        std::cout << "Hit rate: " << hit_rate << "\n";
+        // std::cout << "Number of hits: " << num_hits << "\n";
+        // std::cout << "Number of evictions: " << num_evicts << "\n";
     }
 };
 

@@ -61,7 +61,7 @@ auto createMemObject(Config &cfg, Memories mem_type)
 
 auto runCPUTrace(Processor *processor)
 {
-    std::cout << "\nCPU-trace driven simulation...\n";
+    std::cout << "\nCPU-trace driven simulation...\n\n";
     while (!processor->done())
     {
         processor->tick();
