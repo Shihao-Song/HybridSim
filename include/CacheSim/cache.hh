@@ -60,6 +60,9 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
+        std::cout << clk << ": " << level_name << " is sending an MSHR request for "
+                  << "addr " << addr << "\n";
+
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
 
@@ -71,6 +74,9 @@ class Cache : public Simulator::MemObject
     }
     bool mshrComplete(Addr addr)
     {
+        std::cout << clk << ": " << level_name << " is receiving an MSHR answer for "
+                  << "addr " << addr << "\n";
+
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
         if (wb_queue->isFull()) { return false; }
@@ -324,6 +330,19 @@ class Cache : public Simulator::MemObject
     {
 	servePendings();
 
+        // TODO, this should better be configurable
+        // For example, let user determine which level is shared.
+        // This can be simply done by adding a field in the configuration file to achieve
+        // something like: if (!LAST_LEVEL_IS_SHARED)
+        if (level == Config::Cache_Level::L2)
+        {
+            // L2 is the last component of an individual core. Since L3 and below
+            // are shared among cores, they should be ticked by the processor instead of
+            // any individual core.
+            clk++;
+            return;
+        }
+
         if (clk % nclks_to_tick_next_level == 0)
         {
             next_level->tick();
@@ -339,7 +358,7 @@ class Cache : public Simulator::MemObject
 
     void debugPrint() override
     {
-        std::cout << "\n";
+        // std::cout << "\n";
         if constexpr (std::is_same<LRUFATags, Tag>::value)
         {
             std::cout << "A Fully-associative Cache (LRU): \n";

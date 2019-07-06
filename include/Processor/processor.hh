@@ -114,7 +114,7 @@ class Processor
             d_cache->tick();
             static uint64_t retired = 0;
             retired += window.retire();
-            std::cout << retired << "\n";
+            // std::cout << retired << "\n";
             if (!more_insts) { return; }
 
             int inserted = 0;
@@ -181,7 +181,8 @@ class Processor
     };
 
   public:
-    Processor(std::vector<const char*> trace_lists) : cycles(0)
+    Processor(std::vector<const char*> trace_lists,
+              MemObject *_shared_m_obj) : cycles(0), shared_m_obj(_shared_m_obj)
     {
         unsigned num_of_cores = trace_lists.size();
         for (int i = 0; i < num_of_cores; i++)
@@ -204,6 +205,8 @@ class Processor
         {
             core->tick();
         }
+        // Tick the shared cache
+        shared_m_obj->tick();
     }
 
     bool done()
@@ -221,6 +224,7 @@ class Processor
   private:
     Tick cycles;
     std::vector<std::unique_ptr<Core>> cores;
+    MemObject *shared_m_obj; // L3 and below
 };
 }
 

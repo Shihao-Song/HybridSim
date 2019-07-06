@@ -24,23 +24,42 @@ int main(int argc, const char *argv[])
     L3->setNextLevel(eDRAM.get());
 
     /* Create Processor */
-    // Create L2
-    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE));
-    L2->setNextLevel(L3.get());
+    std::vector<std::unique_ptr<MemObject>> L2_all;
+    std::vector<std::unique_ptr<MemObject>> L1_D_all;
+    for (int i = 0; i < num_of_cores; i++)
+    {
+        // Create L2
+        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE));
+        L2->setNextLevel(L3.get());
 
-    // Create L1-D
-    std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
-    L1_D->setNextLevel(L2.get());
+        // Create L1-D
+        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
+        L1_D->setNextLevel(L2.get());
+
+        L2_all.push_back(std::move(L2));
+        L1_D_all.push_back(std::move(L1_D));
+    }
 
     // Create Processor 
-    std::unique_ptr<Processor> processor(new Processor(trace_lists));    
-    processor->setDCache(0, L1_D.get());
+    std::unique_ptr<Processor> processor(new Processor(trace_lists, L3.get()));
+    for (int i = 0; i < num_of_cores; i++) 
+    {
+        processor->setDCache(i, L1_D_all[i].get());
+    }
 
     /* Simulation */
     runCPUTrace(processor.get());
 
-    L1_D->debugPrint();
-    L2->debugPrint();
+    std::cout << "\n***************** Cache Stats *****************\n"; 
+    for (int i = 0; i < num_of_cores; i++)
+    {
+        std::cout << "\nCore " << i << " L1-DCache: \n";
+        L1_D_all[i]->debugPrint();
+        std::cout << "\nCore " << i << " L2-Cache: \n";
+        L2_all[i]->debugPrint();
+    }
+    std::cout << "\nL3-Cache: \n";
     L3->debugPrint();
+    std::cout << "\neDRAM: \n";
     eDRAM->debugPrint();
 }
