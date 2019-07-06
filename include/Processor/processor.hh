@@ -27,10 +27,6 @@ class Processor
     class Window
     {
       public:
-        // TODO, for debug only, delete it later.
-        Tick cycles = 0;
-
-      public:
         static const int IPC = 4; // instruction per cycle
         static const int DEPTH = 128; // window size
         // TODO, I currently hard-coded block_mask.
@@ -50,25 +46,6 @@ class Processor
             assert(num_issues <= DEPTH);
             pending_instructions.push_back(instr);
             ++num_issues;
-/*
-            if (instr.opr == Instruction::Operation::EXE)
-            {
-                std::cout << "Inserted: Exe ";
-                std::cout << instr.eip << "\n";
-            }
-	    else if (instr.opr == Instruction::Operation::LOAD)
-            {
-                std::cout << "Inserted: Load ";
-                std::cout << instr.eip << " ";
-                std::cout << instr.target_addr << "\n";
-            }
-	    else if (instr.opr == Instruction::Operation::STORE)
-            {
-                std::cout << "Inserted: Store ";
-                std::cout << instr.eip << " ";
-                std::cout << instr.target_addr << "\n";
-            }
-*/
         }
 
         int retire()
@@ -87,25 +64,7 @@ class Processor
                 {
                     break;
                 }
-/*
-                if (instr.opr == Instruction::Operation::EXE)
-                {
-                    std::cout << "Retired: Exe ";
-                    std::cout << instr.eip << "\n";
-                }
-                else if (instr.opr == Instruction::Operation::LOAD)
-                {
-                    std::cout << "Retired: Load ";
-                    std::cout << instr.eip << " ";
-                    std::cout << instr.target_addr << "\n";
-                }
-                else if (instr.opr == Instruction::Operation::STORE)
-                {
-                    std::cout << "Retired: Store ";
-                    std::cout << instr.eip << " ";
-                    std::cout << instr.target_addr << "\n";
-                }
-*/
+
                 pending_instructions.pop_front();
                 num_issues--;
                 retired++;
@@ -118,18 +77,13 @@ class Processor
         {
             return [this](Addr addr)
             {
-                // std::cout << cycles << ": Addr " << addr << " has been resolved "
-                //           << "and sent back to Core. \n";	
                 for (int i = 0; i < num_issues; i++)
                 {
                     Instruction &inst = pending_instructions[i];
-                    if (inst.opr == Instruction::Operation::LOAD)
-                    //    inst.opr == Instruction::Operation::STORE)
+                    if (inst.opr == Instruction::Operation::LOAD &&
+                       (inst.target_addr & ~block_mask) == addr)
                     {
-                        if ((inst.target_addr & ~block_mask) == addr)
-                        {
-                            inst.ready_to_commit = true;
-                        }
+                        inst.ready_to_commit = true;
                     }
                 }
 
@@ -155,10 +109,7 @@ class Processor
 
         void tick()
         {
-//            std::cout << "********************************";
-//            std::cout << "********************************\n";
             cycles++;
-            window.cycles++;
 
             d_cache->tick();
             static uint64_t retired = 0;
@@ -191,7 +142,6 @@ class Processor
                         req.req_type = Request::Request_Type::WRITE;
                     }
 
-                    // std::cout << cycles << ": Core sending out addr " << req.addr << "\n";
                     if (d_cache->send(req))
                     {
                         if (cur_inst.opr == Instruction::Operation::STORE)

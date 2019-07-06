@@ -60,22 +60,17 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
-//        std::cout << level_name << " " << clk << ": "
-//                      << "Sending MSHR request for addr " << addr << "\n";
-
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
 
         if (next_level->send(req))
         {
+            ++num_loads;
             mshr_queue->entryOnBoard(addr);
         }
     }
     bool mshrComplete(Addr addr)
     {
-        // std::cout << level_name << " " << clk << ": "
-        //           << "MSHR request for addr " << addr << " is finished. \n";
-
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
         if (wb_queue->isFull()) { return false; }
@@ -150,8 +145,6 @@ class Cache : public Simulator::MemObject
 
     auto servePendings()
     {
-        //std::cout << level_name << " " << mshr_queue->numEntries()
-        //          << " " << wb_queue->numEntries() << "\n";
         if (pending_commits.size())
         {
             Request &req = pending_commits[0];
@@ -193,9 +186,8 @@ class Cache : public Simulator::MemObject
     Simulator::MemObject *next_level;
 
   protected:
-    // TODO, record hit ratio; also, hit in mshr should be counted
-    // as hits as well.
     uint64_t num_hits;
+    uint64_t num_loads;
     uint64_t num_evicts;
     uint64_t accesses;
 
@@ -211,6 +203,7 @@ class Cache : public Simulator::MemObject
           tag_lookup_latency(cfg.caches[int(_level)].tag_lookup_latency),
           nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
           num_hits(0),
+          num_loads(0),
           num_evicts(0),
           accesses(0)
     {}
@@ -271,8 +264,7 @@ class Cache : public Simulator::MemObject
 
                 return true;
             }
-            // std::cout << level_name << " " << clk << ": "
-            //           << "Addr " << aligned_addr << " missed in cache. \n";
+
             // Step four, accept normal READ or WRITES.
             if constexpr(std::is_same<NormalMode, Mode>::value)
             {
@@ -318,7 +310,9 @@ class Cache : public Simulator::MemObject
                     {
                         assert(req.req_type == Request::Request_Type::READ);
                         // Forward to next level directly.
-                        return next_level->send(req);
+                        bool ret = next_level->send(req);
+                        if (ret) {num_loads++;}
+                        return ret;
                     }
                 }
                 return false;
@@ -357,8 +351,8 @@ class Cache : public Simulator::MemObject
         tags->printTagInfo();
         double hit_rate = (double)num_hits / (double)accesses;
         std::cout << "Hit rate: " << hit_rate << "\n";
-        // std::cout << "Number of hits: " << num_hits << "\n";
-        // std::cout << "Number of evictions: " << num_evicts << "\n";
+        std::cout << "Number of loads: " << num_loads << "\n";
+        std::cout << "Number of evictions: " << num_evicts << "\n";
     }
 };
 
