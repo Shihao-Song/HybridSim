@@ -115,9 +115,9 @@ class Processor
             cycles++;
 
             d_cache->tick();
-            static uint64_t retired = 0;
             retired += window.retire();
-            // std::cout << retired << "\n";
+            std::cout << "Core: " << core_id 
+                      << " has done " << retired << " instructions. \n";
             if (!more_insts) { return; }
 
             int inserted = 0;
@@ -182,6 +182,7 @@ class Processor
 
         bool more_insts;
         Instruction cur_inst;
+        uint64_t retired = 0;
 
         MemObject *d_cache;
         MemObject *i_cache;
