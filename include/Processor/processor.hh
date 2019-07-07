@@ -2,6 +2,7 @@
 #define __PROCESSOR_HH__
 
 #include "Sim/instruction.hh"
+#include "Sim/mapper.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
 #include "Sim/trace.hh"
@@ -17,6 +18,7 @@ typedef uint64_t Addr;
 typedef uint64_t Tick;
 
 typedef Simulator::Instruction Instruction;
+typedef Simulator::Mapper Mapper;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
 typedef Simulator::Trace Trace;
@@ -97,7 +99,8 @@ class Processor
     {
       public:
         Core(int _id, const char* trace_file)
-            : trace(trace_file),
+            : mapper(_id),
+              trace(trace_file),
               cycles(0),
               core_id(_id)
         {
@@ -130,6 +133,7 @@ class Processor
                 else
                 {
                     Request req;
+                    cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
                     req.addr = cur_inst.target_addr & ~window.block_mask;
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -166,6 +170,9 @@ class Processor
         }
 
       private:
+        // TODO, Mapper should be in MMU in the future.
+        Mapper mapper;
+
         Trace trace;
 
         Tick cycles;
