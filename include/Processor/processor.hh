@@ -116,8 +116,11 @@ class Processor
 
             d_cache->tick();
             retired += window.retire();
-            std::cout << "Core: " << core_id 
-                      << " has done " << retired << " instructions. \n";
+            if (cycles % 1000000 == 0)
+            {
+                std::cout << "Core: " << core_id 
+                          << " has done " << retired << " instructions. \n";
+	    }
             if (!more_insts) { return; }
 
             int inserted = 0;
@@ -133,6 +136,7 @@ class Processor
                 else
                 {
                     Request req;
+                    req.core_id = core_id;
                     cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
                     req.addr = cur_inst.target_addr & ~window.block_mask;
 
@@ -213,6 +217,8 @@ class Processor
         {
             core->tick();
         }
+        if (cycles % 1000000 == 0) { std::cout << "\n"; }
+
         // Tick the shared cache
         shared_m_obj->tick();
     }

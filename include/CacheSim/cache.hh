@@ -65,6 +65,7 @@ class Cache : public Simulator::MemObject
 
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
+        req.core_id = core_id;
 
         if (next_level->send(req))
         {
@@ -112,6 +113,7 @@ class Cache : public Simulator::MemObject
         if constexpr(std::is_same<OnChipToOffChip, Position>::value)
         {
             Request req(addr, Request::Request_Type::WRITE);
+            req.core_id = core_id;
             if (next_level->send(req))
             {
                 wb_queue->deAllocate(addr);
@@ -120,6 +122,7 @@ class Cache : public Simulator::MemObject
         else
 	{    
             Request req(addr, Request::Request_Type::WRITE_BACK);
+            req.core_id = core_id;
             if (next_level->send(req))
             {
                 wb_queue->deAllocate(addr);
@@ -197,8 +200,12 @@ class Cache : public Simulator::MemObject
     uint64_t num_evicts;
     uint64_t accesses;
 
+  protected:
+    int core_id;
+    int arbitration = 0;
+
   public:
-    Cache(Config::Cache_Level _level, Config &cfg)
+    Cache(Config::Cache_Level _level, Config &cfg, int _core_id = -1)
         : Simulator::MemObject(),
           level(_level),
           level_name(toString()),
@@ -211,7 +218,8 @@ class Cache : public Simulator::MemObject
           num_hits(0),
           num_loads(0),
           num_evicts(0),
-          accesses(0)
+          accesses(0),
+          core_id(_core_id)
     {}
 
     int pendingRequests() override
@@ -237,7 +245,31 @@ class Cache : public Simulator::MemObject
         }
         else
         {
-            // Step two, if there is a write-back (eviction). We should allocate the space
+            // Step two, to ensure data consistency. Check if the current request can be
+            // served by a write-back queue.
+            // For example, if the request is a LOAD, it can get data directly;
+            // if the request is a STORE, it can simply re-write the entry.
+            if (wb_queue->isInQueue(aligned_addr))
+            {
+                ++num_hits;
+
+                req.begin_exe = clk;
+                req.end_exe = clk + tag_lookup_latency;
+                pending_commits.push_back(req);
+
+                return true;
+            }
+
+	    if (level == Config::Cache_Level::L3)
+            {
+                // std::cout << arbitration << "\n";
+                if (req.core_id != arbitration)
+                {
+                    return false;
+                }
+            }
+
+            // Step three, if there is a write-back (eviction). We should allocate the space
             // directly.
             if (req.req_type == Request::Request_Type::WRITE_BACK)
             {
@@ -256,26 +288,12 @@ class Cache : public Simulator::MemObject
                 return false;
             }
 
-            // Step three, to ensure data consistency. Check if the current request can be
-            // served by a write-back queue.
-            // For example, if the request is a LOAD, it can get data directly;
-            // if the request is a STORE, it can simply re-write the entry.
-            if (wb_queue->isInQueue(aligned_addr))
-            {
-                ++num_hits;
-
-                req.begin_exe = clk;
-                req.end_exe = clk + tag_lookup_latency;
-                pending_commits.push_back(req);
-
-                return true;
-            }
-
             // Step four, accept normal READ or WRITES.
             if constexpr(std::is_same<NormalMode, Mode>::value)
             {
                 if (!blocked())
                 {
+                    
                     assert(!mshr_queue->isFull());
                     assert(!wb_queue->isFull());
 
@@ -343,6 +361,11 @@ class Cache : public Simulator::MemObject
             return;
         }
 
+        if (level == Config::Cache_Level::L3)
+        {
+            arbitration = (arbitration + 1) % 8;
+        }
+
         if (clk % nclks_to_tick_next_level == 0)
         {
             next_level->tick();
@@ -387,52 +410,58 @@ class CacheFactory
 
   private:
     std::unordered_map<std::string,
-         std::function<std::unique_ptr<MemObject>(Config::Cache_Level,Config&)>> factories;
+         std::function<std::unique_ptr<MemObject>(Config::Cache_Level,Config&,int)>> factories;
 
   public:
     CacheFactory()
     {
-        factories["FA_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
+        factories["FA_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg, int core_id)
                                   {
-                                      return std::make_unique<FA_LRU_LLC>(level, cfg);
+                                      return std::make_unique<FA_LRU_LLC>(level, cfg, core_id);
                                   };
 
-        factories["FA_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg)
+        factories["FA_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg,
+                                                int core_id)
                                   {
                                       return std::make_unique<FA_LRU_LLC_WRITE_ONLY>(level,
-                                                                                     cfg);
+                                                                                     cfg,
+                                                                                     core_id);
                                   };
 
-        factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
+        factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg, int core_id)
                                   {
-                                      return std::make_unique<SET_WAY_LRU_LLC>(level, cfg);
+                                      return std::make_unique<SET_WAY_LRU_LLC>(level, cfg,
+                                                                               core_id);
                                   };
 
-        factories["SET_WAY_LRU_NON_LLC"] = [](Config::Cache_Level level, Config &cfg)
+        factories["SET_WAY_LRU_NON_LLC"] = [](Config::Cache_Level level, Config &cfg,
+                                              int core_id)
                                   {
-                                      return std::make_unique<SET_WAY_LRU_NON_LLC>(level, cfg);
+                                      return std::make_unique<SET_WAY_LRU_NON_LLC>(level, cfg,
+                                                                                   core_id);
                                   };
     }
 
-    auto createCache(Config::Cache_Level level, Config &cfg)
+    auto createCache(Config::Cache_Level level, Config &cfg, int core_id = -1)
     {
         // TODO, need to make it more flexible in the future.
         if (int(level) < int(Config::Cache_Level::eDRAM))
         {
-            return factories["SET_WAY_LRU_NON_LLC"](level, cfg);
+            return factories["SET_WAY_LRU_NON_LLC"](level, cfg, core_id);
         }
         else if (int(level) == int(Config::Cache_Level::eDRAM))
         {
-            return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg);
+            return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg, core_id);
         }
     }
 };
 
 static CacheFactory CacheFactories;
 auto createCache(Simulator::Config::Cache_Level level,
-                 Simulator::Config &cfg)
+                 Simulator::Config &cfg,
+                 int core_id = -1)
 {
-    return CacheFactories.createCache(level, cfg);
+    return CacheFactories.createCache(level, cfg, core_id);
 }
 }
 #endif

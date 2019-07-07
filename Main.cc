@@ -29,11 +29,11 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < num_of_cores; i++)
     {
         // Create L2
-        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE));
+        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, i));
         L2->setNextLevel(L3.get());
 
         // Create L1-D
-        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
+        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE, i));
         L1_D->setNextLevel(L2.get());
 
         L2_all.push_back(std::move(L2));

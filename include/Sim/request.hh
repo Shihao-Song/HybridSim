@@ -19,6 +19,8 @@ class Request
     typedef uint64_t Tick;
 
   public:
+    int core_id;
+
     Addr addr;
 
     std::vector<int> addr_vec;

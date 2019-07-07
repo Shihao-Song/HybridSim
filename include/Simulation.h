@@ -28,7 +28,7 @@ enum class Memories : int
 };
 
 std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[]);
-auto createMemObject(Config &cfg, Memories mem_type)
+auto createMemObject(Config &cfg, Memories mem_type, int core_id = -1)
 {
     if (mem_type == Memories::PCM)
     {
@@ -38,23 +38,23 @@ auto createMemObject(Config &cfg, Memories mem_type)
     {
         if (mem_type == Memories::L1_I_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg, core_id);
         }
         else if (mem_type == Memories::L1_D_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg, core_id);
         }
         else if (mem_type == Memories::L2_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg, core_id);
         }
         else if (mem_type == Memories::L3_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg, core_id);
         }
         else if (mem_type == Memories::eDRAM)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg, core_id);
         }
     }
 }
