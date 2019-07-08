@@ -124,6 +124,10 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
 
     std::cout << "\nCache (tag) stressing mode...\n";
     uint64_t cycles = 0;
+    uint64_t num_hits = 0;
+    uint64_t num_misses = 0;
+
+    Simulator::Mapper mapper(0);
 
     bool more_insts = cpu_trace.getInstruction(instr);
     while (more_insts)
@@ -131,29 +135,33 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
         if (instr.opr == Simulator::Instruction::Operation::LOAD ||
             instr.opr == Simulator::Instruction::Operation::STORE)
         {
-            uint64_t addr = instr.target_addr;
+            uint64_t addr = mapper.va2pa(instr.target_addr);
             if (auto [hit, aligned_addr] = tags.accessBlock(addr, cycles);
                 !hit)
             {
-                std::cout << "Missed; ";
+                ++num_misses;
+                // std::cout << "Missed; ";
                 if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr, cycles);
                     wb_required)
                 {
-                    std::cout << "Inserted; WB: " << wb_addr << "\n";
+                //     std::cout << "Inserted; WB: " << wb_addr << "\n";
                 }
                 else
                 {
-                    std::cout << "Inserted\n";
+                //     std::cout << "Inserted\n";
                 }
             }
             else
             {
-                std::cout << "hit\n";
+                ++num_hits;
+            //     std::cout << "hit\n";
             }
         }
         more_insts = cpu_trace.getInstruction(instr);
         ++cycles;
     }
+    double hit_rate = (double)num_hits / ((double)num_misses + (double)num_hits);
+    std::cout << "Hit rate: " << hit_rate << "\n";
 }
 
 // TODO, provide an example to this feature.

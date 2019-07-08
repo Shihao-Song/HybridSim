@@ -64,7 +64,7 @@ class SetWayAssocTags : public TagsWithSetWayBlk
     {
         bool hit = false;
         Addr blk_aligned_addr = blkAlign(addr);
-        std::cout << "Aligned address: " << blk_aligned_addr << "; ";
+        // std::cout << "Aligned address: " << blk_aligned_addr << "; ";
 
         SetWayBlk *blk = findBlock(blk_aligned_addr);
 
@@ -127,7 +127,7 @@ class SetWayAssocTags : public TagsWithSetWayBlk
     {
         // Extract block tag
         Addr tag = extractTag(addr);
-        std::cout << "Set: " << extractSet(addr) << "; ";
+        // std::cout << "Set: " << extractSet(addr) << "; ";
 
         // Extract the set
         const std::vector<SetWayBlk *> set = sets[extractSet(addr)];

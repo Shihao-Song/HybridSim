@@ -196,9 +196,9 @@ class Cache : public Simulator::MemObject
 
   protected:
     uint64_t num_hits;
+    uint64_t num_misses;
     uint64_t num_loads;
     uint64_t num_evicts;
-    uint64_t accesses;
 
   protected:
     int core_id;
@@ -216,9 +216,9 @@ class Cache : public Simulator::MemObject
           tag_lookup_latency(cfg.caches[int(_level)].tag_lookup_latency),
           nclks_to_tick_next_level(nclksToTickNextLevel(cfg)),
           num_hits(0),
+          num_misses(0),
           num_loads(0),
           num_evicts(0),
-          accesses(0),
           core_id(_core_id)
     {}
 
@@ -232,7 +232,6 @@ class Cache : public Simulator::MemObject
 
     bool send(Request &req) override
     {
-        ++accesses;
         // Step one, check whether it is a hit or not
         if (auto [hit, aligned_addr] = tags->accessBlock(req.addr, clk);
             hit)
@@ -293,7 +292,6 @@ class Cache : public Simulator::MemObject
             {
                 if (!blocked())
                 {
-                    
                     assert(!mshr_queue->isFull());
                     assert(!wb_queue->isFull());
 
@@ -302,6 +300,13 @@ class Cache : public Simulator::MemObject
                         hit_in_mshr_queue)
                     {
                         ++num_hits;
+                    }
+                    else
+                    {
+                        // Not hit in cache
+                        // Not hit in wb
+                        // Not in mshr 
+                        ++num_misses;
                     }
                     req.begin_exe = clk;
                     pending_queue_for_non_hit_reqs.push_back(req);
@@ -325,6 +330,14 @@ class Cache : public Simulator::MemObject
                         {
                             ++num_hits;
                         }
+                        else
+                        {
+                            // Not hit in cache
+                            // Not hit in wb
+                            // Not hit in mshr 
+                            ++num_misses;
+                        }
+
                         req.begin_exe = clk;
                         pending_queue_for_non_hit_reqs.push_back(req);
 
@@ -392,7 +405,9 @@ class Cache : public Simulator::MemObject
             std::cout << "A Set-associative Cache (LRU): \n";
         }
         tags->printTagInfo();
-        double hit_rate = (double)num_hits / (double)accesses;
+        // std::cout << "Number of hits: " << num_hits << "\n";
+        // std::cout << "Number of misses: " << num_misses << "\n";
+        double hit_rate = (double)num_hits / ((double)num_misses + (double)num_hits);
         std::cout << "Hit rate: " << hit_rate << "\n";
         std::cout << "Number of loads: " << num_loads << "\n";
         std::cout << "Number of evictions: " << num_evicts << "\n";
