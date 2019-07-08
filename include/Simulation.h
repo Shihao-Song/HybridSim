@@ -120,14 +120,39 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
 
     // To test Set-Assoc tag with LRU replacement policy.
     CacheSimulator::LRUSetWayAssocTags tags(int(Config::Cache_Level::L1D), cfg);
+    tags.printTagInfo();
 
     std::cout << "\nCache (tag) stressing mode...\n";
+    uint64_t cycles = 0;
 
     bool more_insts = cpu_trace.getInstruction(instr);
     while (more_insts)
     {
-        
+        if (instr.opr == Simulator::Instruction::Operation::LOAD ||
+            instr.opr == Simulator::Instruction::Operation::STORE)
+        {
+            uint64_t addr = instr.target_addr;
+            if (auto [hit, aligned_addr] = tags.accessBlock(addr, cycles);
+                !hit)
+            {
+                std::cout << "Missed; ";
+                if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr, cycles);
+                    wb_required)
+                {
+                    std::cout << "Inserted; WB: " << wb_addr << "\n";
+                }
+                else
+                {
+                    std::cout << "Inserted\n";
+                }
+            }
+            else
+            {
+                std::cout << "hit\n";
+            }
+        }
         more_insts = cpu_trace.getInstruction(instr);
+        ++cycles;
     }
 }
 
