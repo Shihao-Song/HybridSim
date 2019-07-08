@@ -109,7 +109,29 @@ std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char
     return std::make_pair(argv[config_start], trace_lists);
 }
 
-// Run simulation
+// Function to test cache behavior.
+// Please also un-comment std::cout sections in corresponding tag class.
+auto runCacheTest(const char* cfg_file, const char *trace_name)
+{
+    Config cfg(cfg_file);
+    Trace cpu_trace(trace_name);
+
+    Simulator::Instruction instr;
+
+    // To test Set-Assoc tag with LRU replacement policy.
+    CacheSimulator::LRUSetWayAssocTags tags(int(Config::Cache_Level::L1D), cfg);
+
+    std::cout << "\nCache (tag) stressing mode...\n";
+
+    bool more_insts = cpu_trace.getInstruction(instr);
+    while (more_insts)
+    {
+        
+        more_insts = cpu_trace.getInstruction(instr);
+    }
+}
+
+// TODO, provide an example to this feature.
 auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 {
     Trace mem_trace(trace_name);

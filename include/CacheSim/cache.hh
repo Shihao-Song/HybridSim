@@ -260,9 +260,9 @@ class Cache : public Simulator::MemObject
                 return true;
             }
 
+            // A bus arbitrator is needed for the directly shared cache.
 	    if (level == Config::Cache_Level::L3)
             {
-                // std::cout << arbitration << "\n";
                 if (req.core_id != arbitration)
                 {
                     return false;
@@ -351,7 +351,7 @@ class Cache : public Simulator::MemObject
         // TODO, this should better be configurable
         // For example, let user determine which level is shared.
         // This can be simply done by adding a field in the configuration file to achieve
-        // something like: if (!LAST_LEVEL_IS_SHARED)
+        // something like: if (!NEXT_LEVEL_IS_SHARED)
         if (level == Config::Cache_Level::L2)
         {
             // L2 is the last component of an individual core. Since L3 and below

@@ -9,6 +9,9 @@ int main(int argc, const char *argv[])
     unsigned num_of_cores = trace_lists.size();
     std::cout << "\nConfiguration file: " << cfg_file << "\n";
 
+    runCacheTest(cfg_file, trace_lists[0]);
+    exit(0);
+
     /* Memory System Creation */
     Config cfg(cfg_file);
 
