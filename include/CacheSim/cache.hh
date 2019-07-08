@@ -363,6 +363,7 @@ class Cache : public Simulator::MemObject
 
         if (level == Config::Cache_Level::L3)
         {
+            // TODO, make it configurable, hard-coded for now.
             arbitration = (arbitration + 1) % 8;
         }
 
