@@ -27,57 +27,28 @@ bool Trace::getInstruction(Instruction &inst)
     inst.ready_to_commit = false;
     inst.eip = micro_op.eip();
 
-    if (micro_op.opr() == CPUTrace::MicroOp::LOAD)
-    {
-        inst.opr = Instruction::Operation::LOAD;
-    }
-/*
-    std::string line;
-    getline(file, line);
-    if (file.eof())
-    {
-        // Comment section: in the future, we may need to run the same
-        // trace file for multiple times.
-        // file.clear();
-        // file.seekg(0, file.beg);
-        // getline(file, line);
-        file.close();
-        return false; // tmp implementation, only run once
-    }
-
-    std::istringstream iss(line);
-    std::vector<std::string> tokens;
-    std::copy(std::istream_iterator<std::string>(iss),
-              std::istream_iterator<std::string>(),
-              std::back_inserter(tokens));
-
-    assert(tokens.size() != 0);
-
-    inst.ready_to_commit = false;
-    if (tokens.size() == 2)
+    if (micro_op.opr() == CPUTrace::MicroOp::EXE)
     {
         inst.opr = Instruction::Operation::EXE;
-        inst.eip = std::stoull(tokens[1], NULL, 10);
-        inst.target_addr = Addr(0) - 1;
     }
-    else
+
+    if (micro_op.opr() == CPUTrace::MicroOp::LOAD
+        || micro_op.opr() == CPUTrace::MicroOp::STORE)
     {
-        if (tokens[0] == "Load")
+        if (micro_op.opr() == CPUTrace::MicroOp::LOAD) 
         {
             inst.opr = Instruction::Operation::LOAD;
         }
-        else if (tokens[0] == "Store")
+
+        if (micro_op.opr() == CPUTrace::MicroOp::STORE) 
         {
             inst.opr = Instruction::Operation::STORE;
         }
-        else
-        {
-            std::cerr << "Unsupported operation. \n";
-        }
-        inst.eip = std::stoull(tokens[1], NULL, 10);
-        inst.target_addr = std::stoull(tokens[2], NULL, 10);
+        inst.target_addr = micro_op.load_or_store_addr();
+        inst.size = micro_op.size();
     }
-*/
+
+    ++instruction_index;
     return true;
 }
 
