@@ -2,14 +2,27 @@
 
 namespace Simulator
 {
-Trace::Trace(const std::string trace_fname) : file(trace_fname),
-                                              trace_name(trace_fname)
+Trace::Trace(const std::string trace_fname)
 {
-    assert(file.good());
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+    std::ifstream input(trace_fname);
+    if (!trace_file.ParseFromIstream(&input))
+    {
+        std::cerr << "Failed to parse trace file. \n";
+        exit(0);
+    }
 }
 
 bool Trace::getInstruction(Instruction &inst)
 {
+    if (instruction_index == trace_file.micro_ops_size())
+    {
+        google::protobuf::ShutdownProtobufLibrary();
+        return false;
+    }
+
+/*
     std::string line;
     getline(file, line);
     if (file.eof())
@@ -55,51 +68,13 @@ bool Trace::getInstruction(Instruction &inst)
         inst.eip = std::stoull(tokens[1], NULL, 10);
         inst.target_addr = std::stoull(tokens[2], NULL, 10);
     }
-
+*/
     return true;
 }
 
+// TODO, support mem-trace feature as well.
 bool Trace::getMemtraceRequest(Request &req)
 {
-    std::string line;
-    getline(file, line);
-    if (file.eof()) 
-    {
-        file.close();
-        return false;
-    }
-
-    size_t pos;
-
-    try
-    {
-        req.addr = stoull(line, &pos, 0);
-    }
-    catch (std::out_of_range e)
-    {
-        req.addr = 0;
-        req.req_type = Request::Request_Type::READ;
-
-        return true;	
-    }
-
-    pos = line.find_first_not_of(' ', pos+1);
-
-    if (line.substr(pos)[0] == 'R')
-    {
-	req.req_type = Request::Request_Type::READ;
-    }
-    else if (line.substr(pos)[0] == 'W')
-    {
-        req.req_type = Request::Request_Type::WRITE;
-    }
-    else 
-    {
-        file.close();
-        std::cerr << "Corrupted trace file. \n";
-        exit(0);
-    }
-
     return true;
 }
 }

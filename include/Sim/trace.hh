@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 
+#include "protobuf/cpu_trace.pb.h"
 #include "Sim/instruction.hh"
 #include "Sim/request.hh"
 
@@ -25,8 +26,8 @@ class Trace
     bool getInstruction(Instruction &inst);
 
   private:
-    std::ifstream file;
-    std::string trace_name;
+    CPUTrace::TraceFile trace_file;
+    uint64_t instruction_index = 0;
 };
 }
 #endif
