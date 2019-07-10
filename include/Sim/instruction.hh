@@ -20,9 +20,11 @@ class Instruction
         EXE,
         MAX	
     }opr;
-    
+
     Addr eip;
-    Addr target_addr; // For load and store
+    Addr target_addr; // Target address to load or store.
+    uint64_t size; // Size of data to be loaded or stored, 
+                   // we are not utilizing this field currently.
 
     bool ready_to_commit = false;
 };

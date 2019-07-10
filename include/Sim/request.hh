@@ -23,6 +23,10 @@ class Request
 
     Addr addr;
 
+    // Size of data to be loaded (read) or stored (written)
+    // We are not utilizing this field currently.
+    uint64_t size;
+
     std::vector<int> addr_vec;
 
     // (Memory) request type

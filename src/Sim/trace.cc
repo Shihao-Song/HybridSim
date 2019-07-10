@@ -22,6 +22,15 @@ bool Trace::getInstruction(Instruction &inst)
         return false;
     }
 
+    const CPUTrace::MicroOp &micro_op = trace_file.micro_ops(instruction_index);
+
+    inst.ready_to_commit = false;
+    inst.eip = micro_op.eip();
+
+    if (micro_op.opr() == CPUTrace::MicroOp::LOAD)
+    {
+        inst.opr = Instruction::Operation::LOAD;
+    }
 /*
     std::string line;
     getline(file, line);
