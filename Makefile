@@ -1,13 +1,13 @@
-SOURCE  := Main.cc src/Sim/config.cc src/Sim/trace.cc
-
+SOURCE  := Main.cc src/Sim/config.cc src/Sim/trace.cc include/protobuf/cpu_trace.pb.cc
 CC      := g++
 FLAGS   := -O3 -std=c++17 -w -I include
-TARGET  := PCMSim
+LD	:= -lprotobuf
+TARGET  := Sim
 
 all: $(TARGET)
 
 $(TARGET): $(SOURCE)
-	$(CC) $(FLAGS) -o $(TARGET) $(SOURCE)
+	$(CC) $(FLAGS) $(SOURCE) -o $(TARGET) $(LD)
 
 clean:
 	rm $(TARGET)                                                                                   

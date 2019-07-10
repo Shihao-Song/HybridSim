@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package CPUTrace;
+
+message TraceFile
+{
+    // Trace is collected from start(th) instruction
+    uint64 start = 1;
+    // to end(th) instruction
+    uint64 end = 2;
+    // Total number of micro-ops
+    uint64 num_micro_ops = 3;
+
+    // Array of micro-ops collected
+    repeated MicroOp micro_ops = 4;
+}
+
+message MicroOp
+{
+    uint64 eip = 1;
+
+    enum Operation
+    {
+        EXE = 0;
+        LOAD = 1;
+        STORE = 2;
+    }
+    Operation opr = 2;
+
+    uint64 load_or_store_addr = 3; // Target address for LOAD or STORE
+    uint64 size = 4; // Size of data to be loaded or stored
+}
