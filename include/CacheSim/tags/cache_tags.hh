@@ -38,12 +38,10 @@ class Tags
   public:
 
     // return val: <hit in cache?, block-aligned address>
-    virtual std::pair<bool, Addr> accessBlock(Addr addr, Tick cur_clk = 0) = 0;
+    virtual std::pair<bool, Addr> accessBlock(Addr addr, bool modify, Tick cur_clk = 0) = 0;
 
     // return val: <write-back required?, write-back address>
-    virtual std::pair<bool, Addr> insertBlock(Addr addr, Tick cur_clk = 0) = 0;
- 
-    virtual void setDirty(Addr addr, Tick cur_clk = 0) {}
+    virtual std::pair<bool, Addr> insertBlock(Addr addr, bool modify, Tick cur_clk = 0) = 0;
 
     virtual void printTagInfo() {}
 

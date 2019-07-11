@@ -83,8 +83,9 @@ class Cache : public Simulator::MemObject
         // is not full.
         if (wb_queue->isFull()) { return false; }
 
+        bool is_entry_modified = mshr_queue->isEntryModified(addr);
         mshr_queue->deAllocate(addr, true);
-        if (auto [wb_required, wb_addr] = tags->insertBlock(addr, clk);
+        if (auto [wb_required, wb_addr] = tags->insertBlock(addr, is_entry_modified, clk);
             wb_required)
         {
             ++num_evicts;
@@ -236,7 +237,10 @@ class Cache : public Simulator::MemObject
     bool send(Request &req) override
     {
         // Step one, check whether it is a hit or not
-        if (auto [hit, aligned_addr] = tags->accessBlock(req.addr, clk);
+        if (auto [hit, aligned_addr] = tags->accessBlock(req.addr,
+                                       req.req_type != Request::Request_Type::READ ?
+                                       true : false,
+                                       clk);
             hit)
         {
             req.begin_exe = clk;
@@ -279,7 +283,9 @@ class Cache : public Simulator::MemObject
                 // We need to make sure that the write-back queue is not full.
                 if (!wb_queue->isFull())
                 {
-                    if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr, clk);
+                    if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr,
+                                                                        true,
+                                                                        clk);
                         wb_required)
                     {
                         ++num_evicts;
@@ -312,6 +318,12 @@ class Cache : public Simulator::MemObject
                         // Not in mshr 
                         ++num_misses;
                     }
+
+                    if (req.req_type == Request::Request_Type::WRITE)
+                    {
+                        mshr_queue->setEntryModified(aligned_addr);
+                    }
+
                     req.begin_exe = clk;
                     pending_queue_for_non_hit_reqs.push_back(req);
 
@@ -341,7 +353,10 @@ class Cache : public Simulator::MemObject
                             // Not hit in mshr 
                             ++num_misses;
                         }
-
+                        if (req.req_type == Request::Request_Type::WRITE)
+                        {
+                            mshr_queue->setEntryModified(aligned_addr);
+                        }
                         req.begin_exe = clk;
                         pending_queue_for_non_hit_reqs.push_back(req);
 

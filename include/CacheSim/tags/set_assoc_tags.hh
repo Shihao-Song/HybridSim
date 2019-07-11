@@ -60,7 +60,7 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         tagsInit();
     }
 
-    std::pair<bool, Addr> accessBlock(Addr addr, Tick cur_clk = 0) override
+    std::pair<bool, Addr> accessBlock(Addr addr, bool modify, Tick cur_clk = 0) override
     {
         bool hit = false;
         Addr blk_aligned_addr = blkAlign(addr);
@@ -73,27 +73,22 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         {
             hit = true;
             policy->upgrade(blk, cur_clk);
+
+            if (modify) { blk->setDirty(); }
         }
         return std::make_pair(hit, blk_aligned_addr);
     }
 
-    std::pair<bool, Addr> insertBlock(Addr addr, Tick cur_clk = 0) override
+    std::pair<bool, Addr> insertBlock(Addr addr, bool modify, Tick cur_clk = 0) override
     {
         // Find a victim block 
         auto [wb_required, victim_addr, victim] = findVictim(addr);
 
+        if (modify) { victim->setDirty(); }
         victim->insert(extractTag(addr));
         policy->upgrade(victim, cur_clk);
 
         return std::make_pair(wb_required, victim_addr);
-    }
-
-    void setDirty(Addr addr, Tick cur_clk = 0) override
-    {
-        Addr blk_aligned_addr = blkAlign(addr);
-
-        SetWayBlk *blk = findBlock(blk_aligned_addr);
-        assert(blk != nullptr);
     }
 
     void printTagInfo() override

@@ -16,6 +16,13 @@ class CacheQueue
     const Addr MAX_ADDR = (Addr)-1;
 
   public:
+    struct Entry_Info
+    {
+        Tick when_ready;
+        bool modified;
+    };
+
+  public:
     CacheQueue(int _max) : max(_max) {}
 
     bool isFull() { return all_entries.size() >= max; }
@@ -42,7 +49,7 @@ class CacheQueue
         if (auto [iter, success] = all_entries.insert(addr);
             success)
         {
-            when_ready.insert({addr, when});
+            entry_info.insert({addr, {when, false}});
             return false; // Not hit in queue
         }
         return true; // Hit in queue.
@@ -58,16 +65,30 @@ class CacheQueue
     {
 	assert(all_entries.erase(addr));
         if (board) {assert(entries_on_flight.erase(addr));}
-        assert(when_ready.erase(addr));
+        assert(entry_info.erase(addr));
     }
 
     bool isReady(Addr addr, Tick cur_clk)
     {
-        auto iter = when_ready.find(addr);
-        assert(iter != when_ready.end());
-        return (iter->second <= cur_clk);
+        auto iter = entry_info.find(addr);
+        assert(iter != entry_info.end());
+        return ((iter->second).when_ready <= cur_clk);
     }
-    
+
+    bool isEntryModified(Addr addr)
+    {
+        auto iter = entry_info.find(addr);
+        assert(iter != entry_info.end());
+        return (iter->second).modified;
+    }
+
+    void setEntryModified(Addr addr)
+    {
+        auto iter = entry_info.find(addr);
+        assert(iter != entry_info.end());
+        (iter->second).modified = true;
+    }
+
     bool isInQueue(Addr addr)
     {
         bool in_all = (all_entries.find(addr) != all_entries.end());
@@ -75,8 +96,8 @@ class CacheQueue
         return in_all;
     }
 
-    typedef std::unordered_map<Addr, Tick> TickHash;
-    TickHash when_ready;
+    typedef std::unordered_map<Addr, Entry_Info> EntryInfoHash;
+    EntryInfoHash entry_info;
 
   protected:
     int max;
