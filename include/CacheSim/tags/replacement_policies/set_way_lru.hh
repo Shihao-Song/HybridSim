@@ -39,7 +39,6 @@ class SetWayAssocLRU : public SetWayAssocReplacementPolicy
         bool send_back_required = false;
         if (victim != nullptr) { return std::make_pair(send_back_required, victim); }
 
-        send_back_required = true;
         // All the ways are valid
         victim = set[0];
         for (const auto way : set)
@@ -50,6 +49,7 @@ class SetWayAssocLRU : public SetWayAssocReplacementPolicy
                 victim = way;
             }
         }
+        send_back_required = victim->isDirty() ? true : false;
         return std::make_pair(send_back_required, victim);
     }
 };

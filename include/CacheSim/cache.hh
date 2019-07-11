@@ -73,6 +73,7 @@ class Cache : public Simulator::MemObject
             mshr_queue->entryOnBoard(addr);
         }
     }
+
     bool mshrComplete(Addr addr)
     {
     //    std::cout << clk << ": " << level_name << " is receiving an MSHR answer for "
@@ -156,6 +157,8 @@ class Cache : public Simulator::MemObject
     {
         if (pending_commits.size())
         {
+            // TODO, if request type is WRITE, corres. cache block should be set to dirty.
+            // TODO, need a function maybe call it setDirty(addr);
             Request &req = pending_commits[0];
             if (req.end_exe <= clk)
             {
@@ -268,6 +271,7 @@ class Cache : public Simulator::MemObject
                 }
             }
 
+            // TODO, a write-back from higher level must be a dirty block.
             // Step three, if there is a write-back (eviction). We should allocate the space
             // directly.
             if (req.req_type == Request::Request_Type::WRITE_BACK)

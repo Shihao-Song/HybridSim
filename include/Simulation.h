@@ -115,7 +115,7 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
 {
     Config cfg(cfg_file);
     Trace cpu_trace(trace_name);
-
+    
     Simulator::Instruction instr;
 
     // To test Set-Assoc tag with LRU replacement policy.
@@ -156,7 +156,6 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
         }
         std::cout << "\n";
         */
-
         if (instr.opr == Simulator::Instruction::Operation::LOAD ||
             instr.opr == Simulator::Instruction::Operation::STORE)
         {
@@ -182,7 +181,6 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
             //     std::cout << "hit\n";
             }
         }
-
         more_insts = cpu_trace.getInstruction(instr);
         ++cycles;
     }

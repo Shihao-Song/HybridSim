@@ -72,7 +72,7 @@ class FALRU : public FAReplacementPolicy
         FABlk *victim = *tail;
 
         bool send_back_required = false;
-        if (victim->isValid())
+        if (victim->isValid() && victim->isDirty())
         {
             send_back_required = true;
         }

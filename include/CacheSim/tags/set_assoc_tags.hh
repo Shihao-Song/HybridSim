@@ -153,7 +153,16 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         assert(victim != nullptr);
 
         Addr victim_addr = MaxAddr;
-        if (wb_required) { invalidate(victim); victim_addr = regenerateAddr(victim); }
+
+        if (victim->isValid())
+        {
+            invalidate(victim);
+        }
+        if (wb_required)
+        {
+            assert(victim->isDirty());
+            victim_addr = regenerateAddr(victim);
+        }
         return std::make_tuple(wb_required, victim_addr, victim);
     }
 
