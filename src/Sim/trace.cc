@@ -31,9 +31,7 @@ bool Trace::getInstruction(Instruction &inst)
     {
         inst.opr = Instruction::Operation::EXE;
     }
-
-    if (micro_op.opr() == CPUTrace::MicroOp::LOAD
-        || micro_op.opr() == CPUTrace::MicroOp::STORE)
+    else
     {
         if (micro_op.opr() == CPUTrace::MicroOp::LOAD) 
         {

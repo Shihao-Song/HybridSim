@@ -132,6 +132,31 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     bool more_insts = cpu_trace.getInstruction(instr);
     while (more_insts)
     {
+        /*
+        static uint64_t counter = 0;
+        std::cout << ++counter << ": ";
+        std::cout << instr.eip << " ";
+        if (instr.opr == Simulator::Instruction::Operation::EXE)
+        {
+            std::cout << "EXE \n";
+        }
+        else
+        {
+            if (instr.opr == Simulator::Instruction::Operation::LOAD)
+            {
+                std::cout << "LOAD ";
+            }
+
+            if (instr.opr == Simulator::Instruction::Operation::STORE)
+            {
+                std::cout << "STORE ";
+            }
+            std::cout << instr.target_addr << " ";
+            std::cout << instr.size << "\n";
+        }
+        std::cout << "\n";
+        */
+
         if (instr.opr == Simulator::Instruction::Operation::LOAD ||
             instr.opr == Simulator::Instruction::Operation::STORE)
         {
@@ -157,6 +182,7 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
             //     std::cout << "hit\n";
             }
         }
+
         more_insts = cpu_trace.getInstruction(instr);
         ++cycles;
     }
