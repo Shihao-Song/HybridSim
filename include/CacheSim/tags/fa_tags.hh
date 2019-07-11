@@ -50,8 +50,8 @@ class FATags : public TagsWithFABlk
         Addr blk_aligned_addr = blkAlign(addr);
 
 	FABlk *blk = findBlock(blk_aligned_addr);
-        
-	// If there is hit, upgrade
+       
+        // If there is hit, upgrade
         if (blk != nullptr)
         {
             hit = true;
@@ -70,6 +70,18 @@ class FATags : public TagsWithFABlk
         tagHash[victim->tag] = victim;
 
         return std::make_pair(wb_required, victim_addr);
+    }
+
+    // TODO, when should we setDirty?
+    // When accessing block, if it is a write/write-back, set directly -> modify accessBlock function
+    // When performing write-back miss, set directly -> modify insertBlock function
+    // When allocating mshrs, if a write is detected, should set the entry dirty -> modify the mshr queue.
+    void setDirty(Addr addr, Tick cur_clk = 0) override
+    {
+        Addr blk_aligned_addr = blkAlign(addr);
+
+        FABlk *blk = findBlock(blk_aligned_addr);
+        assert(blk != nullptr);
     }
 
     void printTagInfo() override

@@ -88,6 +88,14 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         return std::make_pair(wb_required, victim_addr);
     }
 
+    void setDirty(Addr addr, Tick cur_clk = 0) override
+    {
+        Addr blk_aligned_addr = blkAlign(addr);
+
+        SetWayBlk *blk = findBlock(blk_aligned_addr);
+        assert(blk != nullptr);
+    }
+
     void printTagInfo() override
     {
         std::cout << "Assoc: " << assoc << "\n";

@@ -350,6 +350,7 @@ class Cache : public Simulator::MemObject
                     else
                     {
                         assert(req.req_type == Request::Request_Type::READ);
+                        ++num_misses;
                         // Forward to next level directly.
                         bool ret = next_level->send(req);
                         if (ret) {num_loads++;}

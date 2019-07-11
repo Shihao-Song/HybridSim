@@ -42,7 +42,9 @@ class Tags
 
     // return val: <write-back required?, write-back address>
     virtual std::pair<bool, Addr> insertBlock(Addr addr, Tick cur_clk = 0) = 0;
-   
+ 
+    virtual void setDirty(Addr addr, Tick cur_clk = 0) {}
+
     virtual void printTagInfo() {}
 
   protected:
