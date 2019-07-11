@@ -75,10 +75,6 @@ class FATags : public TagsWithFABlk
         return std::make_pair(wb_required, victim_addr);
     }
 
-    // TODO, when should we setDirty?
-    // When performing write-back miss, set directly -> modify insertBlock function
-    // When allocating mshrs, if a write is detected, should set the entry dirty -> modify the mshr queue.
-
     void printTagInfo() override
     {
         std::cout << "Number of blocks: " << num_blocks << "\n";
