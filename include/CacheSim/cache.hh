@@ -395,7 +395,7 @@ class Cache : public Simulator::MemObject
         if (level == Config::Cache_Level::L3)
         {
             // TODO, make it configurable, hard-coded for now.
-            arbitration = (arbitration + 1) % 8;
+            arbitration = (arbitration + 1) % 12;
         }
 
         if (clk % nclks_to_tick_next_level == 0)

@@ -53,6 +53,7 @@ int main(int argc, const char *argv[])
 
     /* Record Simulation Stats */
     // Currently, we only care about the evictions and loads from the LLC (eDRAM).
+    // We need to evaluate different benchmarks first.
     std::ofstream stats;
     stats.open("workload_eval.csv", std::ios_base::app);
     stats << argv[1] << ","; // Workload's name
