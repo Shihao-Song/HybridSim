@@ -411,8 +411,11 @@ class Cache : public Simulator::MemObject
         next_level = _next_level;
     }
 
-    void debugPrint() override
+    void debugPrint(std::ofstream &out) override
     {
+        out << num_loads << ","
+            << num_evicts << "\n";
+        /*
         // std::cout << "\n";
         if constexpr (std::is_same<LRUFATags, Tag>::value)
         {
@@ -429,6 +432,7 @@ class Cache : public Simulator::MemObject
         std::cout << "Hit rate: " << hit_rate << "\n";
         std::cout << "Number of loads: " << num_loads << "\n";
         std::cout << "Number of evictions: " << num_evicts << "\n";
+        */
     }
 };
 
@@ -485,7 +489,14 @@ class CacheFactory
         }
         else if (int(level) == int(Config::Cache_Level::eDRAM))
         {
-            return factories["SET_WAY_LRU_LLC"](level, cfg, core_id);
+            if (cfg.caches[int(Config::Cache_Level::eDRAM)].assoc != -1)
+            {
+                return factories["SET_WAY_LRU_LLC"](level, cfg, core_id);
+            }
+            else
+            {
+                // return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg, core_id);
+            }
         }
     }
 };

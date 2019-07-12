@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "Simulation.h"
 
@@ -50,8 +51,15 @@ int main(int argc, const char *argv[])
     /* Simulation */
     runCPUTrace(processor.get());
 
-    std::cout << "\n***************** Cache Stats *****************\n"; 
+    /* Record Simulation Stats */
+    // Currently, we only care about the evictions and loads from the LLC (eDRAM).
+    std::ofstream stats;
+    stats.open("workload_eval.csv", std::ios_base::app);
+    stats << argv[1] << ","; // Workload's name
+    eDRAM->debugPrint(stats);
+
     /*
+    std::cout << "\n***************** Cache Stats *****************\n"; 
     for (int i = 0; i < num_of_cores; i++)
     {
         std::cout << "\nCore " << i << " L1-DCache: \n";
@@ -61,8 +69,8 @@ int main(int argc, const char *argv[])
     }
     std::cout << "\nL3-Cache: \n";
     L3->debugPrint();
-   */
     std::cout << "\neDRAM: \n";
     eDRAM->debugPrint();
     std::cout << "\nProcessor Execution Time: " << processor->exeTime() << "\n";
+    */
 }
