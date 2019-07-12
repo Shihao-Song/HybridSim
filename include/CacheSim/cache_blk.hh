@@ -33,6 +33,8 @@ class Blk
     }
 
     void setDirty() { dirty = 1; }
+    void clearDirty() { dirty = 0; }
+
     bool isDirty() { return dirty; }
 
     Addr tag;

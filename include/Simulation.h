@@ -123,7 +123,10 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     tags.printTagInfo();
 
     std::cout << "\nCache (tag) stressing mode...\n";
+
     uint64_t cycles = 0;
+
+    uint64_t num_evictions = 0;
     uint64_t num_hits = 0;
     uint64_t num_misses = 0;
 
@@ -159,26 +162,44 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
         if (instr.opr == Simulator::Instruction::Operation::LOAD ||
             instr.opr == Simulator::Instruction::Operation::STORE)
         {
+            /*
+            if (instr.opr == Simulator::Instruction::Operation::LOAD)
+            {
+                std::cout << "LOAD ";
+            }
+            else
+            {
+                std::cout << "STORE ";
+            }
+            */
+
             uint64_t addr = mapper.va2pa(instr.target_addr);
-            if (auto [hit, aligned_addr] = tags.accessBlock(addr, cycles);
+            if (auto [hit, aligned_addr] = tags.accessBlock(addr,
+                                       instr.opr == Simulator::Instruction::Operation::STORE ?
+                                       true : false,
+                                       cycles);
                 !hit)
             {
                 ++num_misses;
                 // std::cout << "Missed; ";
-                if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr, cycles);
+                if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr,
+                                       instr.opr == Simulator::Instruction::Operation::STORE ?
+                                       true : false,
+                                       cycles);
                     wb_required)
-                {
-                //     std::cout << "Inserted; WB: " << wb_addr << "\n";
+		{
+                    ++num_evictions;
+                //    std::cout << "Inserted; WB: " << wb_addr << "\n";
                 }
-                else
-                {
-                //     std::cout << "Inserted\n";
-                }
+                // else
+                // {
+                //     std::cout << "Inserted.\n";
+                // }
             }
             else
             {
                 ++num_hits;
-            //     std::cout << "hit\n";
+                // std::cout << "hit\n";
             }
         }
         more_insts = cpu_trace.getInstruction(instr);
@@ -186,6 +207,7 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     }
     double hit_rate = (double)num_hits / ((double)num_misses + (double)num_hits);
     std::cout << "Hit rate: " << hit_rate << "\n";
+    std::cout << "Number of evictions: " << num_evictions << "\n";
 }
 
 // TODO, provide an example to this feature.

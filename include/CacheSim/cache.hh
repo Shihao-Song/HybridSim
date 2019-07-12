@@ -275,7 +275,6 @@ class Cache : public Simulator::MemObject
                 }
             }
 
-            // TODO, a write-back from higher level must be a dirty block.
             // Step three, if there is a write-back (eviction). We should allocate the space
             // directly.
             if (req.req_type == Request::Request_Type::WRITE_BACK)
@@ -283,6 +282,7 @@ class Cache : public Simulator::MemObject
                 // We need to make sure that the write-back queue is not full.
                 if (!wb_queue->isFull())
                 {
+                    // A write-back from higher level must be a dirty block.
                     if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr,
                                                                         true,
                                                                         clk);
@@ -487,7 +487,7 @@ class CacheFactory
         }
         else if (int(level) == int(Config::Cache_Level::eDRAM))
         {
-            return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg, core_id);
+            return factories["SET_WAY_LRU_LLC"](level, cfg, core_id);
         }
     }
 };

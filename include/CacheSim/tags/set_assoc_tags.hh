@@ -82,7 +82,7 @@ class SetWayAssocTags : public TagsWithSetWayBlk
     std::pair<bool, Addr> insertBlock(Addr addr, bool modify, Tick cur_clk = 0) override
     {
         // Find a victim block 
-        auto [wb_required, victim_addr, victim] = findVictim(addr);
+        auto [wb_required, victim_addr, victim] = findVictim(addr); 
 
         if (modify) { victim->setDirty(); }
         victim->insert(extractTag(addr));
@@ -157,21 +157,24 @@ class SetWayAssocTags : public TagsWithSetWayBlk
 
         Addr victim_addr = MaxAddr;
 
-        if (victim->isValid())
-        {
-            invalidate(victim);
-        }
         if (wb_required)
         {
             assert(victim->isDirty());
             victim_addr = regenerateAddr(victim);
         }
+
+        if (victim->isValid())
+        {
+            invalidate(victim);
+        }
+
         return std::make_tuple(wb_required, victim_addr, victim);
     }
 
     void invalidate(SetWayBlk* victim) override
     {
         victim->invalidate();
+        victim->clearDirty();
         policy->downgrade(victim);
         assert(!victim->isValid());
     }

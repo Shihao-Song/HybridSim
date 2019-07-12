@@ -18,10 +18,10 @@ int main(int argc, const char *argv[])
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
-    // Create eDRAM
+    // Create eDRAM (temp disabled)
     std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM)); 
     eDRAM->setNextLevel(PCM.get());
-
+    
     // Create L3
     std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE));
     L3->setNextLevel(eDRAM.get());

@@ -138,15 +138,17 @@ class FATags : public TagsWithFABlk
 
         Addr victim_addr = MaxAddr;
 
-        if (victim->isValid())
-        {
-            invalidate(victim);
-        }
         if (wb_required)
         {
             assert(victim->isDirty());	
             victim_addr = regenerateAddr(victim);
         }
+
+        if (victim->isValid())
+        {
+            invalidate(victim);
+        }
+
         return std::make_tuple(wb_required, victim_addr, victim);
     }
 
@@ -154,6 +156,7 @@ class FATags : public TagsWithFABlk
     {
         assert(tagHash.erase(victim->tag));
         victim->invalidate();
+        victim->clearDirty();
         policy->downgrade(victim);
     }
 };

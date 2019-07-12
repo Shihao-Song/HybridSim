@@ -116,7 +116,7 @@ class Processor
 
             d_cache->tick();
             retired += window.retire();
-            if (cycles % 100000000 == 0)
+            if (cycles % 1000000 == 0)
             {
                 std::cout << "Core: " << core_id 
                           << " has done " << retired << " instructions. \n";
@@ -217,7 +217,7 @@ class Processor
         {
             core->tick();
         }
-        if (cycles % 100000000 == 0) { std::cout << "\n"; }
+        if (cycles % 1000000 == 0) { std::cout << "\n"; }
 
         // Tick the shared cache
         shared_m_obj->tick();
