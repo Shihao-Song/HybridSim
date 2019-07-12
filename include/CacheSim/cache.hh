@@ -88,7 +88,6 @@ class Cache : public Simulator::MemObject
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, is_entry_modified, clk);
             wb_required)
         {
-            ++num_evicts;
             wb_queue->allocate(wb_addr, clk);
         }
 
@@ -118,6 +117,7 @@ class Cache : public Simulator::MemObject
             req.core_id = core_id;
             if (next_level->send(req))
             {
+                ++num_evicts;
                 wb_queue->deAllocate(addr);
             }
         }
@@ -127,6 +127,7 @@ class Cache : public Simulator::MemObject
             req.core_id = core_id;
             if (next_level->send(req))
             {
+                ++num_evicts;
                 wb_queue->deAllocate(addr);
             }
         }
@@ -158,8 +159,6 @@ class Cache : public Simulator::MemObject
     {
         if (pending_commits.size())
         {
-            // TODO, if request type is WRITE, corres. cache block should be set to dirty.
-            // TODO, need a function maybe call it setDirty(addr);
             Request &req = pending_commits[0];
             if (req.end_exe <= clk)
             {
@@ -288,7 +287,6 @@ class Cache : public Simulator::MemObject
                                                                         clk);
                         wb_required)
                     {
-                        ++num_evicts;
                         wb_queue->allocate(wb_addr, clk);
                     }
 

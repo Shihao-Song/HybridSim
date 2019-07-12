@@ -9,9 +9,6 @@ int main(int argc, const char *argv[])
     unsigned num_of_cores = trace_lists.size();
     std::cout << "\nConfiguration file: " << cfg_file << "\n";
 
-    // runCacheTest(cfg_file, trace_lists[0]);
-    // exit(0);
-
     /* Memory System Creation */
     Config cfg(cfg_file);
 
@@ -54,6 +51,7 @@ int main(int argc, const char *argv[])
     runCPUTrace(processor.get());
 
     std::cout << "\n***************** Cache Stats *****************\n"; 
+    /*
     for (int i = 0; i < num_of_cores; i++)
     {
         std::cout << "\nCore " << i << " L1-DCache: \n";
@@ -63,6 +61,8 @@ int main(int argc, const char *argv[])
     }
     std::cout << "\nL3-Cache: \n";
     L3->debugPrint();
+   */
     std::cout << "\neDRAM: \n";
     eDRAM->debugPrint();
+    std::cout << "\nProcessor Execution Time: " << processor->exeTime() << "\n";
 }

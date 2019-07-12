@@ -235,6 +235,8 @@ class Processor
         return true;
     }
 
+    Tick exeTime() const { return cycles; }
+
   private:
     Tick cycles;
     std::vector<std::unique_ptr<Core>> cores;
