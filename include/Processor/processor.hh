@@ -137,7 +137,7 @@ class Processor
                 {
                     Request req;
                     req.core_id = core_id;
-                    // cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
+                    cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
                     req.addr = cur_inst.target_addr & ~window.block_mask;
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -154,8 +154,13 @@ class Processor
                     {
                         if (cur_inst.opr == Instruction::Operation::STORE)
                         {
+                             ++num_stores;
                              cur_inst.ready_to_commit = true;
 			}
+                        else
+                        {
+                            ++num_loads;
+                        }
                         window.insert(cur_inst);
                         inserted++;
                         more_insts = trace.getInstruction(cur_inst);
@@ -173,6 +178,9 @@ class Processor
             return !more_insts && window.isEmpty();
         }
 
+        uint64_t numLoads() { return num_loads; }
+        uint64_t numStores() { return num_stores; }
+
       private:
         // TODO, Mapper should be in MMU in the future.
         Mapper mapper;
@@ -180,6 +188,9 @@ class Processor
         Trace trace;
 
         Tick cycles;
+        uint64_t num_loads = 0;;
+        uint64_t num_stores = 0;;
+
         int core_id;
 
         Window window;
@@ -237,8 +248,29 @@ class Processor
 
     Tick exeTime() const { return cycles; }
 
+    uint64_t numStores() const
+    {
+        uint64_t num_stores = 0;
+        for (auto &core : cores)
+        {
+            num_stores += core->numStores();
+        }
+        return num_stores;
+    }
+
+    uint64_t numLoads() const
+    {
+        uint64_t num_loads = 0;
+        for (auto &core : cores)
+        {
+            num_loads += core->numLoads();
+        }
+        return num_loads;
+    }
+
   private:
     Tick cycles;
+
     std::vector<std::unique_ptr<Core>> cores;
     MemObject *shared_m_obj; // L3 and below
 };

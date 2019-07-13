@@ -235,6 +235,15 @@ class Cache : public Simulator::MemObject
 
     bool send(Request &req) override
     {
+        // A bus arbitrator is needed for the directly shared cache.
+        if (level == Config::Cache_Level::L3)
+        {
+            if (req.core_id != arbitration)
+            {
+                return false;
+            }
+        }
+
         // Step one, check whether it is a hit or not
         if (auto [hit, aligned_addr] = tags->accessBlock(req.addr,
                                        req.req_type != Request::Request_Type::READ ?
@@ -265,15 +274,7 @@ class Cache : public Simulator::MemObject
                 return true;
             }
 
-            // A bus arbitrator is needed for the directly shared cache.
-	    if (level == Config::Cache_Level::L3)
-            {
-                if (req.core_id != arbitration)
-                {
-                    return false;
-                }
-            }
-
+            
             // Step three, if there is a write-back (eviction). We should allocate the space
             // directly.
             if (req.req_type == Request::Request_Type::WRITE_BACK)
@@ -395,7 +396,7 @@ class Cache : public Simulator::MemObject
         if (level == Config::Cache_Level::L3)
         {
             // TODO, make it configurable, hard-coded for now.
-            arbitration = (arbitration + 1) % 12;
+            arbitration = (arbitration + 1) % 8;
         }
 
         if (clk % nclks_to_tick_next_level == 0)
@@ -413,9 +414,8 @@ class Cache : public Simulator::MemObject
 
     void debugPrint(std::ofstream &out) override
     {
-        out << num_loads << ","
-            << num_evicts << "\n";
-        /*
+        // out << num_loads << ","
+        //     << num_evicts << "\n";
         // std::cout << "\n";
         if constexpr (std::is_same<LRUFATags, Tag>::value)
         {
@@ -432,7 +432,6 @@ class Cache : public Simulator::MemObject
         std::cout << "Hit rate: " << hit_rate << "\n";
         std::cout << "Number of loads: " << num_loads << "\n";
         std::cout << "Number of evictions: " << num_evicts << "\n";
-        */
     }
 };
 

@@ -51,27 +51,32 @@ int main(int argc, const char *argv[])
     /* Simulation */
     runCPUTrace(processor.get());
 
+    std::cout << "Number of stores: "
+              << processor->numStores()
+              << "\n"
+              << "Number of loads: "
+              << processor->numLoads()
+              << "\n";
+
     /* Record Simulation Stats */
     // Currently, we only care about the evictions and loads from the LLC (eDRAM).
     // We need to evaluate different benchmarks first.
     std::ofstream stats;
     stats.open("workload_eval.csv", std::ios_base::app);
-    stats << argv[1] << ","; // Workload's name
-    eDRAM->debugPrint(stats);
+    // stats << argv[1] << ","; // Workload's name
+    // eDRAM->debugPrint(stats);
 
-    /*
     std::cout << "\n***************** Cache Stats *****************\n"; 
     for (int i = 0; i < num_of_cores; i++)
     {
         std::cout << "\nCore " << i << " L1-DCache: \n";
-        L1_D_all[i]->debugPrint();
+        L1_D_all[i]->debugPrint(stats);
         std::cout << "\nCore " << i << " L2-Cache: \n";
-        L2_all[i]->debugPrint();
+        L2_all[i]->debugPrint(stats);
     }
     std::cout << "\nL3-Cache: \n";
-    L3->debugPrint();
+    L3->debugPrint(stats);
     std::cout << "\neDRAM: \n";
-    eDRAM->debugPrint();
+    eDRAM->debugPrint(stats);
     std::cout << "\nProcessor Execution Time: " << processor->exeTime() << "\n";
-    */
 }
