@@ -14,42 +14,44 @@ int main(int argc, const char *argv[])
     Config cfg(cfg_file);
 
     // Create (PCM) main memory
-    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+//    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 
     // Create eDRAM (temp disabled)
-    std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM)); 
-    eDRAM->setNextLevel(PCM.get());
+    // std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM)); 
+    // eDRAM->setNextLevel(PCM.get());
     
     // Create L3
-    std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE));
-    L3->setNextLevel(eDRAM.get());
+//    std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE));
+//    L3->setNextLevel(PCM.get());
 
     /* Create Processor */
+    /*
     std::vector<std::unique_ptr<MemObject>> L2_all;
     std::vector<std::unique_ptr<MemObject>> L1_D_all;
     for (int i = 0; i < num_of_cores; i++)
     {
         // Create L2
-        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, i));
+        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE));
+        // TODO, set core_id
         L2->setNextLevel(L3.get());
 
         // Create L1-D
-        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE, i));
+        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
         L1_D->setNextLevel(L2.get());
 
         L2_all.push_back(std::move(L2));
         L1_D_all.push_back(std::move(L1_D));
     }
-
+    
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L3.get()));
     for (int i = 0; i < num_of_cores; i++) 
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-
+*/
     /* Simulation */
-    runCPUTrace(processor.get());
+/*    runCPUTrace(processor.get());
 
     std::cout << "Number of stores: "
               << processor->numStores()
@@ -57,15 +59,16 @@ int main(int argc, const char *argv[])
               << "Number of loads: "
               << processor->numLoads()
               << "\n";
-
+*/
     /* Record Simulation Stats */
     // Currently, we only care about the evictions and loads from the LLC (eDRAM).
     // We need to evaluate different benchmarks first.
-    std::ofstream stats;
-    stats.open("workload_eval.csv", std::ios_base::app);
+//    std::ofstream stats;
+//    stats.open("workload_eval.csv", std::ios_base::app);
     // stats << argv[1] << ","; // Workload's name
     // eDRAM->debugPrint(stats);
 
+    /*
     std::cout << "\n***************** Cache Stats *****************\n"; 
     for (int i = 0; i < num_of_cores; i++)
     {
@@ -79,4 +82,5 @@ int main(int argc, const char *argv[])
     std::cout << "\neDRAM: \n";
     eDRAM->debugPrint(stats);
     std::cout << "\nProcessor Execution Time: " << processor->exeTime() << "\n";
+    */
 }

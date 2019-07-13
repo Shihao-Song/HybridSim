@@ -65,7 +65,7 @@ class Cache : public Simulator::MemObject
 
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
-        req.core_id = core_id;
+        req.core_id = id;
 
         if (next_level->send(req))
         {
@@ -114,7 +114,7 @@ class Cache : public Simulator::MemObject
         if constexpr(std::is_same<OnChipToOffChip, Position>::value)
         {
             Request req(addr, Request::Request_Type::WRITE);
-            req.core_id = core_id;
+            req.core_id = id;
             if (next_level->send(req))
             {
                 ++num_evicts;
@@ -124,7 +124,7 @@ class Cache : public Simulator::MemObject
         else
 	{    
             Request req(addr, Request::Request_Type::WRITE_BACK);
-            req.core_id = core_id;
+            req.core_id = id;
             if (next_level->send(req))
             {
                 ++num_evicts;
@@ -195,20 +195,13 @@ class Cache : public Simulator::MemObject
     }
 
   protected:
-    Simulator::MemObject *next_level;
-
-  protected:
     uint64_t num_hits;
     uint64_t num_misses;
     uint64_t num_loads;
     uint64_t num_evicts;
 
-  protected:
-    int core_id;
-    int arbitration = 0;
-
   public:
-    Cache(Config::Cache_Level _level, Config &cfg, int _core_id = -1)
+    Cache(Config::Cache_Level _level, Config &cfg)
         : Simulator::MemObject(),
           level(_level),
           level_name(toString()),
@@ -221,8 +214,7 @@ class Cache : public Simulator::MemObject
           num_hits(0),
           num_misses(0),
           num_loads(0),
-          num_evicts(0),
-          core_id(_core_id)
+          num_evicts(0)
     {}
 
     int pendingRequests() override
@@ -235,11 +227,11 @@ class Cache : public Simulator::MemObject
 
     bool send(Request &req) override
     {
-        // A bus arbitrator is needed for the directly shared cache.
-        if (level == Config::Cache_Level::L3)
+        if (arbitrator)
         {
-            if (req.core_id != arbitration)
-            {
+            assert(req.core_id != -1);
+            if (req.core_id != selected_client)
+	    {
                 return false;
             }
         }
@@ -380,23 +372,15 @@ class Cache : public Simulator::MemObject
     {
 	servePendings();
 
-        // TODO, this should better be configurable
-        // For example, let user determine which level is shared.
-        // This can be simply done by adding a field in the configuration file to achieve
-        // something like: if (!NEXT_LEVEL_IS_SHARED)
-        if (level == Config::Cache_Level::L2)
+        if (boundary)
         {
-            // L2 is the last component of an individual core. Since L3 and below
-            // are shared among cores, they should be ticked by the processor instead of
-            // any individual core.
             clk++;
             return;
         }
 
-        if (level == Config::Cache_Level::L3)
+        if (arbitrator)
         {
-            // TODO, make it configurable, hard-coded for now.
-            arbitration = (arbitration + 1) % 8;
+            selected_client = (selected_client + 1) % num_clients;
         }
 
         if (clk % nclks_to_tick_next_level == 0)
@@ -405,33 +389,6 @@ class Cache : public Simulator::MemObject
         }
         
 	clk++;
-    }
-
-    void setNextLevel(Simulator::MemObject *_next_level) override
-    {
-        next_level = _next_level;
-    }
-
-    void debugPrint(std::ofstream &out) override
-    {
-        // out << num_loads << ","
-        //     << num_evicts << "\n";
-        // std::cout << "\n";
-        if constexpr (std::is_same<LRUFATags, Tag>::value)
-        {
-            std::cout << "A Fully-associative Cache (LRU): \n";
-        }
-        else if constexpr (std::is_same<LRUSetWayAssocTags, Tag>::value)
-        {
-            std::cout << "A Set-associative Cache (LRU): \n";
-        }
-        tags->printTagInfo();
-        // std::cout << "Number of hits: " << num_hits << "\n";
-        // std::cout << "Number of misses: " << num_misses << "\n";
-        double hit_rate = (double)num_hits / ((double)num_misses + (double)num_hits);
-        std::cout << "Hit rate: " << hit_rate << "\n";
-        std::cout << "Number of loads: " << num_loads << "\n";
-        std::cout << "Number of evictions: " << num_evicts << "\n";
     }
 };
 
@@ -447,55 +404,44 @@ class CacheFactory
 
   private:
     std::unordered_map<std::string,
-         std::function<std::unique_ptr<MemObject>(Config::Cache_Level,Config&,int)>> factories;
+         std::function<std::unique_ptr<MemObject>(Config::Cache_Level,Config&)>> factories;
 
   public:
     CacheFactory()
     {
-        factories["FA_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg, int core_id)
+        factories["FA_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
-                                      return std::make_unique<FA_LRU_LLC>(level, cfg, core_id);
+                                      return std::make_unique<FA_LRU_LLC>(level, cfg);
                                   };
 
-        factories["FA_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg,
-                                                int core_id)
+        factories["FA_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg)
                                   {
                                       return std::make_unique<FA_LRU_LLC_WRITE_ONLY>(level,
-                                                                                     cfg,
-                                                                                     core_id);
+                                                                                     cfg);
                                   };
 
-        factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg, int core_id)
+        factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
-                                      return std::make_unique<SET_WAY_LRU_LLC>(level, cfg,
-                                                                               core_id);
+                                      return std::make_unique<SET_WAY_LRU_LLC>(level, cfg);
                                   };
 
-        factories["SET_WAY_LRU_NON_LLC"] = [](Config::Cache_Level level, Config &cfg,
-                                              int core_id)
+        factories["SET_WAY_LRU_NON_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
-                                      return std::make_unique<SET_WAY_LRU_NON_LLC>(level, cfg,
-                                                                                   core_id);
+                                      return std::make_unique<SET_WAY_LRU_NON_LLC>(level, cfg);
                                   };
     }
 
-    auto createCache(Config::Cache_Level level, Config &cfg, int core_id = -1)
+    // TODO, this function needs to be more flexible in the future
+    // We have limit the use of Set-Assoc-LRU here.
+    auto createCache(Config::Cache_Level level, Config &cfg, bool LLC = false)
     {
-        // TODO, need to make it more flexible in the future.
-        if (int(level) < int(Config::Cache_Level::eDRAM))
+        if (LLC)
         {
-            return factories["SET_WAY_LRU_NON_LLC"](level, cfg, core_id);
+            return factories["SET_WAY_LRU_LLC"](level, cfg);
         }
-        else if (int(level) == int(Config::Cache_Level::eDRAM))
+        else
         {
-            if (cfg.caches[int(Config::Cache_Level::eDRAM)].assoc != -1)
-            {
-                return factories["SET_WAY_LRU_LLC"](level, cfg, core_id);
-            }
-            else
-            {
-                // return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg, core_id);
-            }
+            return factories["SET_WAY_LRU_NON_LLC"](level, cfg);
         }
     }
 };
@@ -503,9 +449,9 @@ class CacheFactory
 static CacheFactory CacheFactories;
 auto createCache(Simulator::Config::Cache_Level level,
                  Simulator::Config &cfg,
-                 int core_id = -1)
+                 bool LLC = false)
 {
-    return CacheFactories.createCache(level, cfg, core_id);
+    return CacheFactories.createCache(level, cfg, LLC);
 }
 }
 #endif

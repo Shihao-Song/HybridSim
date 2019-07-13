@@ -10,6 +10,9 @@
 #include "PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "Processor/processor.hh"
 
+#define isLLC 1
+#define isNonLLC 0
+
 typedef Simulator::Config Config;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
@@ -27,8 +30,11 @@ enum class Memories : int
     PCM
 };
 
+// TODO, delete core_id, make a function called setCoreID
 std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[]);
-auto createMemObject(Config &cfg, Memories mem_type, int core_id = -1)
+auto createMemObject(Config &cfg,
+                     Memories mem_type,
+                     bool LLC = false)
 {
     if (mem_type == Memories::PCM)
     {
@@ -38,23 +44,23 @@ auto createMemObject(Config &cfg, Memories mem_type, int core_id = -1)
     {
         if (mem_type == Memories::L1_I_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg, core_id);
+            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg);
         }
         else if (mem_type == Memories::L1_D_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg, core_id);
+            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg);
         }
         else if (mem_type == Memories::L2_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg, core_id);
+            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg, LLC);
         }
         else if (mem_type == Memories::L3_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg, core_id);
+            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg, LLC);
         }
         else if (mem_type == Memories::eDRAM)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg, core_id);
+            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg, LLC);
         }
     }
 }

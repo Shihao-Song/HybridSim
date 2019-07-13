@@ -17,9 +17,34 @@ class MemObject
 
     virtual bool send(Request &req) = 0;
     virtual void tick() {}
-    virtual void setNextLevel(MemObject *) {}
+    virtual void setNextLevel(MemObject *_next_level) { next_level = _next_level; }
 
-    virtual void debugPrint(std::ofstream &out){}
+    virtual void setId(int _id)
+    {
+        id = _id;
+    }
+
+    virtual void setArbitrator(int _num_clients)
+    {
+        arbitrator = true;
+        num_clients = _num_clients;
+    }
+
+    virtual void setBoundaryMemObject()
+    {
+        boundary = true;
+    }
+
+  protected:
+    MemObject *next_level;
+
+    int id = -1;
+
+    bool arbitrator = false; // Am i the arbitrator.
+    int num_clients = -1;
+    int selected_client = 0; // Which client is allowed to pass.
+
+    bool boundary; // I'm the boundary of my group.
 };
 }
 
