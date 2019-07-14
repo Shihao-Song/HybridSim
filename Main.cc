@@ -15,9 +15,9 @@ int main(int argc, const char *argv[])
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
-    
+
     // Create L3
-    std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE));
+    std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE, isLLC));
     L3->setNextLevel(PCM.get());
     L3->setArbitrator(num_of_cores);
 
@@ -27,13 +27,13 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < num_of_cores; i++)
     {
         // Create L2
-        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE));
+        std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isNonLLC));
         L2->setId(i);
         L2->setBoundaryMemObject();
         L2->setNextLevel(L3.get());
 
         // Create L1-D
-        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
+        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE, isNonLLC));
         L1_D->setId(i);
         L1_D->setNextLevel(L2.get());
 
@@ -49,8 +49,8 @@ int main(int argc, const char *argv[])
     }
 
     /* Simulation */
-/*    runCPUTrace(processor.get());
-
+    runCPUTrace(processor.get());
+/*
     std::cout << "Number of stores: "
               << processor->numStores()
               << "\n"

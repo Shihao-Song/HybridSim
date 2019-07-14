@@ -18,7 +18,6 @@ typedef Simulator::Config Config;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
 typedef Simulator::Stats Stats;
-typedef Simulator::Trace Trace;
 
 typedef CoreSystem::Processor Processor;
 
@@ -122,7 +121,7 @@ std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char
 auto runCacheTest(const char* cfg_file, const char *trace_name)
 {
     Config cfg(cfg_file);
-    Trace cpu_trace(trace_name);
+    Simulator::TraceEval cpu_trace(trace_name);
     
     Simulator::Instruction instr;
 
@@ -218,6 +217,7 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     std::cout << "Number of evictions: " << num_evictions << "\n";
 }
 
+/*
 // TODO, provide an example to this feature.
 auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 {
@@ -250,5 +250,5 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
 
     std::cout << "\nEnd Execution Time: " << Tick << "\n";
 }
-
+*/
 #endif

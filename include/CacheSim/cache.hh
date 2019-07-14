@@ -248,6 +248,7 @@ class Cache : public Simulator::MemObject
             pending_commits.push_back(req);
 
             ++num_hits;
+            return true;
         }
         else
         {

@@ -21,7 +21,7 @@ typedef Simulator::Instruction Instruction;
 typedef Simulator::Mapper Mapper;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
-typedef Simulator::Trace Trace;
+typedef Simulator::TraceEval TraceEval;
 
 class Processor
 {
@@ -118,8 +118,8 @@ class Processor
             retired += window.retire();
             if (cycles % 1000000 == 0)
             {
-                std::cout << "Core: " << core_id 
-                          << " has done " << retired << " instructions. \n";
+                 std::cout << "Core: " << core_id 
+                           << " has done " << retired << " instructions. \n";
 	    }
             if (!more_insts) { return; }
 
@@ -185,7 +185,8 @@ class Processor
         // TODO, Mapper should be in MMU in the future.
         Mapper mapper;
 
-        Trace trace;
+        // TODO, make it flexible.
+        TraceEval trace;
 
         Tick cycles;
         uint64_t num_loads = 0;;

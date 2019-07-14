@@ -47,7 +47,7 @@ class MemObject
     int num_clients = -1;
     int selected_client = 0; // Which client is allowed to pass.
 
-    bool boundary; // I'm the boundary of my group.
+    bool boundary = false; // I'm the boundary of my group.
 };
 }
 

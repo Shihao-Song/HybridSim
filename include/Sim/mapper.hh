@@ -35,7 +35,7 @@ class Mapper
 
     uint64_t va2pa(uint64_t va)
     {
-        uint64_t va_page = (va & pa_va_mask) >> va_page_shift;
+        uint64_t va_page = va >> va_page_shift;
 
         // Randomly remapping the lower 32 bits of va_page.
         uint8_t *array = (uint8_t *)&va_page;
