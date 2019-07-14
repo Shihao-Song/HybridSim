@@ -390,6 +390,16 @@ class Cache : public Simulator::MemObject
         
 	clk++;
     }
+
+    void registerStats(Simulator::Stats &stats) override
+    {
+        stats.setNumCacheHits(level, num_hits);
+        stats.setNumCacheMisses(level, num_misses);
+        stats.setCacheHitRatio(level,
+              double(num_hits) / (double(num_hits) + double(num_misses)));
+        stats.setNumLoadsByCache(level, num_loads);
+        stats.setNumEvictsByCache(level, num_evicts);
+    }
 };
 
 typedef Cache<LRUFATags,NormalMode,OnChipToOffChip> FA_LRU_LLC;
