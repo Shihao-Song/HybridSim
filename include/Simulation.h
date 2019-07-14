@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "Sim/config.hh"
+#include "Sim/stats.hh"
 #include "Sim/trace.hh"
 
 #include "CacheSim/cache.hh"

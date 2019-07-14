@@ -2,8 +2,9 @@
 #define __MEM_OBJECT_HH__
 
 #include <fstream>
-#include "Sim/request.hh"
 
+#include "Sim/request.hh"
+#include "Sim/stats.hh"
 
 // This class should be the base class for all the memory component
 namespace Simulator
@@ -34,6 +35,8 @@ class MemObject
     {
         boundary = true;
     }
+
+    virtual void registerStats(Stats &stats) {}
 
   protected:
     MemObject *next_level;
