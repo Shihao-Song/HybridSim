@@ -118,8 +118,8 @@ class Processor
             retired += window.retire();
             if (cycles % 1000000 == 0)
             {
-                 std::cout << "Core: " << core_id 
-                           << " has done " << retired << " instructions. \n";
+                  std::cout << "Core: " << core_id 
+                            << " has done " << retired << " instructions. \n";
 	    }
             if (!more_insts) { return; }
 

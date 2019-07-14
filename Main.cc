@@ -43,6 +43,11 @@ int main(int argc, const char *argv[])
 
     /* Simulation */
     runCPUTrace(processor.get());
+
+    /* Collecting Stats */
+    Stats stats;
+    L2->registerStats(stats);
+    stats.outputCache(argv[1], argv[2], Config::Cache_Level::L2);
 /*
     std::cout << "Number of stores: "
               << processor->numStores()

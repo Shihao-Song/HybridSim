@@ -62,6 +62,28 @@ class Stats
     {
         cache_perf[int(level)].num_evictions = _num_evicts;
     }
+
+    void outputCache(const char* fn, const char* eval_idx, Config::Cache_Level level)
+    {
+    
+        if (!std::ifstream(fn))
+        {
+            std::ofstream fd(fn);
+            fd << "Eval,# LLC Loads,# LLC Evicts\n";
+            fd << eval_idx << ","
+               << cache_perf[int(level)].num_loads << ","
+               << cache_perf[int(level)].num_evictions << "\n";
+            fd.close();
+        }
+        else
+        {
+            std::ofstream fd(fn, std::ios_base::app);
+            fd << eval_idx << ","
+               << cache_perf[int(level)].num_loads << ","
+               << cache_perf[int(level)].num_evictions << "\n";
+            fd.close();
+        }
+    }
 };
 }
 
