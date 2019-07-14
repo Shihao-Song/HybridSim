@@ -375,12 +375,14 @@ class Cache : public Simulator::MemObject
 
         if (boundary)
         {
+            assert(level == Config::Cache_Level::L1D);
             clk++;
             return;
         }
-
+        assert(int(level) > int(Config::Cache_Level::L1D));
         if (arbitrator)
         {
+            assert(level == Config::Cache_Level::L2);
             selected_client = (selected_client + 1) % num_clients;
         }
 
