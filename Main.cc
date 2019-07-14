@@ -14,29 +14,27 @@ int main(int argc, const char *argv[])
     Config cfg(cfg_file);
 
     // Create (PCM) main memory
-//    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
-
-    // Create eDRAM (temp disabled)
-    // std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM)); 
-    // eDRAM->setNextLevel(PCM.get());
+    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
     
     // Create L3
-//    std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE));
-//    L3->setNextLevel(PCM.get());
+    std::unique_ptr<MemObject> L3(createMemObject(cfg, Memories::L3_CACHE));
+    L3->setNextLevel(PCM.get());
+    L3->setArbitrator(num_of_cores);
 
     /* Create Processor */
-    /*
     std::vector<std::unique_ptr<MemObject>> L2_all;
     std::vector<std::unique_ptr<MemObject>> L1_D_all;
     for (int i = 0; i < num_of_cores; i++)
     {
         // Create L2
         std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE));
-        // TODO, set core_id
+        L2->setId(i);
+        L2->setBoundaryMemObject();
         L2->setNextLevel(L3.get());
 
         // Create L1-D
         std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE));
+        L1_D->setId(i);
         L1_D->setNextLevel(L2.get());
 
         L2_all.push_back(std::move(L2));
@@ -49,7 +47,7 @@ int main(int argc, const char *argv[])
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-*/
+
     /* Simulation */
 /*    runCPUTrace(processor.get());
 

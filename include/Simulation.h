@@ -17,6 +17,7 @@
 typedef Simulator::Config Config;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
+typedef Simulator::Stats Stats;
 typedef Simulator::Trace Trace;
 
 typedef CoreSystem::Processor Processor;
