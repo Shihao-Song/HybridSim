@@ -14,8 +14,5 @@ for workload in workloads:
     traces=[f for f in listdir(workload_dir)]
 
     for trace in traces:
-        print workload
-        print trace.split(".")[0]
-
-        args = ["./Sim", workload, trace.split(".")[0], "--config", "configs/sample-FRFCFS-64MB-eDRAM-32GB-PCM.cfg", "--traces", join(workload_dir, trace)]
+        args = ["./Sim", "workload_charac/" + workload, trace.split(".")[0], "--config", "configs/sample-FRFCFS-64MB-eDRAM-32GB-PCM.cfg", "--traces", join(workload_dir, trace)]
         subprocess.call(args)
