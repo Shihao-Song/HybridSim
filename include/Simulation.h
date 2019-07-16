@@ -121,7 +121,7 @@ std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char
 auto runCacheTest(const char* cfg_file, const char *trace_name)
 {
     Config cfg(cfg_file);
-    Simulator::TraceEval cpu_trace(trace_name);
+    Simulator::ProtobufTrace cpu_trace(trace_name);
     
     Simulator::Instruction instr;
 

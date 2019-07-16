@@ -47,7 +47,7 @@ int main(int argc, const char *argv[])
     /* Collecting Stats */
     Stats stats;
     L2->registerStats(stats);
-    stats.outputCache(argv[1], argv[2], Config::Cache_Level::L2);
+//    stats.outputCache(argv[1], argv[2], Config::Cache_Level::L2);
 /*
     std::cout << "Number of stores: "
               << processor->numStores()

@@ -21,7 +21,8 @@ typedef Simulator::Instruction Instruction;
 typedef Simulator::Mapper Mapper;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
-typedef Simulator::TraceEval TraceEval;
+typedef Simulator::ProtobufTrace ProtobufTrace;
+typedef Simulator::TXTTrace TXTTrace;
 
 class Processor
 {
@@ -186,7 +187,7 @@ class Processor
         Mapper mapper;
 
         // TODO, make it flexible.
-        TraceEval trace;
+        TXTTrace trace;
 
         Tick cycles;
         uint64_t num_loads = 0;;

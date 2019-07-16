@@ -399,6 +399,9 @@ class Cache : public Simulator::MemObject
 
     void registerStats(Simulator::Stats &stats) override
     {
+        std::cout << num_loads << "\n";
+        std::cout << num_evicts << "\n";
+
         stats.setNumCacheHits(level, num_hits);
         stats.setNumCacheMisses(level, num_misses);
         stats.setCacheHitRatio(level,
