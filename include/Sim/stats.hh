@@ -65,8 +65,7 @@ class Stats
 
     void outputCache(const char* fn, const char* eval_idx, Config::Cache_Level level)
     {
-    
-        if (!std::ifstream(fn))
+        if (!std::ifstream(fn) || strcmp(eval_idx, "-1") == 0)
         {
             std::ofstream fd(fn);
             fd << "Eval,# LLC Loads,# LLC Evicts\n";
