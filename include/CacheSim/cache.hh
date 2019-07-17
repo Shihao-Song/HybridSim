@@ -399,12 +399,26 @@ class Cache : public Simulator::MemObject
 
     void registerStats(Simulator::Stats &stats) override
     {
-        stats.setNumCacheHits(level, num_hits);
-        stats.setNumCacheMisses(level, num_misses);
-        stats.setCacheHitRatio(level,
-              double(num_hits) / (double(num_hits) + double(num_misses)));
-        stats.setNumLoadsByCache(level, num_loads);
-        stats.setNumEvictsByCache(level, num_evicts);
+        std::string registeree_name = level_name;
+        if (id != -1)
+        {
+            registeree_name = "Core-" + std::to_string(id) + "-" + 
+                              registeree_name;
+        }
+
+        stats.registerStats(registeree_name +
+                            ": Number of hits = " + std::to_string(num_hits));
+        stats.registerStats(registeree_name +
+                            ": Number of misses = " + std::to_string(num_misses));
+
+        double hit_ratio = double(num_hits) / (double(num_hits) + double(num_misses));
+        stats.registerStats(registeree_name + 
+                            ": Hit ratio = " + std::to_string(hit_ratio));
+
+        stats.registerStats(registeree_name +
+                            ": Number of Loads = " + std::to_string(num_loads));        
+        stats.registerStats(registeree_name +
+                            ": Number of Evictions = " + std::to_string(num_evicts));
     }
 };
 

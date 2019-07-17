@@ -5,10 +5,11 @@
 
 int main(int argc, const char *argv[])
 {
-    auto [cfg_file, trace_lists] = parse_args(argc, argv);
+    auto [cfg_file, trace_lists, output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
     unsigned num_of_cores = trace_lists.size();
     std::cout << "\nConfiguration file: " << cfg_file << "\n";
+    std::cout << "(Stats) Output file: " << output_file << "\n\n";
 
     /* Memory System Creation */
     Config cfg(cfg_file);
@@ -46,6 +47,11 @@ int main(int argc, const char *argv[])
 
     /* Collecting Stats */
     Stats stats;
+
+    for (auto &L1_D : L1_D_all)
+    {
+        L1_D->registerStats(stats);
+    }
     L2->registerStats(stats);
-    stats.outputCache(argv[1], argv[2], Config::Cache_Level::L2);
+    stats.outputStats(output_file);
 }

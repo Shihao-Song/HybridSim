@@ -31,8 +31,8 @@ enum class Memories : int
     PCM
 };
 
-// TODO, delete core_id, make a function called setCoreID
-std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[]);
+std::tuple<const char*, std::vector<const char*>, const char *> parse_args(int argc,
+                                                                const char *argv[]);
 auto createMemObject(Config &cfg,
                      Memories mem_type,
                      bool LLC = false)
@@ -75,10 +75,12 @@ auto runCPUTrace(Processor *processor)
     }
 }
 
-std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char *argv[])
+std::tuple<const char*, std::vector<const char*>, const char *> parse_args(int argc,
+                                                                const char *argv[])
 {
     int trace_start = -1;
     int config_start = -1;
+    int output_start = -1;
 
     for (int i = 0; i < argc; i++)
     {
@@ -91,21 +93,31 @@ std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char
         {
             config_start = i + 1;
         }
-    }
-    assert(config_start != -1);
-    assert(config_start < argc);
 
-    assert(trace_start != -1);
-    assert(trace_start < argc);
+        if (strcmp(argv[i], "--output") == 0)
+        {
+            output_start = i + 1;
+        }
+    }
+
+    if (trace_start == -1 || config_start == -1 || output_start == -1)
+    {
+        std::cerr << argv[0] << " --config YOUR_CONFIG_FILE"
+                             << " --traces YOUR_TRACE_FILES"
+                             << " --output YOUR_OUTPUT_FILE\n";
+        exit(0);
+    }
+
+    int trace_end_deter = config_start < output_start ? output_start : config_start;
 
     int num_traces;
-    if (config_start < trace_start)
+    if (trace_end_deter < trace_start)
     {
         num_traces = argc - trace_start;
     }
     else
     {
-        num_traces = config_start - 1 - trace_start;
+        num_traces = trace_end_deter - 1 - trace_start;
     }
 
     std::vector<const char*> trace_lists;
@@ -113,7 +125,7 @@ std::pair<const char*, std::vector<const char*>> parse_args(int argc, const char
     {
         trace_lists.push_back(argv[trace_start + i]);
     }
-    return std::make_pair(argv[config_start], trace_lists);
+    return std::make_tuple(argv[config_start], trace_lists, argv[output_start]);
 }
 
 // Function to test cache behavior.
