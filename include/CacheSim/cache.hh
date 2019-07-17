@@ -84,6 +84,14 @@ class Cache : public Simulator::MemObject
         if (wb_queue->isFull()) { return false; }
 
         bool is_entry_modified = mshr_queue->isEntryModified(addr);
+        // if (is_entry_modified)
+        // { 
+        //     std::cout << level_name << " " << addr << " is dirty. \n";
+        // }
+        // else
+        // {
+        //     std::cout << level_name << " " << addr << " is clean. \n";
+        // }
         mshr_queue->deAllocate(addr, true);
         if (auto [wb_required, wb_addr] = tags->insertBlock(addr, is_entry_modified, clk);
             wb_required)
@@ -301,6 +309,8 @@ class Cache : public Simulator::MemObject
                                                              clk + tag_lookup_latency);
                         hit_in_mshr_queue)
                     {
+                    //     std::cout << "Address " << aligned_addr 
+                    //               << " is hit in MSRH. \n";
                         ++num_hits;
                     }
                     else
@@ -313,6 +323,9 @@ class Cache : public Simulator::MemObject
 
                     if (req.req_type == Request::Request_Type::WRITE)
                     {
+                    //     std::cout << "Address " << aligned_addr
+                    //               << " write arequest is detected.\n";
+                       
                         mshr_queue->setEntryModified(aligned_addr);
                     }
 
