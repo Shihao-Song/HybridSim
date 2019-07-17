@@ -94,11 +94,7 @@ class BaseController
     }
 };
 
-struct FCFS{};
-struct FR_FCFS{};
-
-template <typename S>
-class SampleController : public BaseController
+class FCFSController : public BaseController
 {
   protected:
     std::list<Request> r_w_q;
@@ -106,9 +102,15 @@ class SampleController : public BaseController
 
     std::deque<Request> r_w_pending_queue;
 
-  public:
+  protected:
+    const unsigned singleReadLatency;
+    const unsigned bankDelayCausedBySingleRead;
+    const unsigned singleWriteLatency;
+    const unsigned bankDelayCausedBySingleWrite;
+    const unsigned dataTransferLatency; 
 
-    SampleController(int _id, Config &cfg)
+  public:
+    FCFSController(int _id, Config &cfg)
         : BaseController(_id, cfg),
           singleReadLatency(channel->singleReadLatency()),
           bankDelayCausedBySingleRead(channel->bankDelayCausedBySingleRead()),
@@ -153,14 +155,6 @@ class SampleController : public BaseController
     }
 
   protected:
-    const unsigned singleReadLatency;
-    const unsigned bankDelayCausedBySingleRead;
-    const unsigned singleWriteLatency;
-    const unsigned bankDelayCausedBySingleWrite;
-    const unsigned dataTransferLatency; 
-
-  protected:
-
     void servePendingAccesses()
     {
         if (!r_w_pending_queue.size())
@@ -185,7 +179,7 @@ class SampleController : public BaseController
         }
     }
 
-    auto getHead()
+    virtual std::pair<bool,std::list<Request>::iterator> getHead()
     {
         if (r_w_q.size() == 0)
         {
@@ -193,30 +187,15 @@ class SampleController : public BaseController
             return std::make_pair(false, r_w_q.end());
         }
 
-        // constexpr-if is determined in compile-time.
-        if constexpr(std::is_same<FCFS, S>::value)
+        auto req = r_w_q.begin();
+        if (issueable(req))
         {
-            auto req = r_w_q.begin();
-            if (issueable(req))
-            {
-                return std::make_pair(true, req);
-            }
-            return std::make_pair(false, r_w_q.end());
+            return std::make_pair(true, req);
         }
-        else if constexpr(std::is_same<FR_FCFS, S>::value)
-        {
-            for (auto iter = r_w_q.begin(); iter != r_w_q.end(); ++iter)
-            {
-                if (issueable(iter))
-                {
-                    return std::make_pair(true, iter);
-                }
-            }
-            return std::make_pair(false, r_w_q.end());
-        }
+        return std::make_pair(false, r_w_q.end());
     }
     
-    void channelAccess(auto scheduled_req)
+    virtual void channelAccess(std::list<Request>::iterator& scheduled_req)
     {
         scheduled_req->begin_exe = clk;
 
@@ -238,7 +217,7 @@ class SampleController : public BaseController
         }
         else
         {
-            std::cerr << "Unknown request type. \n";
+            std::cerr << "Unknown Request Type. \n";
             exit(0);
         }
 
@@ -253,10 +232,35 @@ class SampleController : public BaseController
                                 // to be fully de-coupled.
                    bank_latency);
     }
+
 };
 
-typedef SampleController<FCFS> FCFS_Controller;
-typedef SampleController<FR_FCFS> FR_FCFS_Controller;
+class FRFCFSController : public FCFSController
+{
+  public:
+    FRFCFSController(int _id, Config &cfg)
+        : FCFSController(_id, cfg)
+    {}
+
+  protected:
+    std::pair<bool,std::list<Request>::iterator> getHead() override
+    {
+        if (r_w_q.size() == 0)
+        {
+            // Queue is empty, nothing to be scheduled.
+            return std::make_pair(false, r_w_q.end());
+        }
+
+        for (auto iter = r_w_q.begin(); iter != r_w_q.end(); ++iter)
+        {
+            if (issueable(iter))
+            {
+                return std::make_pair(true, iter);
+            }
+        }
+        return std::make_pair(false, r_w_q.end());
+    }
+};
 }
 
 #endif

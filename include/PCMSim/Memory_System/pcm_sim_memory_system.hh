@@ -7,6 +7,7 @@
 #include "Sim/request.hh"
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
+#include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
 
 #include <functional>
 #include <iostream>
@@ -86,8 +87,9 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
 };
 
-typedef PCMSimMemorySystem<FCFS_Controller> FCFS_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<FR_FCFS_Controller> FR_FCFS_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -110,6 +112,11 @@ class PCMSimMemorySystemFactory
                             {
                                 return std::make_unique<FR_FCFS_PCMSimMemorySystem>(cfg);
                             };
+
+        //factories["CP-AWARE"] = [](Config &cfg)
+        //                    {
+        //                        return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
+        //                    };
     }
 
     auto createPCMSimMemorySystem(Config &cfg)
