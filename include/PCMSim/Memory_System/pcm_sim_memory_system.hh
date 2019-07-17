@@ -1,6 +1,7 @@
 #ifndef __PCMSIM_MEMORY_SYSTEM_HH__
 #define __PCMSIM_MEMORY_SYSTEM_HH__
 
+#include "Sim/decoder.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/config.hh"
 #include "Sim/request.hh"
@@ -28,6 +29,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
     typedef uint64_t Tick;
 
     typedef Simulator::Config Config;
+    typedef Simulator::Decoder Decoder;
     typedef Simulator::Request Request;
 
     PCMSimMemorySystem(Config &cfg) : Simulator::MemObject()
@@ -52,7 +54,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         req.addr_vec.resize(int(Config::Decoding::MAX));
 
-        decode(req.addr, req.addr_vec);
+        Decoder::decode(req.addr, memory_addr_decoding_bits, req.addr_vec);
 
         int channel_id = req.addr_vec[int(Config::Decoding::Channel)];
 
@@ -82,23 +84,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
         memory_addr_decoding_bits = cfg.mem_addr_decoding_bits;
     }
 
-    // TODO, the following two member functions should better be put into another utility class
-    // since the current setting kinds of violates single-responsibility pattern.
-    void decode(Addr _addr, std::vector<int> &vec)
-    {
-        Addr addr = _addr;
-        for (int i = memory_addr_decoding_bits.size() - 1; i >= 0; i--)
-        {
-            vec[i] = sliceLowerBits(addr, memory_addr_decoding_bits[i]);
-        }
-    }
-
-    int sliceLowerBits(Addr& addr, int bits)
-    {
-        int lbits = addr & ((1<<bits) - 1);
-        addr >>= bits;
-        return lbits;
-    }
 };
 
 typedef PCMSimMemorySystem<FCFS_Controller> FCFS_PCMSimMemorySystem;
