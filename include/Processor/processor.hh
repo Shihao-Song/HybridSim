@@ -186,7 +186,6 @@ class Processor
         // TODO, Mapper should be in MMU in the future.
         Mapper mapper;
 
-        // TODO, make it flexible.
         TXTTrace trace;
 
         Tick cycles;
