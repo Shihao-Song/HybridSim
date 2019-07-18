@@ -138,7 +138,7 @@ class Processor
                 {
                     Request req;
                     req.core_id = core_id;
-                    cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
+                    // cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
                     req.addr = cur_inst.target_addr & ~window.block_mask;
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
