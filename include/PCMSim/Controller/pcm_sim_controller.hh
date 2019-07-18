@@ -51,8 +51,6 @@ class BaseController
     // tick
     virtual void tick() {}
 
-    virtual void registerStats(Simulator::Stats &stats) {}
-
      // Some Proxy functions
   protected:
     auto issueable(auto req)

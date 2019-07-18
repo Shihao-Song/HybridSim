@@ -54,5 +54,6 @@ int main(int argc, const char *argv[])
     }
     L2->registerStats(stats);
     PCM->registerStats(stats);
+    stats.registerStats("Execution Time (cycles) = " + std::to_string(processor->exeTime()));
     stats.outputStats(output_file);
 }

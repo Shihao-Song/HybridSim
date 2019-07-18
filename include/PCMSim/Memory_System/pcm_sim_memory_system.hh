@@ -77,9 +77,40 @@ class PCMSimMemorySystem : public Simulator::MemObject
    
     void registerStats(Simulator::Stats &stats) override
     {
-        for (auto &controller : controllers)
+        if constexpr (std::is_same<CPAwareController, T>::value)
         {
-            controller->registerStats(stats);
+            unsigned num_stages = controllers[0]->numStages();
+            for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+            {
+                std::string target = "READ";
+                if (i == int(Config::Charge_Pump_Opr::READ))
+                {
+                    target = "READ";
+                }
+                if (i == int(Config::Charge_Pump_Opr::SET))
+                {
+                    target = "SET";
+                }
+                if (i == int(Config::Charge_Pump_Opr::RESET))
+                {
+                    target = "RESET";
+                }
+                
+                for (int j = 0; j < num_stages; j++)
+                {
+                    int64_t stage_accesses = 0;
+                    for (auto &controller : controllers)
+                    {
+                        stage_accesses += controller->stageAccess(i, j);
+                    }
+                    std::string stage_access_prin =
+                                                "Stage-" + std::to_string(j) + "-"
+                                                + target + "-Access"
+                                                + " = "
+                                                + std::to_string(stage_accesses);
+                    stats.registerStats(stage_access_prin);
+                }
+            }
         }
     }
 

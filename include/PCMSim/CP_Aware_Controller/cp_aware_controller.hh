@@ -42,6 +42,16 @@ class CPAwareController : public FRFCFSController
         }
     }
 
+    unsigned numStages() const
+    {
+        return num_stages;
+    }
+
+    uint64_t stageAccess(int cp_opr, int stage)
+    {
+        return stage_accesses[cp_opr][stage];
+    }
+
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
     {
         // Step one, to determine stage level.
@@ -103,47 +113,6 @@ class CPAwareController : public FRFCFSController
                                 // other ranks must wait until the current rank
                                 // to be fully de-coupled.
                    bank_latency);
-    }
-
-    // stage_accesses[int(Config::Charge_Pump_Opr::MAX)];
-    // stage_total_charging_time[int(Config::Charge_Pump_Opr::MAX)];
-    void registerStats(Simulator::Stats &stats) override
-    {
-        for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
-        {
-            for (int j = 0; j < num_stages; j++)
-            {
-                std::string target = "READ";
-                if (i == int(Config::Charge_Pump_Opr::READ))
-                {
-                    target = "READ";
-                }
-                if (i == int(Config::Charge_Pump_Opr::SET))
-                {
-                    target = "SET";
-                }
-                if (i == int(Config::Charge_Pump_Opr::RESET))
-                {
-                    target = "RESET";
-                }
-
-                uint64_t num_stage_acesses = stage_accesses[i][j];
-                uint64_t total_cp_charging_time = stage_total_charging_time[i][j];
-		
-                std::string stage_access_prin = "Channel-" + std::to_string(id) + "-"
-                                                + "Stage-" + std::to_string(j) + "-"
-                                                + target + "-Access"
-                                                + " = "
-                                                + std::to_string(num_stage_acesses);
-                std::string total_cp_charging_prin = "Channel-" + std::to_string(id) + "-"
-                                                + "Stage-" + std::to_string(j) + "-"
-                                                + target + "-Charging-Time"
-                                                + " = "
-                                                + std::to_string(total_cp_charging_time);
-                stats.registerStats(stage_access_prin);
-                stats.registerStats(total_cp_charging_prin);
-	    }
-        }
     }
 };
 }
