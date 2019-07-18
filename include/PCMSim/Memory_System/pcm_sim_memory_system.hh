@@ -113,10 +113,10 @@ class PCMSimMemorySystemFactory
                                 return std::make_unique<FR_FCFS_PCMSimMemorySystem>(cfg);
                             };
 
-        //factories["CP-AWARE"] = [](Config &cfg)
-        //                    {
-        //                        return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
-        //                    };
+        factories["CP-AWARE"] = [](Config &cfg)
+                            {
+                                return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
+                            };
     }
 
     auto createPCMSimMemorySystem(Config &cfg)

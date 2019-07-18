@@ -16,7 +16,7 @@ int main(int argc, const char *argv[])
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
-
+    exit(0);
     // Create L2
     std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));
     L2->setNextLevel(PCM.get());
