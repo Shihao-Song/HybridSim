@@ -74,7 +74,15 @@ class PCMSimMemorySystem : public Simulator::MemObject
             controller->tick();
         }
     }
-    
+   
+    void registerStats(Simulator::Stats &stats) override
+    {
+        for (auto &controller : controllers)
+        {
+            controller->registerStats(stats);
+        }
+    }
+
   private:
     void init(Config &cfg)
     {

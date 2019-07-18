@@ -1,8 +1,9 @@
 #ifndef __PCMSIM_CONTROLLER_HH__
 #define __PCMSIM_CONTROLLER_HH__
 
-#include "Sim/request.hh"
 #include "Sim/config.hh"
+#include "Sim/request.hh"
+#include "Sim/stats.hh"
 
 #include "PCMSim/Array_Architecture/pcm_sim_array.hh"
 
@@ -49,6 +50,8 @@ class BaseController
 
     // tick
     virtual void tick() {}
+
+    virtual void registerStats(Simulator::Stats &stats) {}
 
      // Some Proxy functions
   protected:

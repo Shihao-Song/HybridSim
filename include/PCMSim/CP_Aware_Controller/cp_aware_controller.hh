@@ -8,26 +8,142 @@ namespace PCMSim
 class CPAwareController : public FRFCFSController
 {
   protected:
-    struct Charging_Stage
-    {
-        float voltage;
-        unsigned nclks_charge_or_discharge;
-    };
+    const unsigned num_stages;
 
-    // TODO, let config parse information
-    std::vector<Charging_Stage> read_lookaside_buffer;
-    std::vector<Charging_Stage> set_lookaside_buffer;
-    std::vector<Charging_Stage> reset_lookaside_buffer;
+    const unsigned num_partitions_per_bank;
+    const unsigned num_rows_per_partition;
+    const unsigned num_rows_per_stage;
+
+    const std::vector<Config::Charging_Stage> 
+          charging_lookaside_buffer[int(Config::Charge_Pump_Opr::MAX)];
+
+  protected:
+    std::vector<uint64_t> stage_accesses[int(Config::Charge_Pump_Opr::MAX)];
+    std::vector<uint64_t> stage_total_charging_time[int(Config::Charge_Pump_Opr::MAX)];
 
   public:
     CPAwareController(int _id, Config &cfg)
-        : FRFCFSController(_id, cfg) 
+        : FRFCFSController(_id, cfg),
+          num_stages(cfg.num_stages),
+          num_partitions_per_bank(cfg.num_of_parts),
+          num_rows_per_partition(cfg.num_of_word_lines_per_tile),
+          num_rows_per_stage(num_rows_per_partition * num_partitions_per_bank /
+                             num_stages),
+          charging_lookaside_buffer(cfg.charging_lookaside_buffer)
     {
+        assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)].size());
+        assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)].size());
+        assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)].size());
+
+        for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+        {
+            stage_accesses[i].resize(num_stages, 0);
+            stage_total_charging_time[i].resize(num_stages, 0);
+        }
     }
 
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
     {
-        FRFCFSController::channelAccess(scheduled_req);
+        // Step one, to determine stage level.
+        int part_id = scheduled_req->addr_vec[int(Config::Decoding::Partition)];
+        int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
+        unsigned stage_id = (part_id * num_rows_per_partition + row_id) /
+                            num_rows_per_stage;
+        
+	// Step two, to determine timings.
+        scheduled_req->begin_exe = clk;
+
+        unsigned charging_latency = 0;
+        unsigned req_latency = 0;
+        unsigned bank_latency = 0;
+        unsigned channel_latency = 0;
+
+        if (scheduled_req->req_type == Request::Request_Type::READ)
+        {
+            ++stage_accesses[int(Config::Charge_Pump_Opr::READ)][stage_id];
+            
+	    charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)]
+                                                        [stage_id].nclks_charge_or_discharge;
+	    req_latency = charging_latency + singleReadLatency + charging_latency;
+            bank_latency = req_latency;
+            channel_latency = dataTransferLatency;
+            
+	    stage_total_charging_time[int(Config::Charge_Pump_Opr::READ)][stage_id] +=
+                                     singleReadLatency;
+        }
+        else if (scheduled_req->req_type == Request::Request_Type::WRITE)
+        {
+            ++stage_accesses[int(Config::Charge_Pump_Opr::SET)][stage_id];
+            ++stage_accesses[int(Config::Charge_Pump_Opr::RESET)][stage_id];
+
+            charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)]
+                                                        [stage_id].nclks_charge_or_discharge;
+            req_latency = charging_latency + singleWriteLatency + charging_latency;
+            bank_latency = req_latency;
+            channel_latency = dataTransferLatency;
+
+            stage_total_charging_time[int(Config::Charge_Pump_Opr::SET)][stage_id] +=
+                                     singleWriteLatency;
+            stage_total_charging_time[int(Config::Charge_Pump_Opr::RESET)][stage_id] +=
+                                     singleWriteLatency;
+        }
+        else
+        {
+            std::cerr << "Unknown Request Type. \n";
+            exit(0);
+        }
+
+        scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
+
+        // Post access
+        postAccess(scheduled_req,
+                   channel_latency,
+                   req_latency, // This is rank latency for other ranks.
+                                // Since there is no rank-level parall,
+                                // other ranks must wait until the current rank
+                                // to be fully de-coupled.
+                   bank_latency);
+    }
+
+    // stage_accesses[int(Config::Charge_Pump_Opr::MAX)];
+    // stage_total_charging_time[int(Config::Charge_Pump_Opr::MAX)];
+    void registerStats(Simulator::Stats &stats) override
+    {
+        for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+        {
+            for (int j = 0; j < num_stages; j++)
+            {
+                std::string target = "READ";
+                if (i == int(Config::Charge_Pump_Opr::READ))
+                {
+                    target = "READ";
+                }
+                if (i == int(Config::Charge_Pump_Opr::SET))
+                {
+                    target = "SET";
+                }
+                if (i == int(Config::Charge_Pump_Opr::RESET))
+                {
+                    target = "RESET";
+                }
+
+                uint64_t num_stage_acesses = stage_accesses[i][j];
+                uint64_t total_cp_charging_time = stage_total_charging_time[i][j];
+		
+                std::string stage_access_prin = "Channel-" + std::to_string(id) + "-"
+                                                + "Stage-" + std::to_string(j) + "-"
+                                                + target + "-Access"
+                                                + " = "
+                                                + std::to_string(num_stage_acesses);
+                std::string total_cp_charging_prin = "Channel-" + std::to_string(id) + "-"
+                                                + "Stage-" + std::to_string(j) + "-"
+                                                + target + "-Charging-Time"
+                                                + " = "
+                                                + std::to_string(total_cp_charging_time);
+                stats.registerStats(stage_access_prin);
+                stats.registerStats(total_cp_charging_prin);
+	    }
+        }
     }
 };
 }

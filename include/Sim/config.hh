@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -43,9 +44,24 @@ class Config
     void extractCacheInfo(Cache_Level level, std::vector<std::string> &tokens);
 
     // Memory Controller
-    std::string mem_controller_family = "N/A";
     std::string mem_controller_type = "N/A";
-   
+  
+    // Charge-pump info (stage-wise charging may apply)
+    std::string charge_pump_info = "N/A";
+
+    enum Charge_Pump_Opr : int
+    {
+        SET, RESET, READ, MAX
+    };
+    struct Charging_Stage
+    {
+        float voltage;
+        unsigned nclks_charge_or_discharge;
+    };
+    unsigned num_stages = 0;
+    std::vector<Charging_Stage> charging_lookaside_buffer[int(Charge_Pump_Opr::MAX)];
+    void parseChargePumpInfo(const std::string &fname);
+
     // Running average power should always below RAPL? (Default no)
     bool power_limit_enabled = false;
     // OrderID should never exceed back-logging threshold? (Default no)

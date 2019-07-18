@@ -118,9 +118,10 @@ void Config::parse(const std::string &fname)
         {
             extractCacheInfo(Cache_Level::eDRAM, tokens);
         }
-        else if(tokens[0] == "mem_controller_family")
+        else if(tokens[0] == "charge_pump_info")
         {
-            mem_controller_family = tokens[1];
+            charge_pump_info = tokens[1];
+            parseChargePumpInfo(charge_pump_info);
         }
         else if(tokens[0] == "mem_controller_type")
         {
@@ -233,6 +234,40 @@ void Config::extractCacheInfo(Cache_Level level, std::vector<std::string> &token
     {
 	caches[int(level)].tag_lookup_latency = atoi(tokens[1].c_str());
     }
+}
+
+void Config::parseChargePumpInfo(const std::string &fname)
+{
+    std::ifstream stage_info(fname);
+    assert(stage_info.good());
+
+    std::string line;
+    while(getline(stage_info,line))
+    {
+        std::stringstream line_stream(line);
+        std::vector<std::string> tokens;
+        std::string intermidiate;
+        while (getline(line_stream, intermidiate, ','))
+        {
+            tokens.push_back(intermidiate);
+        }
+        assert(tokens.size());
+
+        charging_lookaside_buffer[int(Charge_Pump_Opr::SET)].emplace_back(
+                                 Charging_Stage{std::stof(tokens[0]),
+                                                std::stoul(tokens[1])});
+
+        charging_lookaside_buffer[int(Charge_Pump_Opr::RESET)].emplace_back(
+                                 Charging_Stage{std::stof(tokens[2]),
+                                                std::stoul(tokens[3])});
+
+        charging_lookaside_buffer[int(Charge_Pump_Opr::READ)].emplace_back(
+                                 Charging_Stage{std::stof(tokens[4]),
+                                                std::stoul(tokens[5])});
+        ++num_stages;
+    }
+
+    stage_info.close();
 }
 
 }
