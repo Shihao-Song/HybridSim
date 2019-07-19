@@ -2,10 +2,11 @@
 #define __PROCESSOR_HH__
 
 #include "Sim/instruction.hh"
-#include "Sim/mapper.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
 #include "Sim/trace.hh"
+
+#include "System/mmu.hh"
 
 #include <memory>
 #include <deque>
@@ -18,11 +19,12 @@ typedef uint64_t Addr;
 typedef uint64_t Tick;
 
 typedef Simulator::Instruction Instruction;
-typedef Simulator::Mapper Mapper;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
 typedef Simulator::ProtobufTrace ProtobufTrace;
 typedef Simulator::TXTTrace TXTTrace;
+
+typedef System::MMU MMU;
 
 class Processor
 {
@@ -100,8 +102,7 @@ class Processor
     {
       public:
         Core(int _id, const char* trace_file)
-            : mapper(_id),
-              trace(trace_file),
+            : trace(trace_file),
               cycles(0),
               core_id(_id)
         {
@@ -110,6 +111,7 @@ class Processor
         }
 
         void setDCache(MemObject* _d_cache) {d_cache = _d_cache;}
+        void setMMU(MMU *_mmu) {mmu = _mmu;}
 
         void tick()
         {
@@ -138,7 +140,10 @@ class Processor
                 {
                     Request req;
                     req.core_id = core_id;
-                    cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
+                    // Addr test = mmu->va2pa(cur_inst.target_addr, core_id);
+                    // cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
+                    // assert(test == cur_inst.target_addr);
+                    cur_inst.target_addr = mmu->va2pa(cur_inst.target_addr, core_id);
                     req.addr = cur_inst.target_addr & ~window.block_mask;
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -183,8 +188,7 @@ class Processor
         uint64_t numStores() { return num_stores; }
 
       private:
-        // TODO, Mapper should be in MMU in the future.
-        Mapper mapper;
+        MMU *mmu;
 
         TXTTrace trace;
 
@@ -220,6 +224,14 @@ class Processor
     void setDCache(int core_id, MemObject *d_cache)
     {
         cores[core_id]->setDCache(d_cache);
+    }
+
+    void setMMU(MMU *_mmu)
+    {
+        for (auto &core : cores)
+        {
+            core->setMMU(_mmu);
+        }
     }
 
     void tick()

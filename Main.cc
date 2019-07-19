@@ -35,13 +35,17 @@ int main(int argc, const char *argv[])
         L1_D_all.push_back(std::move(L1_D));
     }
     
+    // Create MMU. We support an ML MMU.
+    std::unique_ptr<MMU> mmu(new MMU(num_of_cores));
+
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
+    processor->setMMU(mmu.get());
     for (int i = 0; i < num_of_cores; i++) 
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-
+    
     /* Simulation */
     runCPUTrace(processor.get());
 
