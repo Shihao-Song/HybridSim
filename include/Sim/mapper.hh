@@ -15,7 +15,8 @@ class Mapper
     static const uint64_t pa_core_shift = 48;
     static const uint64_t pa_core_size = 16;
     static const uint64_t pa_va_mask = ~(((uint64_t(1) << pa_core_size) - 1) << pa_core_shift);
-    
+
+    static const unsigned page_size = 4096; // 4kB    
     static const uint64_t va_page_shift = 12;
     static const uint64_t va_page_mask = (uint64_t(1) << va_page_shift) - 1;
 

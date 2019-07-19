@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "Sim/config.hh"
 #include "Sim/mapper.hh"
 
 namespace System
@@ -28,14 +29,29 @@ class MMU
     {
         return mappers[core_id].va2pa(va);
     }
+};
 
-    // To train an MMU and record
-    // (1) all the touched pages,
-    // (2) reference counts for each touch page
-    // void train(Addr va)
-    // {
-    
-    // }
+class TrainedMMU : public MMU
+{
+  public:
+    typedef Simulator::Config Config;
+
+    TrainedMMU(int num_of_cores, Config &cfg)
+        : MMU(num_of_cores)
+    {}
+
+    virtual void train(Addr va);
+};
+
+// Strategy (1), bring MFU pages to the near rows.
+class MFUToNearRows : public TrainedMMU
+{
+  protected:
+
+  public:
+    MFUToNearRows(int num_of_cores, Config &cfg)
+        : TrainedMMU(num_of_cores, cfg)
+    {}
 };
 }
 
