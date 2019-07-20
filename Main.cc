@@ -16,6 +16,7 @@ int main(int argc, const char *argv[])
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+
     
     // Create L2
     std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));
@@ -42,7 +43,16 @@ int main(int argc, const char *argv[])
     if (cfg.trained_mmu)
     {
         std::cout << "MMU training stage... \n\n";
+        mmu->train(trace_lists);
     }
+    
+    Request req(140485259487848, Request::Request_Type::WRITE);
+    PCM->send(req);
+    while (PCM->pendingRequests())
+    {
+        PCM->tick();
+    }
+    exit(0);
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
@@ -51,7 +61,7 @@ int main(int argc, const char *argv[])
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-    exit(0);    
+ 
     /* Simulation */
     runCPUTrace(processor.get());
 

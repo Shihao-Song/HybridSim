@@ -11,7 +11,7 @@ class Decoder
     Decoder(){}
 
     static void decode(uint64_t _addr,
-                std::vector<int> &decoding_bits,
+                const std::vector<int> &decoding_bits,
                 std::vector<int> &result_addr_vec)
     {
         assert(decoding_bits.size());

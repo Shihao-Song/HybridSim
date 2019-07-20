@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Sim/config.hh"
+#include "Sim/decoder.hh"
 #include "Sim/mapper.hh"
 
 namespace System
@@ -37,22 +38,19 @@ class TrainedMMU : public MMU
 {
   public:
     typedef Simulator::Config Config;
+    typedef Simulator::Decoder Decoder;
 
     TrainedMMU(int num_of_cores, Config &cfg)
         : MMU(num_of_cores)
     {}
 
-    virtual void train(Addr va) {}
+    virtual void train(std::vector<const char*> traces) {}
 };
 
 // Strategy 1, bring MFU pages to the near rows.
 // TODO, Limitations
-// (1) I assume a page is mapped across 4 channels, 8 banks and 2 ranks, which gives
-//     us the page size of 64 * 4 * 8 * 2 = 4 kB;
-// (2) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank.
-// (3) Tracking order: fill the column first -> then rows -> next rank group
-// (4) When all the near pages are filled, we don't do any re-allocations (this is
-//     a future research topic)
+// (1) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank, 1 GB bank;
+// (2) I assume Decoding is Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
 class MFUPageToNearRows : public TrainedMMU
 {
   protected:
@@ -69,32 +67,50 @@ class MFUPageToNearRows : public TrainedMMU
     MFUPageToNearRows(int num_of_cores, Config &cfg)
         : TrainedMMU(num_of_cores, cfg),
           num_of_rows_per_partition(cfg.num_of_word_lines_per_tile),
-          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 * cfg.num_of_tiles /
-                                     cfg.block_size),
+          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size * 
+                                     cfg.num_of_tiles),
           num_of_near_rows(num_of_rows_per_partition * cfg.num_of_parts /
                            cfg.num_stages),
 	  mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
           max_near_page_row_id(num_of_near_rows - 1),
           max_near_page_col_id(num_of_cache_lines_per_row - 1),
-          max_near_page_dep_id(2)
+          max_near_page_dep_id(cfg.num_of_ranks)
     {}
+
+    void train(std::vector<const char*> traces) override;
 
   protected:
     const unsigned max_near_page_row_id;
     const unsigned max_near_page_col_id;
     const unsigned max_near_page_dep_id;
 
-    // To determine near pages
-    struct NearPageTracking
+    struct PageLoc
     {
         unsigned row_id = 0;
         unsigned col_id = 0;
         unsigned dep_id = 0;
-    };
-    NearPageTracking next_avai_near_page;
 
-    // TODO, need to maintain a hash table to record whether the page
-    // has been occupied or not.
+        bool operator==(const PageLoc &other) const
+        {
+            return row_id == other.row_id && 
+                   col_id == other.col_id &&
+                   dep_id == other.dep_id;
+        }
+    };
+    PageLoc next_avai_near_page; // Next free near page that can be re-allocated.
+
+    // Record any already touched near pages.
+    struct PageLocHashKey
+    {
+        template<typename T = PageLoc>
+        std::size_t operator()(T &p) const
+        {
+            return std::hash<unsigned>()(p.row_id) ^ 
+                   std::hash<unsigned>()(p.col_id) ^ 
+                   std::hash<unsigned>()(p.dep_id);
+        }
+    };
+    std::unordered_map<PageLoc, bool, PageLocHashKey> touched_near_pages;
 
   protected:
     struct PageEntry
