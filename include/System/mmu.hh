@@ -82,6 +82,7 @@ class MFUPageToNearRows : public TrainedMMU
           max_near_page_dep_id(cfg.num_of_ranks)
     {}
 
+    Addr va2pa(Addr va, int core_id) override;
     void train(std::vector<const char*> &traces) override;
 
   // Define data structures

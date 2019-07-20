@@ -45,7 +45,7 @@ int main(int argc, const char *argv[])
         std::cout << "MMU training stage... \n\n";
         mmu->train(trace_lists);
     }
-
+/*
     Request req(616, Request::Request_Type::WRITE);
     PCM->send(req);
     while (PCM->pendingRequests())
@@ -53,7 +53,7 @@ int main(int argc, const char *argv[])
         PCM->tick();
     }
     exit(0);
-
+*/
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
     processor->setMMU(mmu.get());
@@ -61,7 +61,7 @@ int main(int argc, const char *argv[])
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-    exit(0); 
+    
     /* Simulation */
     runCPUTrace(processor.get());
 

@@ -2,6 +2,37 @@
 
 namespace System
 {
+uint64_t MFUPageToNearRows::va2pa(Addr va, int core_id)
+{
+    Addr pa = mappers[core_id].va2pa(va);
+    Addr page_id = pa >> Mapper::va_page_shift;
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter == re_alloc_pages.end())
+    {
+        return pa;
+    }
+    else
+    {
+        PageEntry &entry = iter->second;
+        int new_part_id = entry.new_loc.row_id / num_of_rows_per_partition;
+        int new_row_id = entry.new_loc.row_id % num_of_rows_per_partition;
+        int new_col_id = entry.new_loc.col_id;
+        int new_rank_id = entry.new_loc.dep_id;
+
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
+
+        dec_addr[int(Config::Decoding::Partition)] = new_part_id;
+        dec_addr[int(Config::Decoding::Row)] = new_row_id;
+        dec_addr[int(Config::Decoding::Col)] = new_col_id;
+        dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
+
+        Addr new_addr = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        return new_addr;
+    }
+}
+
 void MFUPageToNearRows::train(std::vector<const char*> &traces)
 {
     int core_id = 0;
@@ -90,10 +121,10 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
         nextNearPage();
         re_alloc_pages.insert({page_entry.page_id, page_entry});
     }
-    for (auto [key,value] : re_alloc_pages)
-    {
-        std::cout << key << " : " << value.num_refs << "\n";
-    }
+//    for (auto [key,value] : re_alloc_pages)
+//    {
+//        std::cout << key << " : " << value.num_refs << "\n";
+//    }
 
 /*
     Addr addr = 140485259487848;
