@@ -7,6 +7,7 @@
 #include "Sim/config.hh"
 #include "Sim/decoder.hh"
 #include "Sim/mapper.hh"
+#include "Sim/trace.hh"
 
 namespace System
 {
@@ -14,7 +15,8 @@ namespace System
 class MMU
 {
   protected:
-    std::vector<Simulator::Mapper> mappers;
+    typedef Simulator::Mapper Mapper;
+    std::vector<Mapper> mappers;
 
   public:
     typedef uint64_t Addr;
@@ -39,12 +41,14 @@ class TrainedMMU : public MMU
   public:
     typedef Simulator::Config Config;
     typedef Simulator::Decoder Decoder;
+    typedef Simulator::Instruction Instruction;
+    typedef Simulator::TXTTrace TXTTrace;
 
     TrainedMMU(int num_of_cores, Config &cfg)
         : MMU(num_of_cores)
     {}
 
-    virtual void train(std::vector<const char*> traces) {}
+    virtual void train(std::vector<const char*> &traces) {}
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -77,14 +81,24 @@ class MFUPageToNearRows : public TrainedMMU
           max_near_page_dep_id(cfg.num_of_ranks)
     {}
 
-    void train(std::vector<const char*> traces) override;
+    void train(std::vector<const char*> &traces) override;
 
+  // Define data structures
   protected:
     const unsigned max_near_page_row_id;
     const unsigned max_near_page_col_id;
     const unsigned max_near_page_dep_id;
 
-    struct PageLoc
+    struct PageEntry
+    {
+        Addr page_id; // Original physical page ID
+
+        bool near_row_page = false; // Page is at near row region.
+        uint64_t num_refs = 0;
+    };
+    typedef std::unordered_map<Addr,PageEntry> PageHash;
+
+    struct PageLoc // Physical location
     {
         unsigned row_id = 0;
         unsigned col_id = 0;
@@ -97,9 +111,7 @@ class MFUPageToNearRows : public TrainedMMU
                    dep_id == other.dep_id;
         }
     };
-    PageLoc next_avai_near_page; // Next free near page that can be re-allocated.
 
-    // Record any already touched near pages.
     struct PageLocHashKey
     {
         template<typename T = PageLoc>
@@ -110,17 +122,13 @@ class MFUPageToNearRows : public TrainedMMU
                    std::hash<unsigned>()(p.dep_id);
         }
     };
-    std::unordered_map<PageLoc, bool, PageLocHashKey> touched_near_pages;
+    typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
 
   protected:
-    struct PageEntry
-    {
-        Addr page_id; // Original physical page ID
-
-        uint64_t num_refs = 0;
-    };
-    typedef std::unordered_map<Addr,PageEntry> PageHash;
     PageHash pages; // All the touched pages
+    PageLocHash touched_near_pages; // All the touched pages who are near pages
+    
+    PageLoc next_avai_near_page; // Next free near page that can be re-allocated.
 };
 }
 

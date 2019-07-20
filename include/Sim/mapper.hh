@@ -12,6 +12,7 @@ class Mapper
 
     uint8_t m_address_randomization_table[256];
 
+  public:
     static const uint64_t pa_core_shift = 48;
     static const uint64_t pa_core_size = 16;
     static const uint64_t pa_va_mask = ~(((uint64_t(1) << pa_core_size) - 1) << pa_core_shift);
