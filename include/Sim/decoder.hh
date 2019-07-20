@@ -31,6 +31,31 @@ class Decoder
         addr >>= bits;
         return lbits;
     }
+
+    static uint64_t reConstruct(std::vector<int> &vec,
+                                const std::vector<int> &decoding_bits)
+    {
+        assert(vec.size() != 0);
+        assert(vec.size() == decoding_bits.size());
+
+        std::vector<uint64_t> tmp;
+        tmp.resize(vec.size());
+        for (int i = 0; i < vec.size(); i++)
+        {
+            tmp[i] = vec[i];
+            for (int j = vec.size() - 1; j > i; j--)
+            {
+                tmp[i] <<= decoding_bits[j];
+            }
+        }
+
+        uint64_t addr = tmp[0];
+        for (int i = 1; i < tmp.size(); i++)
+        {
+            addr |= tmp[i];
+        }
+        return addr;
+    }
 };
 }
 

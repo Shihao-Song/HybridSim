@@ -45,8 +45,8 @@ int main(int argc, const char *argv[])
         std::cout << "MMU training stage... \n\n";
         mmu->train(trace_lists);
     }
-    
-    Request req(140485259487848, Request::Request_Type::WRITE);
+
+    Request req(616, Request::Request_Type::WRITE);
     PCM->send(req);
     while (PCM->pendingRequests())
     {
@@ -61,7 +61,7 @@ int main(int argc, const char *argv[])
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
- 
+    exit(0); 
     /* Simulation */
     runCPUTrace(processor.get());
 

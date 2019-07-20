@@ -59,8 +59,8 @@ class CPAwareController : public FRFCFSController
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
         unsigned stage_id = (part_id * num_rows_per_partition + row_id) /
                             num_rows_per_stage;
-        std::cout << "Row ID Plus: " << part_id * num_rows_per_partition + row_id << "\n";	
-        std::cout << "Stage ID: " << stage_id << "\n\n"; 
+        // std::cout << "Row ID Plus: " << part_id * num_rows_per_partition + row_id << "\n";	
+        // std::cout << "Stage ID: " << stage_id << "\n\n"; 
 	// Step two, to determine timings.
         scheduled_req->begin_exe = clk;
 

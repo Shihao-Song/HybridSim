@@ -1,6 +1,7 @@
 #ifndef __MMU_HH__
 #define __MMU_HH__
 
+#include <algorithm>
 #include <unordered_map>
 #include <vector>
 
@@ -88,23 +89,22 @@ class MFUPageToNearRows : public TrainedMMU
     const unsigned max_near_page_row_id;
     const unsigned max_near_page_col_id;
     const unsigned max_near_page_dep_id;
-
-    struct PageEntry
-    {
-        Addr page_id; // Original physical page ID
-
-        bool near_row_page = false; // Page is at near row region.
-        uint64_t num_refs = 0;
-    };
-    typedef std::unordered_map<Addr,PageEntry> PageHash;
-
+    
     struct PageLoc // Physical location
     {
         unsigned row_id = 0;
         unsigned col_id = 0;
         unsigned dep_id = 0;
 
-        bool operator==(const PageLoc &other) const
+        PageLoc& operator=(PageLoc other)
+        {
+            row_id = other.row_id;
+            col_id = other.col_id;
+            dep_id = other.dep_id;
+            return *this;
+        }
+
+	bool operator==(const PageLoc &other) const
         {
             return row_id == other.row_id && 
                    col_id == other.col_id &&
@@ -124,11 +124,28 @@ class MFUPageToNearRows : public TrainedMMU
     };
     typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
 
+    struct PageEntry
+    {
+        Addr page_id; // Original physical page ID
+
+        bool near_row_page = false; // Page is at near row region.
+        uint64_t num_refs = 0;
+
+        PageLoc new_loc; // Re-mapped page location
+    };
+    typedef std::unordered_map<Addr,PageEntry> PageHash;
+
   protected:
     PageHash pages; // All the touched pages
     PageLocHash touched_near_pages; // All the touched pages who are near pages
-    
-    PageLoc next_avai_near_page; // Next free near page that can be re-allocated.
+
+    std::vector<PageEntry> pages_mfu_order;
+
+    bool near_region_full = false;
+    PageLoc cur_near_page;
+    void nextNearPage();
+
+    PageHash re_alloc_pages; // Re-mapped pages;
 };
 }
 

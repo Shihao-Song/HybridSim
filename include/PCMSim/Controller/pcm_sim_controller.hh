@@ -166,13 +166,17 @@ class FCFSController : public BaseController
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
+            /*
             std::cout << "Rank: " << req.addr_vec[int(Config::Decoding::Rank)] << "\n";
             std::cout << "Partition: " 
 		      << req.addr_vec[int(Config::Decoding::Partition)] << "\n";
             std::cout << "Row: " << req.addr_vec[int(Config::Decoding::Row)] << "\n";
             std::cout << "Col: " << req.addr_vec[int(Config::Decoding::Col)] << "\n";
             std::cout << "Bank: " << req.addr_vec[int(Config::Decoding::Bank)] << "\n";
-            std::cout << "Channel: " << req.addr_vec[int(Config::Decoding::Channel)] << "\n\n";
+            std::cout << "Channel: " << req.addr_vec[int(Config::Decoding::Channel)] << "\n";
+	    std::cout << "Cache: " << req.addr_vec[int(Config::Decoding::Cache_Line)] 
+		      << "\n\n";
+            */
             if (req.callback)
             {
                 if (req.callback(req.addr))
