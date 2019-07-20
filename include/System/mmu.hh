@@ -1,6 +1,7 @@
 #ifndef __MMU_HH__
 #define __MMU_HH__
 
+#include <unordered_map>
 #include <vector>
 
 #include "Sim/config.hh"
@@ -25,12 +26,13 @@ class MMU
         }
     }
 
-    Addr va2pa(Addr va, int core_id)
+    virtual Addr va2pa(Addr va, int core_id)
     {
         return mappers[core_id].va2pa(va);
     }
 };
 
+// In this simulator, we mainly focus on the TrainedMMU.
 class TrainedMMU : public MMU
 {
   public:
@@ -40,38 +42,69 @@ class TrainedMMU : public MMU
         : MMU(num_of_cores)
     {}
 
-    virtual void train(Addr va);
+    virtual void train(Addr va) {}
 };
 
-// Strategy (1), bring MFU pages to the near rows.
-class MFUToNearRows : public TrainedMMU
+// Strategy 1, bring MFU pages to the near rows.
+// TODO, Limitations
+// (1) I assume a page is mapped across 4 channels, 8 banks and 2 ranks, which gives
+//     us the page size of 64 * 4 * 8 * 2 = 4 kB;
+// (2) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank.
+// (3) Tracking order: fill the column first -> then rows -> next rank group
+// (4) When all the near pages are filled, we don't do any re-allocations (this is
+//     a future research topic)
+class MFUPageToNearRows : public TrainedMMU
 {
   protected:
-    unsigned blk_size;
+    const unsigned num_of_rows_per_partition;
+    const unsigned num_of_cache_lines_per_row;
 
-    unsigned num_of_channels;
-    unsigned num_of_ranks;
-    unsigned num_of_banks;
-    unsigned num_of_partitions;
+    // How many rows are the near rows.
+    const unsigned num_of_near_rows;
 
-    unsigned num_of_rows_per_partition;
-    unsigned num_of_cache_lines_per_row;
+    // mem_addr_decoding_bits is used to determine the physical location of the page.
+    const std::vector<int> mem_addr_decoding_bits;
 
   public:
-    MFUToNearRows(int num_of_cores, Config &cfg)
+    MFUPageToNearRows(int num_of_cores, Config &cfg)
         : TrainedMMU(num_of_cores, cfg),
-          blk_size(cfg.block_size),
-          num_of_channels(cfg.num_of_channels),
-          num_of_ranks(cfg.num_of_ranks),
-          num_of_banks(cfg.num_of_banks),
-          num_of_partitions(cfg.num_of_parts)
+          num_of_rows_per_partition(cfg.num_of_word_lines_per_tile),
+          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 * cfg.num_of_tiles /
+                                     cfg.block_size),
+          num_of_near_rows(num_of_rows_per_partition * cfg.num_of_parts /
+                           cfg.num_stages),
+	  mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
+          max_near_page_row_id(num_of_near_rows - 1),
+          max_near_page_col_id(num_of_cache_lines_per_row - 1),
+          max_near_page_dep_id(2)
     {}
 
-    // Limitations,
-    // (1) I assume a page is mapped across 8 banks, 4 ranks and 2 channels, which gives
-    // us the page size of 64 * 8 * 4 * 2 = 4 kB;
-    // (2) I assume there are 4 channels in total;
-    
+  protected:
+    const unsigned max_near_page_row_id;
+    const unsigned max_near_page_col_id;
+    const unsigned max_near_page_dep_id;
+
+    // To determine near pages
+    struct NearPageTracking
+    {
+        unsigned row_id = 0;
+        unsigned col_id = 0;
+        unsigned dep_id = 0;
+    };
+    NearPageTracking next_avai_near_page;
+
+    // TODO, need to maintain a hash table to record whether the page
+    // has been occupied or not.
+
+  protected:
+    struct PageEntry
+    {
+        Addr page_id; // Original physical page ID
+
+        uint64_t num_refs = 0;
+    };
+    typedef std::unordered_map<Addr,PageEntry> PageHash;
+    PageHash pages; // All the touched pages
 };
 }
 

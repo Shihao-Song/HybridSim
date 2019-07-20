@@ -25,6 +25,7 @@ typedef Simulator::ProtobufTrace ProtobufTrace;
 typedef Simulator::TXTTrace TXTTrace;
 
 typedef System::MMU MMU;
+typedef System::TrainedMMU TrainedMMU;
 
 class Processor
 {
@@ -111,7 +112,7 @@ class Processor
         }
 
         void setDCache(MemObject* _d_cache) {d_cache = _d_cache;}
-        void setMMU(MMU *_mmu) {mmu = _mmu;}
+        void setMMU(TrainedMMU *_mmu) {mmu = _mmu;}
 
         void tick()
         {
@@ -188,7 +189,7 @@ class Processor
         uint64_t numStores() { return num_stores; }
 
       private:
-        MMU *mmu;
+        TrainedMMU *mmu;
 
         TXTTrace trace;
 
@@ -226,7 +227,7 @@ class Processor
         cores[core_id]->setDCache(d_cache);
     }
 
-    void setMMU(MMU *_mmu)
+    void setMMU(TrainedMMU *_mmu)
     {
         for (auto &core : cores)
         {

@@ -18,7 +18,6 @@
 
 typedef Simulator::Config Config;
 typedef Simulator::MemObject MemObject;
-typedef System::MMU MMU;
 typedef Simulator::Request Request;
 typedef Simulator::Stats Stats;
 

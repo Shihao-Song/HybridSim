@@ -43,6 +43,9 @@ class Config
     std::array<Cache_Info, int(Cache_Level::MAX)> caches;
     void extractCacheInfo(Cache_Level level, std::vector<std::string> &tokens);
 
+    // System Configuration
+    bool trained_mmu = false;
+
     // Memory Controller
     std::string mem_controller_type = "N/A";
   
@@ -89,8 +92,8 @@ class Config
     double pj_bit_rd;
     double pj_bit_set;
     double pj_bit_reset;
-  
-  public:
+
+//  public:
     Config(const std::string &cfg_file);
 
     void parse(const std::string &fname);

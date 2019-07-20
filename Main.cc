@@ -35,8 +35,14 @@ int main(int argc, const char *argv[])
         L1_D_all.push_back(std::move(L1_D));
     }
     
-    // Create MMU. We support an ML MMU.
-    std::unique_ptr<MMU> mmu(new MMU(num_of_cores));
+    // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
+    // simulator.
+    // TODO, currently, perform MMU training here.
+    std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
+    if (cfg.trained_mmu)
+    {
+        std::cout << "MMU training stage... \n\n";
+    }
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
@@ -45,7 +51,7 @@ int main(int argc, const char *argv[])
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-    
+    exit(0);    
     /* Simulation */
     runCPUTrace(processor.get());
 
