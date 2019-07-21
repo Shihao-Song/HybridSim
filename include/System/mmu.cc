@@ -99,7 +99,7 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
 
     // Step Two, re-map the MFU pages.
     uint64_t total_num_pages = pages_mfu_order.size();
-    uint64_t pages_to_re_alloc = total_num_pages * 0.2;
+    uint64_t pages_to_re_alloc = total_num_pages * perc_re_alloc;
     for (uint64_t i = 0; i < pages_to_re_alloc; i++)
     {
         PageEntry &page_entry = pages_mfu_order[i];

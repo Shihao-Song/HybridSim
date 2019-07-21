@@ -127,6 +127,10 @@ void Config::parse(const std::string &fname)
         {
             trained_mmu = tokens[1] == "false" ? 0 : 1;
         }
+        else if(tokens[0] == "perc_re_alloc")
+        {
+            perc_re_alloc = atof(tokens[1].c_str());
+        }
         else if(tokens[0] == "mem_controller_type")
         {
             mem_controller_type = tokens[1];

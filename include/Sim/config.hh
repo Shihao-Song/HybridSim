@@ -45,6 +45,7 @@ class Config
 
     // System Configuration
     bool trained_mmu = false;
+    double perc_re_alloc = 0.0;
 
     // Memory Controller
     std::string mem_controller_type = "N/A";
