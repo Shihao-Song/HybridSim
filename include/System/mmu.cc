@@ -100,6 +100,11 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
     // Step Two, re-map the MFU pages.
     uint64_t total_num_pages = pages_mfu_order.size();
     uint64_t pages_to_re_alloc = total_num_pages * perc_re_alloc;
+    if (trained_data_output)
+    {
+        pages_to_re_alloc = total_num_pages;
+    }
+
     for (uint64_t i = 0; i < pages_to_re_alloc; i++)
     {
         PageEntry &page_entry = pages_mfu_order[i];
@@ -119,45 +124,19 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
             }
         }
         nextNearPage();
-        re_alloc_pages.insert({page_entry.page_id, page_entry});
+        if (trained_data_output == nullptr)
+        {
+            re_alloc_pages.insert({page_entry.page_id, page_entry});
+	}
+        else
+        {
+            trained_data_out_fd << page_entry.page_id << " "
+                                << page_entry.num_refs << " "
+                                << page_entry.new_loc.row_id << " "
+                                << page_entry.new_loc.col_id << " "
+                                << page_entry.new_loc.dep_id << "\n";
+        }
     }
-//    for (auto [key,value] : re_alloc_pages)
-//    {
-//        std::cout << key << " : " << value.num_refs << "\n";
-//    }
-
-/*
-    Addr addr = 140485259487848;
-//    Addr page = addr >> Mapper::va_page_shift;
-//    std::cout << page << "\n";
-
-    std::vector<int> dec_addr;
-    dec_addr.resize(mem_addr_decoding_bits.size());
-
-    Decoder::decode(addr, mem_addr_decoding_bits, dec_addr);
-    int part_id = dec_addr[int(Config::Decoding::Partition)];
-    int row_id = dec_addr[int(Config::Decoding::Row)];
-    unsigned row_id_plus = part_id * num_of_rows_per_partition + row_id;
-    std::cout << "Row ID PLUS: " << row_id_plus << "\n";
-
-    std::cout << "Rank: " << dec_addr[int(Config::Decoding::Rank)] << "\n";
-    std::cout << "Partition: "
-              << dec_addr[int(Config::Decoding::Partition)] << "\n";
-    std::cout << "Row: " << dec_addr[int(Config::Decoding::Row)] << "\n";
-    std::cout << "Col: " << dec_addr[int(Config::Decoding::Col)] << "\n";
-    std::cout << "Bank: " << dec_addr[int(Config::Decoding::Bank)] << "\n";
-    std::cout << "Channel: " << dec_addr[int(Config::Decoding::Channel)] << "\n";
-    std::cout << "Cache: " << dec_addr[int(Config::Decoding::Cache_Line)]   
-                           << "\n\n";
-
-    dec_addr[int(Config::Decoding::Partition)] = 0;
-    dec_addr[int(Config::Decoding::Row)] = 0;
-    dec_addr[int(Config::Decoding::Col)] = 0;
-    dec_addr[int(Config::Decoding::Rank)] = 0;
-
-    Addr new_addr = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
-    std::cout << "New address: " << new_addr << "\n";
-*/
 }
 
 void MFUPageToNearRows::nextNearPage()

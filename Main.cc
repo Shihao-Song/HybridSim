@@ -13,6 +13,10 @@ void PCMSimulation(const char* cfg_file,
                    const char* mmu_trained_data,
                    const char* output_file);
 
+void MMUTraining(const char* cfg_file,
+                 std::vector<const char*> trace_lists,
+                 const char* output_file);
+
 int main(int argc, const char *argv[])
 {
     auto [mode, cfg_file, trace_lists, output_file] = parse_args(argc, argv);
@@ -38,6 +42,10 @@ int main(int argc, const char *argv[])
             }
         }
         PCMSimulation(cfg_file, trace_lists[0], mmu_trained_data, output_file);
+    }
+    else if (strcmp(mode, "MMU-Training") == 0)
+    {
+        MMUTraining(cfg_file, trace_lists, output_file);
     }
 }
 
@@ -142,3 +150,16 @@ void PCMSimulation(const char* cfg_file,
                         std::to_string(end_exe));
     stats.outputStats(output_file);
 }
+
+void MMUTraining(const char* cfg_file,
+                 std::vector<const char*> trace_lists,
+                 const char* output_file)
+{
+    Config cfg(cfg_file);
+    std::cout << "\nMMU training mode...\n";
+    unsigned num_of_cores = trace_lists.size();
+    std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
+    mmu->trainedDataOutput(output_file);
+    mmu->train(trace_lists);
+}
+

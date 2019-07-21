@@ -49,7 +49,26 @@ class TrainedMMU : public MMU
         : MMU(num_of_cores)
     {}
 
+    ~TrainedMMU()
+    {
+        if (trained_data_output != nullptr)
+        {
+            trained_data_out_fd.close();
+        }
+    }
+
     virtual void train(std::vector<const char*> &traces) {}
+
+  protected:
+    const char *trained_data_output = nullptr;
+    std::ofstream trained_data_out_fd;
+
+  public:
+    void trainedDataOutput(const char *file)
+    {
+        trained_data_output = file;
+        trained_data_out_fd.open(file);
+    }
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -70,7 +89,7 @@ class MFUPageToNearRows : public TrainedMMU
 
     // Percentage of the touched pages to be re-allocated.
     const double perc_re_alloc;
-
+  
   public:
     MFUPageToNearRows(int num_of_cores, Config &cfg)
         : TrainedMMU(num_of_cores, cfg),
