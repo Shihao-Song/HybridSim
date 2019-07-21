@@ -132,7 +132,34 @@ class Trace
 
     bool getMemtraceRequest(Request &req)
     {
-        return false;
+        std::string line;
+        getline(trace_file_expr, line);
+        if (trace_file_expr.eof())
+        {
+            trace_file_expr.close();
+            return false;
+        }
+
+        std::stringstream line_stream(line);
+        std::vector<std::string> tokens;
+        std::string intermidiate;
+        while (getline(line_stream, intermidiate, ' '))
+        {
+            tokens.push_back(intermidiate);
+        }
+        assert(tokens.size());
+
+        req.addr = std::stoull(tokens[0]);
+        if (tokens[1] == "R")
+        {
+            req.req_type = Request::Request_Type::READ;
+        }
+        else if (tokens[1] == "W")
+        {
+            req.req_type = Request::Request_Type::WRITE;
+        }
+
+        return true;
     }
 
   private:

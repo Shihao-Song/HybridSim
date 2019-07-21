@@ -204,11 +204,11 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     std::cout << "Number of evictions: " << num_evictions << "\n";
 }
 
-/*
-// TODO, provide an example to this feature.
-auto runMemTrace(MemObject *mem_obj, const char *trace_name)
+auto runMemTrace(MemObject *mem_obj,
+                 const char *trace_name,
+                 const char* mmu_trained_data)
 {
-    Trace mem_trace(trace_name);
+    Simulator::TXTTrace mem_trace(trace_name);
 
     Request req;
 
@@ -221,9 +221,7 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
     {
         if (!end && !stall)
         {
-            static uint64_t num_reqs = 0;
             end = !(mem_trace.getMemtraceRequest(req));
-            std::cout << ++num_reqs << "\n";
         }
 
         if (!end)
@@ -235,7 +233,7 @@ auto runMemTrace(MemObject *mem_obj, const char *trace_name)
         ++Tick;
     }
 
-    std::cout << "\nEnd Execution Time: " << Tick << "\n";
+    return Tick;
 }
-*/
+
 #endif

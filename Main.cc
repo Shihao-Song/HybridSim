@@ -10,6 +10,7 @@ void FullSystemSimulation(const char* cfg_file,
 
 void PCMSimulation(const char* cfg_file,
                    const char* pcm_trace,
+                   const char* mmu_trained_data,
                    const char* output_file);
 
 int main(int argc, const char *argv[])
@@ -27,7 +28,16 @@ int main(int argc, const char *argv[])
     }
     else if (strcmp(mode, "PCM-Only") == 0)
     {
-        PCMSimulation(cfg_file, trace_lists[0], output_file);
+        const char* mmu_trained_data = nullptr;
+        for (int i = 0; i < argc; i++)
+        {
+            if (strcmp(argv[i], "--mmu_trained_data") == 0)
+            {
+                mmu_trained_data = argv[i + 1];
+                break;
+            }
+        }
+        PCMSimulation(cfg_file, trace_lists[0], mmu_trained_data, output_file);
     }
 }
 
@@ -114,9 +124,21 @@ void FullSystemSimulation(const char* cfg_file,
 
 void PCMSimulation(const char* cfg_file,
                    const char* pcm_trace,
+                   const char* mmu_trained_data,
                    const char* output_file)
 {
+    /* Memory System Creation */
+    Config cfg(cfg_file);
 
+    // Create (PCM) main memory
+    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+    
+    uint64_t end_exe = runMemTrace(PCM.get(), pcm_trace, mmu_trained_data);
+
+    // Stats collections
+    Stats stats;
+    PCM->registerStats(stats);
+    stats.registerStats("Execution Time (cycles) = " +
+                        std::to_string(end_exe));
+    stats.outputStats(output_file);
 }
-
-
