@@ -8,6 +8,10 @@ void FullSystemSimulation(const char* cfg_file,
                           const char* output_file,
                           bool pcm_trace_extr = false);
 
+void PCMSimulation(const char* cfg_file,
+                   const char* pcm_trace,
+                   const char* output_file);
+
 int main(int argc, const char *argv[])
 {
     auto [mode, cfg_file, trace_lists, output_file] = parse_args(argc, argv);
@@ -20,6 +24,10 @@ int main(int argc, const char *argv[])
     else if (strcmp(mode, "PCMTraceExtr") == 0)
     {
         FullSystemSimulation(cfg_file, trace_lists, output_file, true);
+    }
+    else if (strcmp(mode, "PCM-Only") == 0)
+    {
+        PCMSimulation(cfg_file, trace_lists[0], output_file);
     }
 }
 
@@ -103,4 +111,12 @@ void FullSystemSimulation(const char* cfg_file,
         stats.outputStats(output_file);
     }
 }
+
+void PCMSimulation(const char* cfg_file,
+                   const char* pcm_trace,
+                   const char* output_file)
+{
+
+}
+
 
