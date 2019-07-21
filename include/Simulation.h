@@ -33,8 +33,15 @@ enum class Memories : int
     PCM
 };
 
-std::tuple<const char*, std::vector<const char*>, const char *> parse_args(int argc,
-                                                                const char *argv[]);
+struct ParseArgsRet
+{
+    const char* mode;
+    const char* cfg_file;
+    std::vector<const char*> trace_lists;
+    const char* output_file;
+};
+ParseArgsRet parse_args(int argc, const char *argv[]);
+
 auto createMemObject(Config &cfg,
                      Memories mem_type,
                      bool LLC = false)
@@ -77,9 +84,9 @@ auto runCPUTrace(Processor *processor)
     }
 }
 
-std::tuple<const char*, std::vector<const char*>, const char *> parse_args(int argc,
-                                                                const char *argv[])
+ParseArgsRet parse_args(int argc, const char *argv[])
 {
+    int mode_start = -1;
     int trace_start = -1;
     int config_start = -1;
     int output_start = -1;
@@ -100,17 +107,25 @@ std::tuple<const char*, std::vector<const char*>, const char *> parse_args(int a
         {
             output_start = i + 1;
         }
+
+        if (strcmp(argv[i], "--mode") == 0)
+        {
+            mode_start = i + 1;
+        }
     }
 
-    if (trace_start == -1 || config_start == -1 || output_start == -1)
+    if (trace_start == -1 || config_start == -1 || output_start == -1 ||
+        mode_start == -1)
     {
-        std::cerr << argv[0] << " --config YOUR_CONFIG_FILE"
+        std::cerr << argv[0] << " --mode SIMULATION_MODE"
+                             << " --config YOUR_CONFIG_FILE"
                              << " --traces YOUR_TRACE_FILES"
                              << " --output YOUR_OUTPUT_FILE\n";
         exit(0);
     }
 
-    int trace_end_deter = config_start < output_start ? output_start : config_start;
+    int trace_end_deter = mode_start < config_start ? config_start : mode_start;
+    trace_end_deter = trace_end_deter < output_start ? output_start : trace_end_deter;
 
     int num_traces;
     if (trace_end_deter < trace_start)
@@ -127,7 +142,7 @@ std::tuple<const char*, std::vector<const char*>, const char *> parse_args(int a
     {
         trace_lists.push_back(argv[trace_start + i]);
     }
-    return std::make_tuple(argv[config_start], trace_lists, argv[output_start]);
+    return {argv[mode_start], argv[config_start], trace_lists, argv[output_start]};
 }
 
 // Function to test cache behavior.
@@ -156,44 +171,9 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     bool more_insts = cpu_trace.getInstruction(instr);
     while (more_insts)
     {
-        /*
-        static uint64_t counter = 0;
-        std::cout << ++counter << ": ";
-        std::cout << instr.eip << " ";
-        if (instr.opr == Simulator::Instruction::Operation::EXE)
-        {
-            std::cout << "EXE \n";
-        }
-        else
-        {
-            if (instr.opr == Simulator::Instruction::Operation::LOAD)
-            {
-                std::cout << "LOAD ";
-            }
-
-            if (instr.opr == Simulator::Instruction::Operation::STORE)
-            {
-                std::cout << "STORE ";
-            }
-            std::cout << instr.target_addr << " ";
-            std::cout << instr.size << "\n";
-        }
-        std::cout << "\n";
-        */
         if (instr.opr == Simulator::Instruction::Operation::LOAD ||
             instr.opr == Simulator::Instruction::Operation::STORE)
         {
-            /*
-            if (instr.opr == Simulator::Instruction::Operation::LOAD)
-            {
-                std::cout << "LOAD ";
-            }
-            else
-            {
-                std::cout << "STORE ";
-            }
-            */
-
             uint64_t addr = mapper.va2pa(instr.target_addr);
             if (auto [hit, aligned_addr] = tags.accessBlock(addr,
                                        instr.opr == Simulator::Instruction::Operation::STORE ?
@@ -202,7 +182,6 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
                 !hit)
             {
                 ++num_misses;
-                // std::cout << "Missed; ";
                 if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr,
                                        instr.opr == Simulator::Instruction::Operation::STORE ?
                                        true : false,
@@ -210,17 +189,11 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
                     wb_required)
 		{
                     ++num_evictions;
-                //    std::cout << "Inserted; WB: " << wb_addr << "\n";
                 }
-                // else
-                // {
-                //     std::cout << "Inserted.\n";
-                // }
             }
             else
             {
                 ++num_hits;
-                // std::cout << "hit\n";
             }
         }
         more_insts = cpu_trace.getInstruction(instr);

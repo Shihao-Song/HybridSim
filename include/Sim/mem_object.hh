@@ -13,6 +13,13 @@ class MemObject
 {
   public:
     MemObject(){}
+    ~MemObject()
+    {
+        if (mem_trace_extr_mode)
+        {
+            mem_trace.close();
+        }
+    }
 
     virtual int pendingRequests() = 0;
 
@@ -38,6 +45,13 @@ class MemObject
 
     virtual void registerStats(Stats &stats) {}
 
+    // Do we want to extract memory traces from this mem_object?
+    virtual void setTraceOutput(const char* file)
+    {
+        mem_trace_extr_mode = true;
+        mem_trace.open(file);
+    }
+
   protected:
     MemObject *next_level;
 
@@ -48,6 +62,9 @@ class MemObject
     int selected_client = 0; // Which client is allowed to pass.
 
     bool boundary = false; // I'm the boundary of my group.
+
+    bool mem_trace_extr_mode = false;
+    std::ofstream mem_trace;
 };
 }
 

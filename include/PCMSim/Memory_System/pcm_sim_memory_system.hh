@@ -61,6 +61,18 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
         if(controllers[channel_id]->enqueue(req))
         {
+            if (mem_trace_extr_mode)
+            {
+                mem_trace << req.addr << " ";
+                if (req.req_type == Request::Request_Type::READ)
+                {
+                    mem_trace << "R\n";
+                }
+                else if (req.req_type == Request::Request_Type::WRITE)
+                {
+                    mem_trace << "W\n";
+                }
+            }
             return true;
         }
 

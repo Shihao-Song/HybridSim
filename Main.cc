@@ -3,21 +3,52 @@
 
 #include "Simulation.h"
 
+void FullSystemSimulation(const char* cfg_file,
+                          std::vector<const char*> trace_lists,
+                          const char* output_file,
+                          bool pcm_trace_extr = false);
+
 int main(int argc, const char *argv[])
 {
-    auto [cfg_file, trace_lists, output_file] = parse_args(argc, argv);
+    auto [mode, cfg_file, trace_lists, output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
+
+    if (strcmp(mode, "FullSys") == 0)
+    {
+        FullSystemSimulation(cfg_file, trace_lists, output_file, false);
+    }
+    else if (strcmp(mode, "PCMTraceExtr") == 0)
+    {
+        FullSystemSimulation(cfg_file, trace_lists, output_file, true);
+    }
+}
+
+void FullSystemSimulation(const char* cfg_file,
+                          std::vector<const char*> trace_lists,
+                          const char* output_file,
+                          bool pcm_trace_extr)
+{
     unsigned num_of_cores = trace_lists.size();
     std::cout << "\nConfiguration file: " << cfg_file << "\n";
-    std::cout << "(Stats) Output file: " << output_file << "\n\n";
+    if (pcm_trace_extr)
+    {
+        std::cout << "(Trace) Output file: " << output_file << "\n\n";
+    }
+    else
+    {
+        std::cout << "(Stats) Output file: " << output_file << "\n\n";
+    }
 
     /* Memory System Creation */
     Config cfg(cfg_file);
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+    if (pcm_trace_extr)
+    {
+        PCM->setTraceOutput(output_file);
+    }
 
-    
     // Create L2
     std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));
     L2->setNextLevel(PCM.get());
@@ -38,22 +69,13 @@ int main(int argc, const char *argv[])
     
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
-    // TODO, currently, perform MMU training here.
     std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
     if (cfg.trained_mmu)
     {
         std::cout << "MMU training stage... \n\n";
         mmu->train(trace_lists);
     }
-/*
-    Request req(616, Request::Request_Type::WRITE);
-    PCM->send(req);
-    while (PCM->pendingRequests())
-    {
-        PCM->tick();
-    }
-    exit(0);
-*/
+
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
     processor->setMMU(mmu.get());
@@ -66,14 +88,19 @@ int main(int argc, const char *argv[])
     runCPUTrace(processor.get());
 
     /* Collecting Stats */
-    Stats stats;
-
-    for (auto &L1_D : L1_D_all)
+    if (!pcm_trace_extr)
     {
-        L1_D->registerStats(stats);
+        Stats stats;
+
+        for (auto &L1_D : L1_D_all)
+        {
+            L1_D->registerStats(stats);
+        }
+        L2->registerStats(stats);
+        PCM->registerStats(stats);
+        stats.registerStats("Execution Time (cycles) = " + 
+                            std::to_string(processor->exeTime()));
+        stats.outputStats(output_file);
     }
-    L2->registerStats(stats);
-    PCM->registerStats(stats);
-    stats.registerStats("Execution Time (cycles) = " + std::to_string(processor->exeTime()));
-    stats.outputStats(output_file);
 }
+
