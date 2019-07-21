@@ -206,7 +206,7 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
 
 auto runMemTrace(MemObject *mem_obj,
                  const char *trace_name,
-                 const char* mmu_trained_data)
+                 System::TrainedMMU *mmu)
 {
     Simulator::TXTTrace mem_trace(trace_name);
 
@@ -222,6 +222,12 @@ auto runMemTrace(MemObject *mem_obj,
         if (!end && !stall)
         {
             end = !(mem_trace.getMemtraceRequest(req));
+            uint64_t pa = req.addr;
+            if (mmu)
+            {
+                mmu->inference(pa);
+                req.addr = pa;
+            }
         }
 
         if (!end)

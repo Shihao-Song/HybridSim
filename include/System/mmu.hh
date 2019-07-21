@@ -58,6 +58,8 @@ class TrainedMMU : public MMU
     }
 
     virtual void train(std::vector<const char*> &traces) {}
+    virtual void inference(Addr &pa) {}
+    virtual void preLoadTrainedData(const char*, double) {}
 
   protected:
     const char *trained_data_output = nullptr;
@@ -107,6 +109,8 @@ class MFUPageToNearRows : public TrainedMMU
 
     Addr va2pa(Addr va, int core_id) override;
     void train(std::vector<const char*> &traces) override;
+    void inference(Addr &pa) override;
+    void preLoadTrainedData(const char*, double) override;
 
   // Define data structures
   protected:

@@ -140,8 +140,17 @@ void PCMSimulation(const char* cfg_file,
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
-    
-    uint64_t end_exe = runMemTrace(PCM.get(), pcm_trace, mmu_trained_data);
+   
+    // Create a MMU and pre-load the trained data if any
+    System::TrainedMMU *mmu_ptr = nullptr;
+    std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(0, cfg));
+    if (mmu_trained_data)
+    {
+        mmu->preLoadTrainedData(mmu_trained_data, cfg.perc_re_alloc);
+        mmu_ptr = mmu.get();
+    }
+
+    uint64_t end_exe = runMemTrace(PCM.get(), pcm_trace, mmu_ptr);
 
     // Stats collections
     Stats stats;

@@ -33,6 +33,86 @@ uint64_t MFUPageToNearRows::va2pa(Addr va, int core_id)
     }
 }
 
+void MFUPageToNearRows::inference(Addr &pa)
+{
+    Addr page_id = pa >> Mapper::va_page_shift;
+
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter == re_alloc_pages.end())
+    {
+        return;
+    }
+    else
+    {
+        PageEntry &entry = iter->second;
+        int new_part_id = entry.new_loc.row_id / num_of_rows_per_partition;
+        int new_row_id = entry.new_loc.row_id % num_of_rows_per_partition;
+        int new_col_id = entry.new_loc.col_id;
+        int new_rank_id = entry.new_loc.dep_id;
+
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
+
+        dec_addr[int(Config::Decoding::Partition)] = new_part_id;
+        dec_addr[int(Config::Decoding::Row)] = new_row_id;
+        dec_addr[int(Config::Decoding::Col)] = new_col_id;
+        dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
+
+        Addr new_addr = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        pa = new_addr;
+    }
+}
+
+void MFUPageToNearRows::preLoadTrainedData(const char* trained_data, double perc_to_re_allo)
+{
+    std::ifstream page_re_alloc_info(trained_data);
+
+    std::string line;
+    getline(page_re_alloc_info, line);
+    uint64_t total_num_pages = std::stoull(line);
+    uint64_t num_pages_to_re_alloc = total_num_pages * perc_to_re_allo;
+
+    uint64_t count = 0;
+    while(!page_re_alloc_info.eof())
+    {
+        if (count == num_pages_to_re_alloc)
+        {
+            break;
+        }
+        getline(page_re_alloc_info, line);
+
+        std::stringstream line_stream(line);
+        std::vector<std::string> tokens;
+        std::string intermidiate;
+        while (getline(line_stream, intermidiate, ' '))
+        {
+            tokens.push_back(intermidiate);
+        }
+        assert(tokens.size());
+
+        Addr page_id = std::stoull(tokens[0]);
+        uint64_t num_refs = std::stoull(tokens[1]);
+        
+        unsigned row_id = std::stoull(tokens[2]);
+        unsigned col_id = std::stoull(tokens[3]);
+        unsigned dep_id = std::stoull(tokens[4]);
+
+        PageEntry entry;
+        entry.page_id = page_id;
+        entry.num_refs = num_refs;
+
+        entry.new_loc.row_id = row_id;
+        entry.new_loc.col_id = col_id;
+        entry.new_loc.dep_id = dep_id;
+
+        re_alloc_pages.insert({page_id, entry});
+        ++count;
+    }
+    
+    page_re_alloc_info.close();
+}
+
 void MFUPageToNearRows::train(std::vector<const char*> &traces)
 {
     int core_id = 0;
@@ -103,6 +183,7 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
     if (trained_data_output)
     {
         pages_to_re_alloc = total_num_pages;
+        trained_data_out_fd << total_num_pages << "\n";
     }
 
     for (uint64_t i = 0; i < pages_to_re_alloc; i++)
