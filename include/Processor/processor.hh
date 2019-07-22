@@ -182,7 +182,16 @@ class Processor
 
         bool done()
         {
-            return !more_insts && window.isEmpty();
+            // return !more_insts && window.isEmpty();
+            bool issuing_done = !more_insts && window.isEmpty();
+
+            bool cache_done = false;
+            if (d_cache->pendingRequests() == 0)
+            {
+                cache_done = true;
+            }
+            
+	    return issuing_done && cache_done;
         }
 
         uint64_t numLoads() { return num_loads; }
@@ -250,12 +259,19 @@ class Processor
 
     bool done()
     {
+        // (1) All the instructions are run-out
         for (auto &core : cores)
         {
             if (!core->done())
             {
                 return false;
             }
+        }
+        // (2) All the memory requests including mshr requests, evictions 
+        //     are finished.
+        if (shared_m_obj->pendingRequests() != 0)
+	{
+            return false;
         }
         return true;
     }

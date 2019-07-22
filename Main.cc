@@ -146,6 +146,7 @@ void PCMSimulation(const char* cfg_file,
     std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(0, cfg));
     if (mmu_trained_data)
     {
+        std::cout << "\n[INFO] MMU is enabled. \n";
         mmu->preLoadTrainedData(mmu_trained_data, cfg.perc_re_alloc);
         mmu_ptr = mmu.get();
     }

@@ -227,10 +227,18 @@ class Cache : public Simulator::MemObject
 
     int pendingRequests() override
     {
-        return pending_commits.size() +
-               pending_queue_for_non_hit_reqs.size() +
-               mshr_queue->numEntries() +
-               wb_queue->numEntries();
+        int pendings = 0;
+        pendings = pending_commits.size() +
+                   pending_queue_for_non_hit_reqs.size() +
+                   mshr_queue->numEntries() +
+                   wb_queue->numEntries();
+
+        if (!boundary)
+        {
+            pendings += next_level->pendingRequests();
+        }
+
+        return pendings;
     }
 
     bool send(Request &req) override
