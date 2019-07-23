@@ -13,15 +13,27 @@ const Addr MaxAddr = (Addr)-1;
 
 namespace Simulator
 {
+// Sometimes, certain memory object needs communicate the MMU.
+class Request;
+class MMUCommuPacket
+{
+  public:
+    MMUCommuPacket(){}
+
+    std::function<void(Request&)> callback;
+};
+
 class Request
 {
+  public:
     typedef uint64_t Addr;
     typedef uint64_t Tick;
 
-  public:
     int core_id;
+    Addr eip; // Advanced feature, the instruction that caused this memory request;
+    MMUCommuPacket mmu_commu;
 
-    Addr addr;
+    Addr addr; // The address we are trying to read or write
 
     // Size of data to be loaded (read) or stored (written)
     // We are not utilizing this field currently.

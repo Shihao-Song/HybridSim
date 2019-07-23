@@ -88,8 +88,15 @@ class Trace
             getline(trace_file_expr, line);
             if (trace_file_expr.eof()) 
             {
-                trace_file_expr.close();
-                return false;
+                ++runs;
+                if (runs == REPEAT)
+                {
+                    trace_file_expr.close();
+                    return false;
+                }
+                trace_file_expr.clear();
+                trace_file_expr.seekg(0, std::ios::beg);
+                getline(trace_file_expr, line);
             }
 
             std::stringstream line_stream(line);
@@ -136,8 +143,14 @@ class Trace
         getline(trace_file_expr, line);
         if (trace_file_expr.eof())
         {
-            trace_file_expr.close();
-            return false;
+            ++runs;
+            if (runs == REPEAT)
+            {
+                trace_file_expr.close();
+                return false;
+            }
+            trace_file_expr.clear();
+            trace_file_expr.seekg(0, std::ios::beg);
         }
 
         std::stringstream line_stream(line);
@@ -167,6 +180,9 @@ class Trace
     uint64_t instruction_index = 0;
 
     std::ifstream trace_file_expr;
+
+    const unsigned REPEAT = 4;
+    unsigned runs = 0;
 };
 
 typedef Trace<ProtobufMode> ProtobufTrace;

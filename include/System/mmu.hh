@@ -2,6 +2,7 @@
 #define __MMU_HH__
 
 #include <algorithm>
+#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -58,6 +59,8 @@ class TrainedMMU : public MMU
     }
 
     virtual void train(std::vector<const char*> &traces) {}
+
+    // TODO, should dis-able the following two functions
     virtual void inference(Addr &pa) {}
     virtual void preLoadTrainedData(const char*, double) {}
 
@@ -109,6 +112,8 @@ class MFUPageToNearRows : public TrainedMMU
 
     Addr va2pa(Addr va, int core_id) override;
     void train(std::vector<const char*> &traces) override;
+
+    // TODO, should disable the following two functions.
     void inference(Addr &pa) override;
     void preLoadTrainedData(const char*, double) override;
 

@@ -7,12 +7,12 @@ void FullSystemSimulation(const char* cfg_file,
                           std::vector<const char*> trace_lists,
                           const char* output_file,
                           bool pcm_trace_extr = false);
-
+// TODO, this function needs to be modified
 void PCMSimulation(const char* cfg_file,
                    const char* pcm_trace,
                    const char* mmu_trained_data,
                    const char* output_file);
-
+// TODO, this function needs to be modified
 void MMUTraining(const char* cfg_file,
                  std::vector<const char*> trace_lists,
                  const char* output_file);
@@ -96,12 +96,13 @@ void FullSystemSimulation(const char* cfg_file,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
-    if (cfg.trained_mmu)
-    {
-        std::cout << "MMU training stage... \n\n";
-        mmu->train(trace_lists);
-    }
-
+    // TODO, needs to train MMU in run-time.
+    // if (cfg.trained_mmu)
+    // {
+    //     std::cout << "MMU training stage... \n\n";
+    //     mmu->train(trace_lists);
+    // }
+    
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
     processor->setMMU(mmu.get());
