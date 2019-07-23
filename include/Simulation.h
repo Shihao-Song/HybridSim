@@ -174,7 +174,8 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
         if (instr.opr == Simulator::Instruction::Operation::LOAD ||
             instr.opr == Simulator::Instruction::Operation::STORE)
         {
-            uint64_t addr = mapper.va2pa(instr.target_addr);
+            
+            uint64_t addr = instr.target_vaddr;
             if (auto [hit, aligned_addr] = tags.accessBlock(addr,
                                        instr.opr == Simulator::Instruction::Operation::STORE ?
                                        true : false,
@@ -222,12 +223,6 @@ auto runMemTrace(MemObject *mem_obj,
         if (!end && !stall)
         {
             end = !(mem_trace.getMemtraceRequest(req));
-            uint64_t pa = req.addr;
-            if (mmu)
-            {
-                mmu->inference(pa);
-                req.addr = pa;
-            }
         }
 
         if (!end)

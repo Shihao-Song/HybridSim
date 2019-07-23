@@ -264,6 +264,8 @@ class Cache : public Simulator::MemObject
             pending_commits.push_back(req);
 
             ++num_hits;
+            // Notify MMU that there is a hit
+            req.commuToMMU();
             return true;
         }
         else
@@ -275,6 +277,8 @@ class Cache : public Simulator::MemObject
             if (wb_queue->isInQueue(aligned_addr))
             {
                 ++num_hits;
+                // Notify MMU that there is a hit
+                req.commuToMMU();
 
                 req.begin_exe = clk;
                 req.end_exe = clk + tag_lookup_latency;
@@ -320,6 +324,8 @@ class Cache : public Simulator::MemObject
                     //     std::cout << "Address " << aligned_addr 
                     //               << " is hit in MSRH. \n";
                         ++num_hits;
+                        // Notify MMU that there is a hit
+                        req.commuToMMU();
                     }
                     else
                     {
@@ -358,6 +364,8 @@ class Cache : public Simulator::MemObject
                             hit_in_mshr_queue)
                         {
                             ++num_hits;
+                            // Notify MMU that there is a hit
+                            req.commuToMMU();
                         }
                         else
                         {

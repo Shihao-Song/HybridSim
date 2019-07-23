@@ -22,7 +22,9 @@ class Instruction
     }opr;
 
     Addr eip;
-    Addr target_addr; // Target address to load or store.
+    Addr target_vaddr; // Target address to load or store (virtual address)
+    Addr target_paddr; // Target address to load or store (physical address)
+
     uint64_t size; // Size of data to be loaded or stored, 
                    // we are not utilizing this field currently.
 

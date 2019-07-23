@@ -9,6 +9,7 @@
 #include "Sim/config.hh"
 #include "Sim/decoder.hh"
 #include "Sim/mapper.hh"
+#include "Sim/request.hh"
 #include "Sim/trace.hh"
 
 namespace System
@@ -19,6 +20,8 @@ class MMU
   protected:
     typedef Simulator::Mapper Mapper;
     std::vector<Mapper> mappers;
+
+    typedef Simulator::Request Request;
 
   public:
     typedef uint64_t Addr;
@@ -31,9 +34,10 @@ class MMU
         }
     }
 
-    virtual Addr va2pa(Addr va, int core_id)
+    virtual void va2pa(Request &req)
     {
-        return mappers[core_id].va2pa(va);
+        Addr pa = mappers[req.core_id].va2pa(req.addr);
+        req.addr = pa;
     }
 };
 
@@ -58,11 +62,12 @@ class TrainedMMU : public MMU
         }
     }
 
-    virtual void train(std::vector<const char*> &traces) {}
+    virtual void profiling() {}
+    // virtual void train(std::vector<const char*> &traces) {}
 
     // TODO, should dis-able the following two functions
-    virtual void inference(Addr &pa) {}
-    virtual void preLoadTrainedData(const char*, double) {}
+    // virtual void inference(Addr &pa) {}
+    // virtual void preLoadTrainedData(const char*, double) {}
 
   protected:
     const char *trained_data_output = nullptr;
@@ -110,12 +115,12 @@ class MFUPageToNearRows : public TrainedMMU
           max_near_page_dep_id(cfg.num_of_ranks)
     {}
 
-    Addr va2pa(Addr va, int core_id) override;
-    void train(std::vector<const char*> &traces) override;
+    void va2pa(Request &req) override;
+    // void train(std::vector<const char*> &traces) override;
 
     // TODO, should disable the following two functions.
-    void inference(Addr &pa) override;
-    void preLoadTrainedData(const char*, double) override;
+    // void inference(Addr &pa) override;
+    // void preLoadTrainedData(const char*, double) override;
 
   // Define data structures
   protected:
@@ -166,19 +171,37 @@ class MFUPageToNearRows : public TrainedMMU
 
         PageLoc new_loc; // Re-mapped page location
     };
-    typedef std::unordered_map<Addr,PageEntry> PageHash;
+    // typedef std::unordered_map<Addr,PageEntry> PageHash;
+    // typedef std::unordered_map<Addr,bool> PageHash; // Using hash to improve performance
 
   protected:
-    PageHash pages; // All the touched pages
-    PageLocHash touched_near_pages; // All the touched pages who are near pages
+    void profiling(Request&);
+    auto profilingCallBack()
+    {
+        return [this](Request &req)
+               {
+                   auto iter = first_touch_instructions.find(req.eip);
+                   assert(iter != first_touch_instructions.end());
+                   ++(iter->second);
+               };
+    }
 
-    std::vector<PageEntry> pages_mfu_order;
+    std::unordered_map<Addr,bool> pages; // All the touched (allocated) pages
+    std::unordered_map<Addr,uint64_t> first_touch_instructions;
 
     bool near_region_full = false;
     PageLoc cur_near_page;
     void nextNearPage();
 
+    /*
+    PageLocHash touched_near_pages; // All the touched pages who are near pages
+
+    std::vector<PageEntry> pages_mfu_order;
+
+    void nextNearPage();
+
     PageHash re_alloc_pages; // Re-mapped pages;
+    */
 };
 }
 

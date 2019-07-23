@@ -87,7 +87,7 @@ class Processor
                 {
                     Instruction &inst = pending_instructions[i];
                     if (inst.opr == Instruction::Operation::LOAD &&
-                       (inst.target_addr & ~block_mask) == addr)
+                       (inst.target_paddr & ~block_mask) == addr)
                     {
                         inst.ready_to_commit = true;
                     }
@@ -141,12 +141,13 @@ class Processor
                 {
                     Request req;
                     req.core_id = core_id;
-                    // Addr test = mmu->va2pa(cur_inst.target_addr, core_id);
-                    // cur_inst.target_addr = mapper.va2pa(cur_inst.target_addr);
-                    // assert(test == cur_inst.target_addr);
-                    cur_inst.target_addr = mmu->va2pa(cur_inst.target_addr, core_id);
-                    req.addr = cur_inst.target_addr & ~window.block_mask;
-
+                    req.eip = cur_inst.eip;
+                    req.addr = cur_inst.target_vaddr; // Assign virtual first
+                    // Address translation
+                    mmu->va2pa(req);
+                    // Update the instruction with the translated physical address
+                    cur_inst.target_paddr = req.addr;
+                    
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
                         req.req_type = Request::Request_Type::READ;
@@ -157,6 +158,8 @@ class Processor
                         req.req_type = Request::Request_Type::WRITE;
                     }
 
+                    // Align the address before sending to cache.
+                    req.addr = req.addr & ~window.block_mask;
                     if (d_cache->send(req))
                     {
                         if (cur_inst.opr == Instruction::Operation::STORE)

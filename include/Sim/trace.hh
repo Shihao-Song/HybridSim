@@ -74,7 +74,7 @@ class Trace
                 {
                     inst.opr = Instruction::Operation::STORE;
                 }
-                inst.target_addr = micro_op.load_or_store_addr();
+                inst.target_vaddr = micro_op.load_or_store_addr();
                 inst.size = micro_op.size();
             }
 
@@ -130,7 +130,7 @@ class Trace
                     std::cerr << "Unsupported Instruction Type \n";
                     exit(0);
 		}
-                inst.target_addr = std::stoull(tokens[2]);
+                inst.target_vaddr = std::stoull(tokens[2]);
                 inst.size = std::stoull(tokens[3]);
             }
             return true;

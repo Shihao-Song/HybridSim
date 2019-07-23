@@ -2,37 +2,76 @@
 
 namespace System
 {
-uint64_t MFUPageToNearRows::va2pa(Addr va, int core_id)
+void MFUPageToNearRows::va2pa(Request &req)
 {
-    Addr pa = mappers[core_id].va2pa(va);
-    Addr page_id = pa >> Mapper::va_page_shift;
-    if (auto iter = re_alloc_pages.find(page_id);
-             iter == re_alloc_pages.end())
+    Addr pc = req.eip;
+    Addr pa = mappers[req.core_id].va2pa(req.addr);
+    req.addr = pa;
+
+    // Hardware-guided Profiling
+    // TODO, should have a flag to indicate.
+    if (true)
     {
-        return pa;
-    }
-    else
-    {
-        PageEntry &entry = iter->second;
-        int new_part_id = entry.new_loc.row_id / num_of_rows_per_partition;
-        int new_row_id = entry.new_loc.row_id % num_of_rows_per_partition;
-        int new_col_id = entry.new_loc.col_id;
-        int new_rank_id = entry.new_loc.dep_id;
-
-        std::vector<int> dec_addr;
-        dec_addr.resize(mem_addr_decoding_bits.size());
-        Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
-
-        dec_addr[int(Config::Decoding::Partition)] = new_part_id;
-        dec_addr[int(Config::Decoding::Row)] = new_row_id;
-        dec_addr[int(Config::Decoding::Col)] = new_col_id;
-        dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
-
-        Addr new_addr = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
-        return new_addr;
+        profiling(req);
     }
 }
 
+void MFUPageToNearRows::profiling(Request& req)
+{
+    // PC
+    Addr pc = req.eip;
+    // Get page ID
+    Addr page_id = req.addr >> Mapper::va_page_shift;
+    // Is the page has already been touched?
+    if (auto iter = pages.find(page_id);
+             iter != pages.end())
+    {
+        if (auto iter = first_touch_instructions.find(pc);
+                 iter != first_touch_instructions.end())
+        {
+            // Call-back on this eip
+            req.setMMUCommuFunct(profilingCallBack());
+        }
+    }
+    else
+    {
+        // Records and callback on this eip
+        first_touch_instructions.insert({pc, 0});
+        pages.insert({page_id, true});
+        req.setMMUCommuFunct(profilingCallBack());
+    }
+
+}
+
+void MFUPageToNearRows::nextNearPage()
+{
+    if (cur_near_page.col_id + 2 >= max_near_page_col_id)
+    {
+        cur_near_page.col_id = 0;
+        if (cur_near_page.row_id + 1 >= max_near_page_row_id)
+        {
+            cur_near_page.row_id = 0;
+            if (cur_near_page.dep_id + 1 >= max_near_page_dep_id)
+            {
+                near_region_full = true;
+            }
+            else
+            {
+                cur_near_page.dep_id = cur_near_page.dep_id + 1;
+            }
+        }
+        else
+        {
+            cur_near_page.row_id = cur_near_page.row_id + 1;
+        }
+    }
+    else
+    {
+        cur_near_page.col_id = cur_near_page.col_id + 2;
+    }
+}
+
+/*
 void MFUPageToNearRows::train(std::vector<const char*> &traces)
 {
     int core_id = 0;
@@ -136,7 +175,7 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
         std::cout << test[i] << "\n";
     }
 }
-
+*/
 /*
 void MFUPageToNearRows::train(std::vector<const char*> &traces)
 {
@@ -246,34 +285,7 @@ void MFUPageToNearRows::train(std::vector<const char*> &traces)
 }
 */
 
-void MFUPageToNearRows::nextNearPage()
-{
-    if (cur_near_page.col_id + 2 >= max_near_page_col_id)
-    {
-        cur_near_page.col_id = 0;
-        if (cur_near_page.row_id + 1 >= max_near_page_row_id)
-        {
-            cur_near_page.row_id = 0;
-            if (cur_near_page.dep_id + 1 >= max_near_page_dep_id)
-            {
-                near_region_full = true;
-            }
-            else
-            {
-                cur_near_page.dep_id = cur_near_page.dep_id + 1;
-            }
-        }
-        else
-        {
-            cur_near_page.row_id = cur_near_page.row_id + 1;
-        }
-    }
-    else
-    {
-        cur_near_page.col_id = cur_near_page.col_id + 2;
-    }
-}
-
+/*
 void MFUPageToNearRows::inference(Addr &pa)
 {
     Addr page_id = pa >> Mapper::va_page_shift;
@@ -353,4 +365,5 @@ void MFUPageToNearRows::preLoadTrainedData(const char* trained_data, double perc
     
     page_re_alloc_info.close();
 }
+*/
 }

@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstdint>
 
+#include "Sim/request.hh"
+
 namespace CacheSimulator
 {
 class Blk
@@ -44,6 +46,10 @@ class Blk
     bool dirty; // Has the brought in cache-line been modified yet?
 
     Tick when_touched; // Last clock tick the Block is touched.
+
+    // Advanced features, record instruction (EIP) that brings this block
+    Addr eip;
+    std::function<void(Simulator::Request&)> mmu_commu_cb;
 };
 
 class SetWayBlk : public Blk

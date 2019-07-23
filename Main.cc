@@ -30,6 +30,7 @@ int main(int argc, const char *argv[])
     {
         FullSystemSimulation(cfg_file, trace_lists, output_file, true);
     }
+    /*
     else if (strcmp(mode, "PCM-Only") == 0)
     {
         const char* mmu_trained_data = nullptr;
@@ -47,6 +48,7 @@ int main(int argc, const char *argv[])
     {
         MMUTraining(cfg_file, trace_lists, output_file);
     }
+    */
 }
 
 void FullSystemSimulation(const char* cfg_file,
@@ -131,12 +133,13 @@ void FullSystemSimulation(const char* cfg_file,
     }
 }
 
+/*
 void PCMSimulation(const char* cfg_file,
                    const char* pcm_trace,
                    const char* mmu_trained_data,
                    const char* output_file)
 {
-    /* Memory System Creation */
+    // Memory System Creation
     Config cfg(cfg_file);
 
     // Create (PCM) main memory
@@ -173,4 +176,4 @@ void MMUTraining(const char* cfg_file,
     mmu->trainedDataOutput(output_file);
     mmu->train(trace_lists);
 }
-
+*/

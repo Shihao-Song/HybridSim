@@ -7,13 +7,9 @@
 #include <memory>
 #include <vector>
 
-/*
-const Addr MaxAddr = (Addr)-1;
-*/
-
 namespace Simulator
 {
-// Sometimes, certain memory object needs communicate the MMU.
+// Sometimes, certain memory objects need to communicate with the MMU.
 class Request;
 class MMUCommuPacket
 {
@@ -31,7 +27,19 @@ class Request
 
     int core_id;
     Addr eip; // Advanced feature, the instruction that caused this memory request;
-    MMUCommuPacket mmu_commu;
+    MMUCommuPacket mmu_commu; // Advanced feature
+    void setMMUCommuFunct(auto func)
+    {
+        mmu_commu.callback = func;
+    }
+    auto getMMUCommuFunct()
+    {
+        return mmu_commu.callback;
+    }
+    auto commuToMMU()
+    {
+        mmu_commu.callback(*this);
+    }
 
     Addr addr; // The address we are trying to read or write
 
@@ -59,7 +67,7 @@ class Request
     // estimated completion time
     Addr end_exe;
 
-    // call-back function
+    // (general) call-back function
     std::function<bool(Addr)> callback;
 
     /* Constructors */
