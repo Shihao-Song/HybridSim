@@ -38,7 +38,10 @@ class Request
     }
     auto commuToMMU()
     {
-        mmu_commu.callback(*this);
+        if (mmu_commu.callback)
+        {
+            mmu_commu.callback(*this);
+        }
     }
 
     Addr addr; // The address we are trying to read or write

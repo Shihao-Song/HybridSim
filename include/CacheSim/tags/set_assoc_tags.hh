@@ -91,6 +91,24 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         return std::make_pair(wb_required, victim_addr);
     }
 
+    void recordMMUCommu(Addr block_addr,
+                        Addr eip,
+                        std::function<void(Simulator::Request&)> mmu_cb) override
+    {
+        Addr blk_aligned_addr = blkAlign(block_addr);
+
+        SetWayBlk *blk = findBlock(blk_aligned_addr);
+        assert(blk);
+
+        blk->recordMMUCommu(eip, mmu_cb);
+    }
+
+    std::pair<Addr, std::function<void(Simulator::Request&)>> 
+        retriMMUCommu(Addr blk_addr) override
+    {
+
+    }
+
     void printTagInfo() override
     {
         std::cout << "Assoc: " << assoc << "\n";

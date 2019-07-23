@@ -50,6 +50,17 @@ class Blk
     // Advanced features, record instruction (EIP) that brings this block
     Addr eip;
     std::function<void(Simulator::Request&)> mmu_commu_cb;
+    void recordMMUCommu(Addr _eip, auto _cb)
+    {
+        eip = _eip;
+        mmu_commu_cb = _cb;
+    }
+
+    // Should do this right-after the block is evicted. 
+    void clearMMUCommu()
+    {
+        mmu_commu_cb = 0;
+    }
 };
 
 class SetWayBlk : public Blk
