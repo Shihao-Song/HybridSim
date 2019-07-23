@@ -46,6 +46,7 @@ class Tags
     // Advanced features, MMU communications
     virtual void recordMMUCommu(Addr,Addr,std::function<void(Simulator::Request&)>) {}
     virtual std::pair<Addr, std::function<void(Simulator::Request&)>> retriMMUCommu(Addr) = 0;
+    virtual void clearMMUCommu(Addr) {}
 
     virtual void printTagInfo() {}
 

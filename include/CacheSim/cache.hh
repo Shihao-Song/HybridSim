@@ -301,15 +301,17 @@ class Cache : public Simulator::MemObject
                         wb_required)
                     {
                         wb_queue->allocate(wb_addr, clk);
-                        // TODO, retrive MMU call-back information
+                        // Retrive MMU call-back information of evicted.
+                        auto [eip, mmu_commu] = tags->retriMMUCommu(aligned_addr);
+                        // TODO, record to wb_queue.
                     }
+                    // Need to record new MMU call-back information.
+                    tags->recordMMUCommu(aligned_addr,
+                                         req.eip,
+                                         req.getMMUCommuFunct());
 
                     return true;
                 }
-                // TODO, need to record new MMU call-back information.
-                tags->recordMMUCommu(aligned_addr,
-                                     req.eip,
-                                     req.getMMUCommuFunct());
                 return false;
             }
 

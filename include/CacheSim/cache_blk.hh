@@ -49,14 +49,20 @@ class Blk
 
     // Advanced features, record instruction (EIP) that brings this block
     Addr eip;
-    std::function<void(Simulator::Request&)> mmu_commu_cb;
+    std::function<void(Simulator::Request&)> mmu_commu_cb = 0;
+    // Do this when a new block is inserted.
     void recordMMUCommu(Addr _eip, auto _cb)
     {
+        assert(mmu_commu_cb == 0);
         eip = _eip;
         mmu_commu_cb = _cb;
     }
-
-    // Should do this right-after the block is evicted. 
+    // Do this when a block is evicted and it is dirty.
+    auto retriMMUCommu()
+    {
+        return std::make_pair(eip, mmu_commu_cb);
+    }
+    // Should do this right-after the block is evicted if write-back is not needed.
     void clearMMUCommu()
     {
         mmu_commu_cb = 0;

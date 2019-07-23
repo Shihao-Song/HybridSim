@@ -79,13 +79,32 @@ class FATags : public TagsWithFABlk
                         Addr eip,
                         std::function<void(Simulator::Request&)> mmu_cb) override
     {
-    
+        Addr blk_aligned_addr = blkAlign(block_addr);
+
+        FABlk *blk = findBlock(blk_aligned_addr);
+        assert(blk);
+        blk->recordMMUCommu(eip, mmu_cb);
     }
     
     std::pair<Addr, std::function<void(Simulator::Request&)>> 
-        retriMMUCommu(Addr blk_addr) override
+        retriMMUCommu(Addr block_addr) override
     {
+        Addr blk_aligned_addr = blkAlign(block_addr);
 
+        FABlk *blk = findBlock(blk_aligned_addr);
+        assert(blk);
+
+        return blk->retriMMUCommu();
+    }
+
+    void clearMMUCommu(Addr block_addr) override
+    {
+        Addr blk_aligned_addr = blkAlign(block_addr);
+
+        FABlk *blk = findBlock(blk_aligned_addr);
+        assert(blk);
+
+        blk->clearMMUCommu();
     }
 
     void printTagInfo() override

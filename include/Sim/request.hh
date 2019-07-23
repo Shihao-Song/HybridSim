@@ -16,7 +16,7 @@ class MMUCommuPacket
   public:
     MMUCommuPacket(){}
 
-    std::function<void(Request&)> callback;
+    std::function<void(Request&)> callback = 0;
 };
 
 class Request
