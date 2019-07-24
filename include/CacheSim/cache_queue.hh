@@ -5,6 +5,8 @@
 #include <set>
 #include <unordered_map>
 
+#include "Sim/request.hh"
+
 namespace CacheSimulator
 {
 class CacheQueue
@@ -20,6 +22,10 @@ class CacheQueue
     {
         Tick when_ready;
         bool modified;
+
+        // Advanced features, record MMU commu information
+        Addr eip;
+        std::function<void(Simulator::Request&)> mmu_commu_cb = 0;
     };
 
   public:
@@ -87,6 +93,23 @@ class CacheQueue
         auto iter = entry_info.find(addr);
         assert(iter != entry_info.end());
         (iter->second).modified = true;
+    }
+
+    void recordMMUCommu(Addr addr,
+                        Addr eip,
+                        std::function<void(Simulator::Request&)> mmu_cb)
+    {
+        auto iter = entry_info.find(addr);
+        assert(iter != entry_info.end());
+        (iter->second).eip = eip;
+        (iter->second).mmu_commu_cb = mmu_cb;
+    }
+
+    auto retriMMUCommu(Addr addr)
+    {
+        auto iter = entry_info.find(addr);
+        assert(iter != entry_info.end());
+        return make_pair((iter->second).eip, (iter->second).mmu_commu_cb);
     }
 
     bool isInQueue(Addr addr)

@@ -65,9 +65,13 @@ class Cache : public Simulator::MemObject
 
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
-        req.core_id = id;
 
-        if (next_level->send(req))
+        req.core_id = id;
+        auto [eip, mmu_commu] = mshr_queue->retriMMUCommu(addr);
+        req.eip = eip;
+        req.setMMUCommuFunct(mmu_commu);
+
+	if (next_level->send(req))
         {
             ++num_loads;
             mshr_queue->entryOnBoard(addr);
@@ -122,8 +126,13 @@ class Cache : public Simulator::MemObject
         if constexpr(std::is_same<OnChipToOffChip, Position>::value)
         {
             Request req(addr, Request::Request_Type::WRITE);
-            req.core_id = id;
-            if (next_level->send(req))
+
+	    req.core_id = id;
+            auto [eip, mmu_commu] = wb_queue->retriMMUCommu(addr);
+            req.eip = eip;
+            req.setMMUCommuFunct(mmu_commu);
+
+	    if (next_level->send(req))
             {
                 ++num_evicts;
                 wb_queue->deAllocate(addr);
@@ -132,8 +141,13 @@ class Cache : public Simulator::MemObject
         else
 	{    
             Request req(addr, Request::Request_Type::WRITE_BACK);
-            req.core_id = id;
-            if (next_level->send(req))
+
+	    req.core_id = id;
+            auto [eip, mmu_commu] = wb_queue->retriMMUCommu(addr);
+            req.eip = eip;
+            req.setMMUCommuFunct(mmu_commu);
+
+	    if (next_level->send(req))
             {
                 ++num_evicts;
                 wb_queue->deAllocate(addr);
@@ -303,7 +317,8 @@ class Cache : public Simulator::MemObject
                         wb_queue->allocate(wb_addr, clk);
                         // Retrive MMU call-back information of evicted.
                         auto [eip, mmu_commu] = tags->retriMMUCommu(aligned_addr);
-                        // TODO, record to wb_queue.
+                        // Record to wb_queue.
+                        wb_queue->recordMMUCommu(wb_addr, eip, mmu_commu);
                     }
                     // Need to record new MMU call-back information.
                     tags->recordMMUCommu(aligned_addr,
@@ -339,6 +354,9 @@ class Cache : public Simulator::MemObject
                         // Not hit in wb
                         // Not in mshr 
                         ++num_misses;
+                        mshr_queue->recordMMUCommu(aligned_addr,
+                                                   req.eip,
+                                                   req.getMMUCommuFunct());
                     }
 
                     if (req.req_type == Request::Request_Type::WRITE)
@@ -379,6 +397,9 @@ class Cache : public Simulator::MemObject
                             // Not hit in wb
                             // Not hit in mshr 
                             ++num_misses;
+                            mshr_queue->recordMMUCommu(aligned_addr,
+                                                       req.eip,
+                                                       req.getMMUCommuFunct());
                         }
                         if (req.req_type == Request::Request_Type::WRITE)
                         {

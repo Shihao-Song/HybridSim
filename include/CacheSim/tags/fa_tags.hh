@@ -83,6 +83,7 @@ class FATags : public TagsWithFABlk
 
         FABlk *blk = findBlock(blk_aligned_addr);
         assert(blk);
+        blk->clearMMUCommu();
         blk->recordMMUCommu(eip, mmu_cb);
     }
     
