@@ -149,6 +149,7 @@ class FCFSController : public BaseController
             scheduled)
         {
             channelAccess(scheduled_req);
+            scheduled_req->commuToMMU();
 
             r_w_pending_queue.push_back(std::move(*scheduled_req));
             r_w_q.erase(scheduled_req);

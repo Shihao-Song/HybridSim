@@ -99,11 +99,6 @@ void FullSystemSimulation(const char* cfg_file,
     // simulator.
     std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
     // TODO, needs to train MMU in run-time.
-    // if (cfg.trained_mmu)
-    // {
-    //     std::cout << "MMU training stage... \n\n";
-    //     mmu->train(trace_lists);
-    // }
     
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));

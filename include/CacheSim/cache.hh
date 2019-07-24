@@ -88,6 +88,7 @@ class Cache : public Simulator::MemObject
         if (wb_queue->isFull()) { return false; }
 
         bool is_entry_modified = mshr_queue->isEntryModified(addr);
+        auto [eip, mmu_commu] = mshr_queue->retriMMUCommu(addr);
         // if (is_entry_modified)
         // { 
         //     std::cout << level_name << " " << addr << " is dirty. \n";
@@ -101,7 +102,15 @@ class Cache : public Simulator::MemObject
             wb_required)
         {
             wb_queue->allocate(wb_addr, clk);
+
+            auto [wb_eip, wb_mmu_commu] = tags->retriMMUCommu(addr);
+            // Record to wb_queue.
+            wb_queue->recordMMUCommu(wb_addr, wb_eip, wb_mmu_commu);
         }
+        // Need to record new MMU call-back information.
+        tags->recordMMUCommu(addr,
+                             eip,
+                             mmu_commu);
 
         auto iter = pending_queue_for_non_hit_reqs.begin();
         while (iter != pending_queue_for_non_hit_reqs.end())
