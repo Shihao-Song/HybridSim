@@ -1,6 +1,7 @@
 #ifndef __SIMULATION_HH__
 #define __SIMULATION_HH__
 
+#include <boost/program_options.hpp>
 #include <cstring>
 
 #include "Sim/config.hh"
@@ -35,9 +36,9 @@ enum class Memories : int
 
 struct ParseArgsRet
 {
-    const char* mode;
     const char* cfg_file;
     std::vector<const char*> trace_lists;
+    std::vector<uint64_t> warmups;
     const char* output_file;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
@@ -86,8 +87,40 @@ auto runCPUTrace(Processor *processor)
 
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
-    int mode_start = -1;
+    namespace po = boost::program_options;
+    po::options_description desc("Options"); 
+    desc.add_options() 
+        ("help", "Print help messages")
+        ("config", "Configuration file")
+        ("traces", "CPU traces")
+        ("warmups", "Number of warmup instructions")
+        ("output", "(Stats) Output file");
+ 
+    po::variables_map vm;
+
+    try 
+    { 
+        po::store(po::parse_command_line(argc, argv, desc), vm); // can throw 
+ 
+        if (vm.count("help")) 
+        { 
+            std::cout << "A CPU-trace driven PCM Simulator.\n" 
+                      << desc << "\n"; 
+            exit(0);
+        } 
+
+        	
+    } 
+    catch(po::error& e) 
+    { 
+        std::cerr << "ERROR: " << e.what() << "\n\n"; 
+        std::cerr << desc << "\n"; 
+        exit(0);
+    } 
+
+    /*
     int trace_start = -1;
+    int warmups_start = -1;
     int config_start = -1;
     int output_start = -1;
 
@@ -108,18 +141,17 @@ ParseArgsRet parse_args(int argc, const char *argv[])
             output_start = i + 1;
         }
 
-        if (strcmp(argv[i], "--mode") == 0)
+        if (strcmp(argv[i], "--warmups") == 0)
         {
-            mode_start = i + 1;
+            warmups_start = i + 1;
         }
     }
 
-    if (trace_start == -1 || config_start == -1 || output_start == -1 ||
-        mode_start == -1)
+    if (trace_start == -1 || config_start == -1 || output_start == -1)
     {
-        std::cerr << argv[0] << " --mode SIMULATION_MODE"
-                             << " --config YOUR_CONFIG_FILE"
+        std::cerr << argv[0] << " --config YOUR_CONFIG_FILE"
                              << " --traces YOUR_TRACE_FILES"
+                             << " --warmups WARMUPS_FOR_EACH_TRACE"
                              << " --output YOUR_OUTPUT_FILE\n";
         exit(0);
     }
@@ -143,6 +175,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         trace_lists.push_back(argv[trace_start + i]);
     }
     return {argv[mode_start], argv[config_start], trace_lists, argv[output_start]};
+    */
 }
 
 // Function to test cache behavior.
@@ -165,8 +198,6 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     uint64_t num_evictions = 0;
     uint64_t num_hits = 0;
     uint64_t num_misses = 0;
-
-    Simulator::Mapper mapper(0);
 
     bool more_insts = cpu_trace.getInstruction(instr);
     while (more_insts)

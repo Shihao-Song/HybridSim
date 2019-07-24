@@ -1,7 +1,8 @@
-SOURCE  := Main.cc include/Sim/config.cc include/protobuf/cpu_trace.pb.cc include/System/mmu.cc
+SOURCE	:= Main.cc
+SOURCE	+= $(shell find include/ -name "*.cc")
 CC      := g++
 FLAGS   := -O3 -std=c++17 -w -I include
-LD	:= -lprotobuf
+LD	:= -lprotobuf -lboost_program_options
 TARGET  := PCMSim
 
 all: $(TARGET)

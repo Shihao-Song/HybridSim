@@ -121,8 +121,8 @@ class MFUPageToNearRows : public TrainedMMU
     {
         for (auto [key, value] : first_touch_instructions)
         {
-            std::cout << key << " " << value.reads << " "
-                                    << value.writes << "\n";
+            trained_data_out_fd << key << " " << value.reads << " "
+                                              << value.writes << "\n";
         }
     }
     // void train(std::vector<const char*> &traces) override;
