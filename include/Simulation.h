@@ -36,10 +36,10 @@ enum class Memories : int
 
 struct ParseArgsRet
 {
-    const char* cfg_file;
-    std::vector<const char*> trace_lists;
+    std::string cfg_file;
+    std::vector<std::string> trace_lists;
     std::vector<uint64_t> warmups;
-    const char* output_file;
+    std::string output_file;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -87,14 +87,22 @@ auto runCPUTrace(Processor *processor)
 
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
+    std::string cfg_file;
+    std::vector<std::string> cpu_traces;
+    std::vector<uint64_t> warmups;
+    std::string stats_output;
+
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
     desc.add_options() 
         ("help", "Print help messages")
-        ("config", "Configuration file")
-        ("traces", "CPU traces")
-        ("warmups", "Number of warmup instructions")
-        ("output", "(Stats) Output file");
+        ("config", po::value<std::string>(&cfg_file)->required(), "Configuration file")
+        ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
+                      "CPU trace")
+        ("warmup", po::value<std::vector<uint64_t>>(&warmups),
+                   "Number of warmup instructions")
+        ("stat_output", po::value<std::string>(&stats_output)->required(),
+                        "(Stats) Output file");
  
     po::variables_map vm;
 
@@ -109,73 +117,16 @@ ParseArgsRet parse_args(int argc, const char *argv[])
             exit(0);
         } 
 
-        	
+        po::notify(vm);	
     } 
     catch(po::error& e) 
     { 
         std::cerr << "ERROR: " << e.what() << "\n\n"; 
         std::cerr << desc << "\n"; 
         exit(0);
-    } 
-
-    /*
-    int trace_start = -1;
-    int warmups_start = -1;
-    int config_start = -1;
-    int output_start = -1;
-
-    for (int i = 0; i < argc; i++)
-    {
-        if (strcmp(argv[i], "--traces") == 0)
-        {
-            trace_start = i + 1;
-        }
-
-        if (strcmp(argv[i], "--config") == 0)
-        {
-            config_start = i + 1;
-        }
-
-        if (strcmp(argv[i], "--output") == 0)
-        {
-            output_start = i + 1;
-        }
-
-        if (strcmp(argv[i], "--warmups") == 0)
-        {
-            warmups_start = i + 1;
-        }
     }
-
-    if (trace_start == -1 || config_start == -1 || output_start == -1)
-    {
-        std::cerr << argv[0] << " --config YOUR_CONFIG_FILE"
-                             << " --traces YOUR_TRACE_FILES"
-                             << " --warmups WARMUPS_FOR_EACH_TRACE"
-                             << " --output YOUR_OUTPUT_FILE\n";
-        exit(0);
-    }
-
-    int trace_end_deter = mode_start < config_start ? config_start : mode_start;
-    trace_end_deter = trace_end_deter < output_start ? output_start : trace_end_deter;
-
-    int num_traces;
-    if (trace_end_deter < trace_start)
-    {
-        num_traces = argc - trace_start;
-    }
-    else
-    {
-        num_traces = trace_end_deter - 1 - trace_start;
-    }
-
-    std::vector<const char*> trace_lists;
-    for (int i = 0; i < num_traces; i++)
-    {
-        trace_lists.push_back(argv[trace_start + i]);
-    }
-    return {argv[mode_start], argv[config_start], trace_lists, argv[output_start]};
-    */
+    
+    return ParseArgsRet{cfg_file, cpu_traces, warmups, stats_output};
 }
 
 // Function to test cache behavior.

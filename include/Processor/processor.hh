@@ -102,7 +102,7 @@ class Processor
     class Core
     {
       public:
-        Core(int _id, const char* trace_file)
+        Core(int _id, std::string trace_file)
             : trace(trace_file),
               cycles(0),
               core_id(_id)
@@ -222,7 +222,7 @@ class Processor
     };
 
   public:
-    Processor(std::vector<const char*> trace_lists,
+    Processor(std::vector<std::string> trace_lists,
               MemObject *_shared_m_obj) : cycles(0), shared_m_obj(_shared_m_obj)
     {
         unsigned num_of_cores = trace_lists.size();

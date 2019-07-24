@@ -3,22 +3,21 @@
 
 #include "Simulation.h"
 
-void FullSystemSimulation(const char* cfg_file,
-                          std::vector<const char*> trace_lists,
-                          const char* output_file);
+void FullSystemSimulation(std::string cfg_file,
+                          std::vector<std::string> trace_lists,
+                          std::string output_file);
 
 int main(int argc, const char *argv[])
 {
     auto [cfg_file, trace_lists, warmup_instrs, output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
-    exit(0);
     FullSystemSimulation(cfg_file, trace_lists, output_file);
 }
 
-void FullSystemSimulation(const char* cfg_file,
-                          std::vector<const char*> trace_lists,
-                          const char* output_file)
+void FullSystemSimulation(std::string cfg_file,
+                          std::vector<std::string> trace_lists,
+                          std::string output_file)
 {
     unsigned num_of_cores = trace_lists.size();
     std::cout << "\nConfiguration file: " << cfg_file << "\n";

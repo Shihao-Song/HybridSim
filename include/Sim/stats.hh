@@ -20,7 +20,7 @@ class Stats
         printables.push_back(printable + "\n");
     }
 
-    void outputStats(const char * output)
+    void outputStats(std::string output)
     {
         std::ofstream fd(output);
         for (auto entry : printables)
