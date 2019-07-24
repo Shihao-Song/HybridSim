@@ -180,6 +180,17 @@ class MFUPageToNearRows : public TrainedMMU
     {
         return [this](Request &req)
                {
+                   /*
+                   std::cout << req.eip << " : ";
+                   if (req.req_type == Request::Request_Type::READ)
+                   {
+                       std::cout << "R \n";
+                   }
+                   else
+                   {
+                       std::cout << "W \n";
+                   }
+                   */
                    auto iter = first_touch_instructions.find(req.eip);
                    assert(iter != first_touch_instructions.end());
                    ++(iter->second);

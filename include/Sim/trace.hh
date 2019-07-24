@@ -181,7 +181,7 @@ class Trace
 
     std::ifstream trace_file_expr;
 
-    const unsigned REPEAT = 4;
+    const unsigned REPEAT = 1;
     unsigned runs = 0;
 };
 
