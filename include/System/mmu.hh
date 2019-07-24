@@ -63,6 +63,7 @@ class TrainedMMU : public MMU
     }
 
     virtual void profiling() {}
+    virtual void printProfiling() {}
     // virtual void train(std::vector<const char*> &traces) {}
 
     // TODO, should dis-able the following two functions
@@ -116,6 +117,14 @@ class MFUPageToNearRows : public TrainedMMU
     {}
 
     void va2pa(Request &req) override;
+    void printProfiling() override
+    {
+        for (auto [key, value] : first_touch_instructions)
+        {
+            std::cout << key << " " << value.reads << " "
+                                    << value.writes << "\n";
+        }
+    }
     // void train(std::vector<const char*> &traces) override;
 
     // TODO, should disable the following two functions.
@@ -180,25 +189,30 @@ class MFUPageToNearRows : public TrainedMMU
     {
         return [this](Request &req)
                {
-                   /*
-                   std::cout << req.eip << " : ";
+                   auto iter = first_touch_instructions.find(req.eip);
+                   assert(iter != first_touch_instructions.end());
+
                    if (req.req_type == Request::Request_Type::READ)
                    {
-                       std::cout << "R \n";
+                       ++(iter->second).reads;
+                       // std::cout << "R \n";
                    }
                    else
                    {
-                       std::cout << "W \n";
+                       ++(iter->second).writes;
+                       // std::cout << "W \n";
                    }
-                   */
-                   auto iter = first_touch_instructions.find(req.eip);
-                   assert(iter != first_touch_instructions.end());
-                   ++(iter->second);
                };
     }
 
     std::unordered_map<Addr,bool> pages; // All the touched (allocated) pages
-    std::unordered_map<Addr,uint64_t> first_touch_instructions;
+
+    struct RWCount
+    {
+        uint64_t reads = 0;
+        uint64_t writes = 0;
+    };
+    std::unordered_map<Addr,RWCount> first_touch_instructions;
 
     bool near_region_full = false;
     PageLoc cur_near_page;

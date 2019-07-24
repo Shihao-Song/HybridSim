@@ -111,6 +111,7 @@ void FullSystemSimulation(const char* cfg_file,
     /* Simulation */
     runCPUTrace(processor.get());
 
+    mmu->printProfiling();
     /* Collecting Stats */
     if (!pcm_trace_extr)
     {

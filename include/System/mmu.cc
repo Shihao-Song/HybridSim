@@ -35,8 +35,9 @@ void MFUPageToNearRows::profiling(Request& req)
     }
     else
     {
+        // Record the first touch instruction.
         // Records and callback on this eip
-        first_touch_instructions.insert({pc, 0});
+        first_touch_instructions.insert({pc, {0,0}});
         pages.insert({page_id, true});
         req.setMMUCommuFunct(profilingCallBack());
     }
