@@ -468,6 +468,13 @@ class Cache : public Simulator::MemObject
         clk = 0;
         tags->reInitialize();
 
+        num_hits = 0;
+        num_misses = 0;
+        num_loads = 0;
+        num_evicts = 0;
+
+        selected_client = 0;
+
         if (!boundary)
         {
             next_level->reInitialize();

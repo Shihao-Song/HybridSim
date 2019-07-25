@@ -75,17 +75,19 @@ void FullSystemSimulation(std::string cfg_file,
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-    
-    /* Simulation */
+   
     if (profiling_limits.size())
     {
         // Nofity processor that we are in profiling stage;
         processor->profiling(profiling_limits);
+        mmu->setProfilingStage();
+
         std::cout << "\nProfiling Stage...\n\n";
         runCPUTrace(processor.get());
 
         // Re-initialize all the states.
         processor->reInitialize();
+        mmu->setInferenceStage();
     }
 
     std::cout << "\nSimulation Stage...\n\n";

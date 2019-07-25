@@ -25,6 +25,7 @@ class Trace
   public:
     Trace(const std::string trace_fname)
     {
+        trace_name = trace_fname;
         if constexpr (std::is_same<ProtobufMode, T>::value)
         {
             GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -86,7 +87,6 @@ class Trace
         {
             if (profiling_stage && instruction_index == profiling_limit)
             {
-                // trace_file_expr.close();
                 profiling_stage = false;
                 trace_file_expr.clear();
                 trace_file_expr.seekg(0, std::ios::beg);
@@ -200,6 +200,7 @@ class Trace
     CPUTrace::TraceFile trace_file;
     uint64_t instruction_index = 0;
 
+    std::string trace_name;
     std::ifstream trace_file_expr;
 
     // Are we in profiling stage?

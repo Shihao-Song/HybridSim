@@ -9,11 +9,15 @@ void MFUPageToNearRows::va2pa(Request &req)
     req.addr = pa;
 
     // Hardware-guided Profiling
-    // TODO, should have a flag to indicate.
-    if (true)
+    if (profiling_stage)
     {
         profiling(req);
     }
+
+//    if (inference_stage)
+//    {
+//        std::cout << "Hi \n";
+//    }
 }
 
 void MFUPageToNearRows::profiling(Request& req)
@@ -41,7 +45,6 @@ void MFUPageToNearRows::profiling(Request& req)
         pages.insert({page_id, true});
         req.setMMUCommuFunct(profilingCallBack());
     }
-
 }
 
 void MFUPageToNearRows::nextNearPage()

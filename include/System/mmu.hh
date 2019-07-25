@@ -61,15 +61,15 @@ class TrainedMMU : public MMU
         }
     }
 
-    virtual void profiling() {}
     virtual void printProfiling() {}
-    // virtual void train(std::vector<const char*> &traces) {}
 
-    // TODO, should dis-able the following two functions
-    // virtual void inference(Addr &pa) {}
-    // virtual void preLoadTrainedData(const char*, double) {}
+    void setProfilingStage() { profiling_stage = true; inference_stage = false; }
+    void setInferenceStage() { inference_stage = true; profiling_stage = false; }
 
   protected:
+    bool profiling_stage = false;
+    bool inference_stage = false;
+
     std::string mmu_profiling_data_output_file = "N/A";
     std::ofstream mmu_profiling_data_out;
 
@@ -132,11 +132,6 @@ class MFUPageToNearRows : public TrainedMMU
                                    << entry.writes << "\n";
         }
     }
-    // void train(std::vector<const char*> &traces) override;
-
-    // TODO, should disable the following two functions.
-    // void inference(Addr &pa) override;
-    // void preLoadTrainedData(const char*, double) override;
 
   // Define data structures
   protected:
@@ -178,18 +173,6 @@ class MFUPageToNearRows : public TrainedMMU
     };
     typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
 
-    struct PageEntry
-    {
-        Addr page_id; // Original physical page ID
-
-        bool near_row_page = false; // Page is at near row region.
-        uint64_t num_refs = 0;
-
-        PageLoc new_loc; // Re-mapped page location
-    };
-    // typedef std::unordered_map<Addr,PageEntry> PageHash;
-    // typedef std::unordered_map<Addr,bool> PageHash; // Using hash to improve performance
-
   protected:
     void profiling(Request&);
     auto profilingCallBack()
@@ -202,17 +185,16 @@ class MFUPageToNearRows : public TrainedMMU
                    if (req.req_type == Request::Request_Type::READ)
                    {
                        ++(iter->second).reads;
-                       // std::cout << "R \n";
                    }
                    else
                    {
                        ++(iter->second).writes;
-                       // std::cout << "W \n";
                    }
                };
     }
 
-    std::unordered_map<Addr,bool> pages; // All the touched (allocated) pages
+    std::unordered_map<Addr,bool> pages; // All the touched (allocated) pages, used in
+                                         // profiling stage.
 
     struct RWCount
     {
@@ -226,16 +208,6 @@ class MFUPageToNearRows : public TrainedMMU
     bool near_region_full = false;
     PageLoc cur_near_page;
     void nextNearPage();
-
-    /*
-    PageLocHash touched_near_pages; // All the touched pages who are near pages
-
-    std::vector<PageEntry> pages_mfu_order;
-
-    void nextNearPage();
-
-    PageHash re_alloc_pages; // Re-mapped pages;
-    */
 };
 }
 
