@@ -14,10 +14,10 @@ void MFUPageToNearRows::va2pa(Request &req)
         profiling(req);
     }
 
-//    if (inference_stage)
-//    {
-//        std::cout << "Hi \n";
-//    }
+    if (inference_stage && !near_region_full)
+    {
+        inference(req);
+    }
 }
 
 void MFUPageToNearRows::profiling(Request& req)
@@ -44,6 +44,56 @@ void MFUPageToNearRows::profiling(Request& req)
         first_touch_instructions.insert({pc, {pc,0,0}});
         pages.insert({page_id, true});
         req.setMMUCommuFunct(profilingCallBack());
+    }
+}
+
+// TODO, need to optimize the function further.
+void MFUPageToNearRows::inference(Request &req)
+{
+    Addr pc = req.eip;
+    Addr pa = req.addr; // Already translated.
+    Addr page_id = pa >> Mapper::va_page_shift;
+
+    // Is the page one of the MFU pages?
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter != re_alloc_pages.end())
+    {
+        Addr new_page_id = iter->second;
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        return;
+    }
+
+    // Not found, should we allocate to near rows?
+    if (auto iter = first_touch_instructions.find(pc);
+             iter != first_touch_instructions.end())
+    {
+        // Allocate at near row, naive implementations;
+        int new_part_id = cur_near_page.row_id / num_of_rows_per_partition;
+        int new_row_id = cur_near_page.row_id % num_of_rows_per_partition;
+        int new_col_id = cur_near_page.col_id;
+        int new_rank_id = cur_near_page.dep_id;
+
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
+
+        dec_addr[int(Config::Decoding::Partition)] = new_part_id;
+        dec_addr[int(Config::Decoding::Row)] = new_row_id;
+        dec_addr[int(Config::Decoding::Col)] = new_col_id;
+        dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
+
+        Addr new_pa = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+
+        req.addr = new_pa; // Replace with the new PA
+
+        Addr new_page_id = new_pa >> Mapper::va_page_shift;
+        re_alloc_pages.insert({page_id, new_page_id});
+
+        nextNearPage();
     }
 }
 

@@ -174,6 +174,7 @@ class MFUPageToNearRows : public TrainedMMU
     typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
 
   protected:
+    void inference(Request&);
     void profiling(Request&);
     auto profilingCallBack()
     {
@@ -195,6 +196,9 @@ class MFUPageToNearRows : public TrainedMMU
 
     std::unordered_map<Addr,bool> pages; // All the touched (allocated) pages, used in
                                          // profiling stage.
+
+    std::unordered_map<Addr,Addr> re_alloc_pages; // All the re-allocated MFU pages, used in
+                                                  // inference stage.
 
     struct RWCount
     {
