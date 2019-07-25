@@ -14,7 +14,6 @@
 
 namespace System
 {
-// TODO, this is still a primitive MMU.
 class MMU
 {
   protected:
@@ -56,9 +55,9 @@ class TrainedMMU : public MMU
 
     ~TrainedMMU()
     {
-        if (trained_data_output != nullptr)
+        if (mmu_profiling_data_output_file != "N/A")
         {
-            trained_data_out_fd.close();
+            mmu_profiling_data_out.close();
         }
     }
 
@@ -71,14 +70,15 @@ class TrainedMMU : public MMU
     // virtual void preLoadTrainedData(const char*, double) {}
 
   protected:
-    const char *trained_data_output = nullptr;
-    std::ofstream trained_data_out_fd;
+    std::string mmu_profiling_data_output_file = "N/A";
+    std::ofstream mmu_profiling_data_out;
 
   public:
-    void trainedDataOutput(const char *file)
+    void profilingDataOutput(std::string file)
     {
-        trained_data_output = file;
-        trained_data_out_fd.open(file);
+        mmu_profiling_data_output_file = file;
+        mmu_profiling_data_out.open(file);
+        assert(mmu_profiling_data_out.good());
     }
 };
 
@@ -119,11 +119,13 @@ class MFUPageToNearRows : public TrainedMMU
     void va2pa(Request &req) override;
     void printProfiling() override
     {
+        /*
         for (auto [key, value] : first_touch_instructions)
         {
-            trained_data_out_fd << key << " " << value.reads << " "
-                                              << value.writes << "\n";
+            mmu_profiling_data_output_file << key << " " << value.reads << " "
+                                                  << value.writes << "\n";
         }
+        */
     }
     // void train(std::vector<const char*> &traces) override;
 

@@ -5,24 +5,38 @@
 
 void FullSystemSimulation(std::string cfg_file,
                           std::vector<std::string> trace_lists,
-                          std::string output_file);
+                          std::string stats_output_file,
+                          std::string mmu_profiling_data_output_file);
 
 int main(int argc, const char *argv[])
 {
-    auto [cfg_file, trace_lists, warmup_instrs, output_file] = parse_args(argc, argv);
+    auto [cfg_file,
+          trace_lists,
+          warmup_instrs,
+          stats_output_file,
+          mmu_profiling_data_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
-    FullSystemSimulation(cfg_file, trace_lists, output_file);
+    FullSystemSimulation(cfg_file,
+                         trace_lists,
+                         stats_output_file,
+                         mmu_profiling_data_output_file);
 }
 
 void FullSystemSimulation(std::string cfg_file,
                           std::vector<std::string> trace_lists,
-                          std::string output_file)
+                          std::string stats_output_file,
+                          std::string mmu_profiling_data_output_file)
 {
     unsigned num_of_cores = trace_lists.size();
     std::cout << "\nConfiguration file: " << cfg_file << "\n";
-    std::cout << "(Stats) Output file: " << output_file << "\n\n";
-
+    std::cout << "Stats output file: " << stats_output_file << "\n";
+    if (mmu_profiling_data_output_file != "N/A")
+    {
+        std::cout << "MMU profiling data output file: "
+                  << mmu_profiling_data_output_file << "\n\n";
+    }
+exit(0);
     /* Memory System Creation */
     Config cfg(cfg_file);
 
@@ -62,6 +76,11 @@ void FullSystemSimulation(std::string cfg_file,
     /* Simulation */
     runCPUTrace(processor.get());
 
+    /* Optional, collecting MMU trained data */
+//    if (mmu_profiling_data_output_file != "N/A")
+//    {  
+//    }
+
     /* Collecting Stats */
     Stats stats;
 
@@ -73,5 +92,5 @@ void FullSystemSimulation(std::string cfg_file,
     PCM->registerStats(stats);
     stats.registerStats("Execution Time (cycles) = " + 
                         std::to_string(processor->exeTime()));
-    stats.outputStats(output_file);
+    stats.outputStats(stats_output_file);
 }

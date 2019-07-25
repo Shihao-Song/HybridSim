@@ -39,7 +39,8 @@ struct ParseArgsRet
     std::string cfg_file;
     std::vector<std::string> trace_lists;
     std::vector<uint64_t> warmups;
-    std::string output_file;
+    std::string stats_output_file;
+    std::string mmu_profiling_data_output_file;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -91,6 +92,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> cpu_traces;
     std::vector<uint64_t> warmups;
     std::string stats_output;
+    std::string mmu_profiling_data_output_file = "N/A";
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
@@ -100,9 +102,12 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
                       "CPU trace")
         ("warmup", po::value<std::vector<uint64_t>>(&warmups),
-                   "Number of warmup instructions")
+                   "Number of warmup instructions (used for MMU training, optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
-                        "(Stats) Output file");
+                        "Stats output file")
+        ("mmu_profiling_data_output_file",
+         po::value<std::string>(&mmu_profiling_data_output_file),
+         "Output MMU profiling data. (Optional)");
  
     po::variables_map vm;
 
@@ -126,7 +131,11 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         exit(0);
     }
     
-    return ParseArgsRet{cfg_file, cpu_traces, warmups, stats_output};
+    return ParseArgsRet{cfg_file,
+                        cpu_traces,
+                        warmups,
+                        stats_output,
+                        mmu_profiling_data_output_file};
 }
 
 // Function to test cache behavior.
