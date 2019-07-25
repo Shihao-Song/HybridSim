@@ -84,6 +84,12 @@ class Trace
 
         if constexpr (std::is_same<TXTMode, T>::value)
         {
+            if (instruction_index == profiling_limit)
+            {
+                trace_file_expr.close();
+                return false;
+            }
+
             std::string line;
             getline(trace_file_expr, line);
             if (trace_file_expr.eof()) 
@@ -133,6 +139,7 @@ class Trace
                 inst.target_vaddr = std::stoull(tokens[2]);
                 inst.size = std::stoull(tokens[3]);
             }
+            ++instruction_index;
             return true;
         }
     }
@@ -180,6 +187,10 @@ class Trace
     uint64_t instruction_index = 0;
 
     std::ifstream trace_file_expr;
+
+    // Are we in profiling stage?
+    bool profiling = false;
+    uint64_t profiling_limit;
 
     const unsigned REPEAT = 1;
     unsigned runs = 0;

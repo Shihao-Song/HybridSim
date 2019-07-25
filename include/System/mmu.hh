@@ -119,13 +119,22 @@ class MFUPageToNearRows : public TrainedMMU
     void va2pa(Request &req) override;
     void printProfiling() override
     {
-        /*
+        std::vector<RWCount> profiling_data;
         for (auto [key, value] : first_touch_instructions)
         {
-            mmu_profiling_data_output_file << key << " " << value.reads << " "
-                                                  << value.writes << "\n";
+            profiling_data.push_back(value);
         }
-        */
+        std::sort(profiling_data.begin(), profiling_data.end(),
+                  [](const RWCount &a, const RWCount &b)
+                  {
+                      return (a.reads + a.writes) > (b.reads + b.writes);
+                  });
+        for (auto entry : profiling_data)
+        {
+            mmu_profiling_data_out << entry.eip << " "
+                                   << entry.reads << " "
+                                   << entry.writes << "\n";
+        }
     }
     // void train(std::vector<const char*> &traces) override;
 
@@ -211,6 +220,8 @@ class MFUPageToNearRows : public TrainedMMU
 
     struct RWCount
     {
+        Addr eip;
+
         uint64_t reads = 0;
         uint64_t writes = 0;
     };

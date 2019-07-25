@@ -36,7 +36,7 @@ void FullSystemSimulation(std::string cfg_file,
         std::cout << "MMU profiling data output file: "
                   << mmu_profiling_data_output_file << "\n\n";
     }
-exit(0);
+
     /* Memory System Creation */
     Config cfg(cfg_file);
 
@@ -77,9 +77,11 @@ exit(0);
     runCPUTrace(processor.get());
 
     /* Optional, collecting MMU trained data */
-//    if (mmu_profiling_data_output_file != "N/A")
-//    {  
-//    }
+    if (mmu_profiling_data_output_file != "N/A")
+    {
+        mmu->profilingDataOutput(mmu_profiling_data_output_file);
+        mmu->printProfiling();
+    }
 
     /* Collecting Stats */
     Stats stats;
