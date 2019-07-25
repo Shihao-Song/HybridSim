@@ -86,7 +86,15 @@ class PCMSimMemorySystem : public Simulator::MemObject
             controller->tick();
         }
     }
-   
+
+    void reInitialize() override
+    {
+        for (auto &controller : controllers)
+        {
+            controller->reInitialize();
+        }
+    }
+
     void registerStats(Simulator::Stats &stats) override
     {
         if constexpr (std::is_same<CPAwareController, T>::value)

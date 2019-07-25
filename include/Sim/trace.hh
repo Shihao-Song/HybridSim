@@ -84,9 +84,12 @@ class Trace
 
         if constexpr (std::is_same<TXTMode, T>::value)
         {
-            if (instruction_index == profiling_limit)
+            if (profiling_stage && instruction_index == profiling_limit)
             {
-                trace_file_expr.close();
+                // trace_file_expr.close();
+                profiling_stage = false;
+                trace_file_expr.clear();
+                trace_file_expr.seekg(0, std::ios::beg);
                 return false;
             }
 
@@ -182,6 +185,17 @@ class Trace
         return true;
     }
 
+    void profiling(uint64_t limit)
+    {
+        profiling_stage = true;
+        profiling_limit = limit;
+    }
+
+    void disableProfiling()
+    {
+        profiling_stage = false;
+    }
+
   private:
     CPUTrace::TraceFile trace_file;
     uint64_t instruction_index = 0;
@@ -189,8 +203,8 @@ class Trace
     std::ifstream trace_file_expr;
 
     // Are we in profiling stage?
-    bool profiling = false;
-    uint64_t profiling_limit;
+    bool profiling_stage = false;
+    uint64_t profiling_limit = 0;
 
     const unsigned REPEAT = 1;
     unsigned runs = 0;

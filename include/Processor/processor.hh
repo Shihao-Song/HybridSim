@@ -114,6 +114,25 @@ class Processor
         void setDCache(MemObject* _d_cache) {d_cache = _d_cache;}
         void setMMU(TrainedMMU *_mmu) {mmu = _mmu;}
 
+        // Are we in profiling stage?
+        void profiling(uint64_t limit)
+        {
+            trace.profiling(limit);
+        }
+
+        // Re-initialize
+        void reInitialize()
+        {
+            cycles = 0;
+            retired = 0;
+            trace.disableProfiling();
+
+            // Re-initialize caches
+            d_cache->reInitialize();
+
+            more_insts = trace.getInstruction(cur_inst);
+        }
+
         void tick()
         {
             cycles++;
@@ -244,6 +263,31 @@ class Processor
         for (auto &core : cores)
         {
             core->setMMU(_mmu);
+        }
+    }
+
+    // Re-initialize
+    void reInitialize()
+    {
+        cycles = 0;
+
+        // Re-initialize each core with its local cache.
+        for (auto &core : cores)
+        {
+            core->reInitialize();
+        }
+
+        // Re-initialize the shared memory object
+        shared_m_obj->reInitialize();
+    }
+
+    // Are we in profiling stage?
+    void profiling(std::vector<uint64_t> profiling_limits)
+    {
+        assert(cores.size() == profiling_limits.size());
+        for (int i = 0; i < cores.size(); i++)
+        {
+            cores[i]->profiling(profiling_limits[i]);
         }
     }
 

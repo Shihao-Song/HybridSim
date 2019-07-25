@@ -38,7 +38,7 @@ struct ParseArgsRet
 {
     std::string cfg_file;
     std::vector<std::string> trace_lists;
-    std::vector<uint64_t> warmups;
+    std::vector<uint64_t> profiling_limits;
     std::string stats_output_file;
     std::string mmu_profiling_data_output_file;
 };
@@ -79,7 +79,7 @@ auto createMemObject(Config &cfg,
 
 auto runCPUTrace(Processor *processor)
 {
-    std::cout << "\nCPU-trace driven simulation...\n\n";
+    // std::cout << "\nCPU-trace driven simulation...\n\n";
     while (!processor->done())
     {
         processor->tick();
@@ -90,7 +90,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
 {
     std::string cfg_file;
     std::vector<std::string> cpu_traces;
-    std::vector<uint64_t> warmups;
+    std::vector<uint64_t> profiling_limits;
     std::string stats_output;
     std::string mmu_profiling_data_output_file = "N/A";
 
@@ -101,8 +101,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         ("config", po::value<std::string>(&cfg_file)->required(), "Configuration file")
         ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
                       "CPU trace")
-        ("warmup", po::value<std::vector<uint64_t>>(&warmups),
-                   "Number of warmup instructions (used for MMU training, optional)")
+        ("profiling_limit", po::value<std::vector<uint64_t>>(&profiling_limits),
+                   "Number of profiling instructions (Optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
                         "Stats output file")
         ("mmu_profiling_data_output_file",
@@ -133,7 +133,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     
     return ParseArgsRet{cfg_file,
                         cpu_traces,
-                        warmups,
+                        profiling_limits,
                         stats_output,
                         mmu_profiling_data_output_file};
 }

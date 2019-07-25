@@ -97,9 +97,6 @@ class MFUPageToNearRows : public TrainedMMU
 
     // mem_addr_decoding_bits is used to determine the physical location of the page.
     const std::vector<int> mem_addr_decoding_bits;
-
-    // Percentage of the touched pages to be re-allocated.
-    const double perc_re_alloc;
   
   public:
     MFUPageToNearRows(int num_of_cores, Config &cfg)
@@ -110,7 +107,6 @@ class MFUPageToNearRows : public TrainedMMU
           num_of_near_rows(num_of_rows_per_partition * cfg.num_of_parts /
                            cfg.num_stages),
 	  mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
-          perc_re_alloc(cfg.perc_re_alloc),
           max_near_page_row_id(num_of_near_rows - 1),
           max_near_page_col_id(num_of_cache_lines_per_row - 1),
           max_near_page_dep_id(cfg.num_of_ranks)

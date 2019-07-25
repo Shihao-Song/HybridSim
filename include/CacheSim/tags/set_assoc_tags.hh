@@ -125,6 +125,18 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         blk->clearMMUCommu();
     }
 
+    void reInitialize() override
+    {
+        for (unsigned i = 0; i < num_blocks; i++)
+        {
+            blks[i].invalidate();
+            blks[i].clearDirty();
+            blks[i].clearMMUCommu();
+            blks[i].when_touched = 0;
+        }
+        tagsInit();
+    }
+
     void printTagInfo() override
     {
         std::cout << "Assoc: " << assoc << "\n";

@@ -42,6 +42,22 @@ class CPAwareController : public FRFCFSController
         }
     }
 
+    void reInitialize() override
+    {
+        for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+        {
+            stage_accesses[i].clear();
+            stage_accesses[i].shrink_to_fit();
+            stage_total_charging_time[i].clear();
+            stage_total_charging_time[i].shrink_to_fit();
+
+            stage_accesses[i].resize(num_stages, 0);
+            stage_total_charging_time[i].resize(num_stages, 0);
+        }
+
+        BaseController::reInitialize();
+    }
+    
     unsigned numStages() const
     {
         return num_stages;
@@ -51,6 +67,7 @@ class CPAwareController : public FRFCFSController
     {
         return stage_accesses[cp_opr][stage];
     }
+
 
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
     {

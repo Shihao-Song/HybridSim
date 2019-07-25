@@ -56,6 +56,17 @@ class Array
         }
     }
 
+    void reInitialize()
+    {
+        cur_clk = 0;
+        next_free = 0;
+
+        for (auto &child : children)
+        {
+            child->reInitialize();
+        }
+    }
+
     struct Info
     {
         // Timing and energy parameters

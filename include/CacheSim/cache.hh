@@ -463,6 +463,17 @@ class Cache : public Simulator::MemObject
 	clk++;
     }
 
+    void reInitialize() override
+    {
+        clk = 0;
+        tags->reInitialize();
+
+        if (!boundary)
+        {
+            next_level->reInitialize();
+        }
+    }
+
     void registerStats(Simulator::Stats &stats) override
     {
         std::string registeree_name = level_name;

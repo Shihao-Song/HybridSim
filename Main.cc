@@ -5,6 +5,7 @@
 
 void FullSystemSimulation(std::string cfg_file,
                           std::vector<std::string> trace_lists,
+                          std::vector<uint64_t> profiling_limits,
                           std::string stats_output_file,
                           std::string mmu_profiling_data_output_file);
 
@@ -12,19 +13,21 @@ int main(int argc, const char *argv[])
 {
     auto [cfg_file,
           trace_lists,
-          warmup_instrs,
+          profiling_limits,
           stats_output_file,
           mmu_profiling_data_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
     FullSystemSimulation(cfg_file,
                          trace_lists,
+                         profiling_limits,
                          stats_output_file,
                          mmu_profiling_data_output_file);
 }
 
 void FullSystemSimulation(std::string cfg_file,
                           std::vector<std::string> trace_lists,
+                          std::vector<uint64_t> profiling_limits,
                           std::string stats_output_file,
                           std::string mmu_profiling_data_output_file)
 {
@@ -74,6 +77,18 @@ void FullSystemSimulation(std::string cfg_file,
     }
     
     /* Simulation */
+    if (profiling_limits.size())
+    {
+        // Nofity processor that we are in profiling stage;
+        processor->profiling(profiling_limits);
+        std::cout << "\nProfiling Stage...\n\n";
+        runCPUTrace(processor.get());
+
+        // Re-initialize all the states.
+        processor->reInitialize();
+    }
+
+    std::cout << "\nSimulation Stage...\n\n";
     runCPUTrace(processor.get());
 
     /* Optional, collecting MMU trained data */

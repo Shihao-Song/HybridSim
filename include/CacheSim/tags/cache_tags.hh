@@ -43,6 +43,8 @@ class Tags
     // return val: <write-back required?, write-back address>
     virtual std::pair<bool, Addr> insertBlock(Addr addr, bool modify, Tick cur_clk = 0) = 0;
 
+    virtual void reInitialize() {}
+    
     // Advanced features, MMU communications
     virtual void recordMMUCommu(Addr,Addr,std::function<void(Simulator::Request&)>) {}
     virtual std::pair<Addr, std::function<void(Simulator::Request&)>> retriMMUCommu(Addr) = 0;

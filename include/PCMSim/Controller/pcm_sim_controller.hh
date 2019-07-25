@@ -51,6 +51,14 @@ class BaseController
     // tick
     virtual void tick() {}
 
+    virtual void reInitialize()
+    {
+        clk = 0;
+
+        // Re-initialize channel as well
+        channel->reInitialize();
+    }
+
      // Some Proxy functions
   protected:
     auto issueable(auto req)
@@ -155,6 +163,7 @@ class FCFSController : public BaseController
             r_w_q.erase(scheduled_req);
         }
     }
+
 
   protected:
     void servePendingAccesses()

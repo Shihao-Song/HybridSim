@@ -113,6 +113,19 @@ class FATags : public TagsWithFABlk
         std::cout << "Number of blocks: " << num_blocks << "\n";
     }
 
+    void reInitialize() override
+    {
+        for (unsigned i = 0; i < num_blocks; i++)
+        {
+            blks[i].invalidate();
+            blks[i].clearDirty();
+            blks[i].clearMMUCommu();
+            blks[i].when_touched = 0;
+        }
+        tagHash.clear();
+        tagsInit();
+    }
+
   protected:
     void tagsInit() override
     {

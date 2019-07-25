@@ -45,6 +45,9 @@ class MemObject
 
     virtual void registerStats(Stats &stats) {}
 
+    // Re-initialize cache
+    virtual void reInitialize() {}
+
     // Do we want to extract memory traces from this mem_object?
     virtual void setTraceOutput(const char* file)
     {
