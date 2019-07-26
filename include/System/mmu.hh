@@ -40,7 +40,6 @@ class MMU
     }
 };
 
-// In this simulator, we mainly focus on the TrainedMMU.
 class TrainedMMU : public MMU
 {
   public:

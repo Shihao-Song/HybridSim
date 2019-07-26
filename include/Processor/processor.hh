@@ -349,7 +349,7 @@ class Processor
     Tick cycles;
 
     std::vector<std::unique_ptr<Core>> cores;
-    MemObject *shared_m_obj; // L3 and below
+    MemObject *shared_m_obj;
 };
 }
 

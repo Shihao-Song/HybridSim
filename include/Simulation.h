@@ -79,7 +79,6 @@ auto createMemObject(Config &cfg,
 
 auto runCPUTrace(Processor *processor)
 {
-    // std::cout << "\nCPU-trace driven simulation...\n\n";
     while (!processor->done())
     {
         processor->tick();
