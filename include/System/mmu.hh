@@ -81,11 +81,10 @@ class TrainedMMU : public MMU
     }
 };
 
-// Strategy 1, bring MFU pages to the near rows.
 // TODO, Limitations
 // (1) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank, 1 GB bank;
 // (2) I assume Decoding is Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
-class MFUPageToNearRows : public TrainedMMU
+class NearRegionAware : public TrainedMMU
 {
   protected:
     const unsigned num_of_rows_per_partition;
@@ -96,42 +95,20 @@ class MFUPageToNearRows : public TrainedMMU
 
     // mem_addr_decoding_bits is used to determine the physical location of the page.
     const std::vector<int> mem_addr_decoding_bits;
-  
+
   public:
-    MFUPageToNearRows(int num_of_cores, Config &cfg)
+    NearRegionAware(int num_of_cores, Config &cfg)
         : TrainedMMU(num_of_cores, cfg),
           num_of_rows_per_partition(cfg.num_of_word_lines_per_tile),
-          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size * 
+          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size *
                                      cfg.num_of_tiles),
           num_of_near_rows(num_of_rows_per_partition * cfg.num_of_parts /
                            cfg.num_stages),
-	  mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
+          mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
           max_near_page_row_id(num_of_near_rows - 1),
           max_near_page_col_id(num_of_cache_lines_per_row - 1),
           max_near_page_dep_id(cfg.num_of_ranks)
     {}
-
-    void va2pa(Request &req) override;
-    void printProfiling() override
-    {
-        std::vector<RWCount> profiling_data;
-        for (auto [key, value] : first_touch_instructions)
-        {
-            profiling_data.push_back(value);
-        }
-        std::sort(profiling_data.begin(), profiling_data.end(),
-                  [](const RWCount &a, const RWCount &b)
-                  {
-                      return (a.reads + a.writes) > (b.reads + b.writes);
-                  });
-        for (auto entry : profiling_data)
-        {
-            mmu_profiling_data_out << entry.eip << " "
-                                   << entry.reads << " "
-                                   << entry.writes << "\n";
-        }
-    }
-
   // Define data structures
   protected:
     const unsigned max_near_page_row_id;
@@ -172,6 +149,40 @@ class MFUPageToNearRows : public TrainedMMU
     };
     typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
 
+    bool near_region_full = false;
+    PageLoc cur_re_alloc_page;
+    void nextReAllocPage();    
+};
+
+// Strategy 1, bring MFU pages to the near rows.
+class MFUPageToNearRows : public NearRegionAware
+{
+  public:
+    MFUPageToNearRows(int num_of_cores, Config &cfg)
+        : NearRegionAware(num_of_cores, cfg)
+    {}
+
+    void va2pa(Request &req) override;
+    void printProfiling() override
+    {
+        std::vector<RWCount> profiling_data;
+        for (auto [key, value] : first_touch_instructions)
+        {
+            profiling_data.push_back(value);
+        }
+        std::sort(profiling_data.begin(), profiling_data.end(),
+                  [](const RWCount &a, const RWCount &b)
+                  {
+                      return (a.reads + a.writes) > (b.reads + b.writes);
+                  });
+        for (auto entry : profiling_data)
+        {
+            mmu_profiling_data_out << entry.eip << " "
+                                   << entry.reads << " "
+                                   << entry.writes << "\n";
+        }
+    }
+
   protected:
     void inference(Request&);
     void profiling(Request&);
@@ -207,11 +218,9 @@ class MFUPageToNearRows : public TrainedMMU
         uint64_t writes = 0;
     };
     std::unordered_map<Addr,RWCount> first_touch_instructions;
-
-    bool near_region_full = false;
-    PageLoc cur_near_page;
-    void nextNearPage();
 };
+
+// Strategy 2, give the control of near pages to memory controller.
 }
 
 #endif

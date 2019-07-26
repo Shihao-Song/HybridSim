@@ -2,6 +2,34 @@
 
 namespace System
 {
+void NearRegionAware::nextReAllocPage()
+{
+    if (cur_re_alloc_page.col_id + 2 >= max_near_page_col_id)
+    {
+        cur_re_alloc_page.col_id = 0;
+        if (cur_re_alloc_page.row_id + 1 >= max_near_page_row_id)
+        {
+            cur_re_alloc_page.row_id = 0;
+            if (cur_re_alloc_page.dep_id + 1 >= max_near_page_dep_id)
+            {
+                near_region_full = true;
+            }
+            else
+            {
+                cur_re_alloc_page.dep_id = cur_re_alloc_page.dep_id + 1;
+            }
+        }
+        else
+        {
+            cur_re_alloc_page.row_id = cur_re_alloc_page.row_id + 1;
+        }
+    }
+    else
+    {
+        cur_re_alloc_page.col_id = cur_re_alloc_page.col_id + 2;
+    }
+}
+
 void MFUPageToNearRows::va2pa(Request &req)
 {
     Addr pc = req.eip;
@@ -71,10 +99,10 @@ void MFUPageToNearRows::inference(Request &req)
              iter != first_touch_instructions.end())
     {
         // Allocate at near row, naive implementations;
-        int new_part_id = cur_near_page.row_id / num_of_rows_per_partition;
-        int new_row_id = cur_near_page.row_id % num_of_rows_per_partition;
-        int new_col_id = cur_near_page.col_id;
-        int new_rank_id = cur_near_page.dep_id;
+        int new_part_id = cur_re_alloc_page.row_id / num_of_rows_per_partition;
+        int new_row_id = cur_re_alloc_page.row_id % num_of_rows_per_partition;
+        int new_col_id = cur_re_alloc_page.col_id;
+        int new_rank_id = cur_re_alloc_page.dep_id;
 
         std::vector<int> dec_addr;
         dec_addr.resize(mem_addr_decoding_bits.size());
@@ -92,35 +120,7 @@ void MFUPageToNearRows::inference(Request &req)
         Addr new_page_id = new_pa >> Mapper::va_page_shift;
         re_alloc_pages.insert({page_id, new_page_id});
 
-        nextNearPage();
-    }
-}
-
-void MFUPageToNearRows::nextNearPage()
-{
-    if (cur_near_page.col_id + 2 >= max_near_page_col_id)
-    {
-        cur_near_page.col_id = 0;
-        if (cur_near_page.row_id + 1 >= max_near_page_row_id)
-        {
-            cur_near_page.row_id = 0;
-            if (cur_near_page.dep_id + 1 >= max_near_page_dep_id)
-            {
-                near_region_full = true;
-            }
-            else
-            {
-                cur_near_page.dep_id = cur_near_page.dep_id + 1;
-            }
-        }
-        else
-        {
-            cur_near_page.row_id = cur_near_page.row_id + 1;
-        }
-    }
-    else
-    {
-        cur_near_page.col_id = cur_near_page.col_id + 2;
+        nextReAllocPage();
     }
 }
 }
