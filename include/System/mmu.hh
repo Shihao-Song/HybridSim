@@ -220,7 +220,24 @@ class MFUPageToNearRows : public NearRegionAware
     std::unordered_map<Addr,RWCount> first_touch_instructions;
 };
 
-// Strategy 2, give the control of near pages to memory controller.
+// Strategy 2, give the control of near pages to memory controller. Only pages outside
+// near region are accessible to user applications.
+class HiddenNearRows : public NearRegionAware
+{
+  public:
+    HiddenNearRows(int num_of_cores, Config &cfg)
+        : NearRegionAware(num_of_cores, cfg)
+    {
+        // Re-allocation should bypass the near region.
+        cur_re_alloc_page.row_id = num_of_near_rows;
+    }
+
+    void va2pa(Request &req) override;
+  // If a page is mapped in the near region (by the Mapper), we should re-allocate it 
+  // to further regions.
+  protected:
+    std::unordered_map<Addr,Addr> re_alloc_pages;
+};
 }
 
 #endif

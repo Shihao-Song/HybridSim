@@ -32,7 +32,6 @@ void NearRegionAware::nextReAllocPage()
 
 void MFUPageToNearRows::va2pa(Request &req)
 {
-    Addr pc = req.eip;
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
 
@@ -107,6 +106,58 @@ void MFUPageToNearRows::inference(Request &req)
         std::vector<int> dec_addr;
         dec_addr.resize(mem_addr_decoding_bits.size());
         Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
+
+        dec_addr[int(Config::Decoding::Partition)] = new_part_id;
+        dec_addr[int(Config::Decoding::Row)] = new_row_id;
+        dec_addr[int(Config::Decoding::Col)] = new_col_id;
+        dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
+
+        Addr new_pa = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+
+        req.addr = new_pa; // Replace with the new PA
+
+        Addr new_page_id = new_pa >> Mapper::va_page_shift;
+        re_alloc_pages.insert({page_id, new_page_id});
+
+        nextReAllocPage();
+    }
+}
+
+void HiddenNearRows::va2pa(Request &req)
+{
+    Addr pa = mappers[req.core_id].va2pa(req.addr);
+    Addr page_id = pa >> Mapper::va_page_shift;
+    req.addr = pa;
+
+    // Has this page already been re-allocated?
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter != re_alloc_pages.end())
+    {
+        Addr new_page_id = iter->second;
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        return;
+    }
+
+    // Is the mapped page in the near region?
+    std::vector<int> dec_addr;
+    dec_addr.resize(mem_addr_decoding_bits.size());
+    Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
+
+    unsigned row_id = dec_addr[int(Config::Decoding::Partition)] * 
+                      num_of_rows_per_partition + 
+                      dec_addr[int(Config::Decoding::Row)];
+    
+    if (row_id < num_of_near_rows)
+    {
+        // This is a near page, re-allocate it.
+        int new_part_id = cur_re_alloc_page.row_id / num_of_rows_per_partition;
+        int new_row_id = cur_re_alloc_page.row_id % num_of_rows_per_partition;
+        int new_col_id = cur_re_alloc_page.col_id;
+        int new_rank_id = cur_re_alloc_page.dep_id;
 
         dec_addr[int(Config::Decoding::Partition)] = new_part_id;
         dec_addr[int(Config::Decoding::Row)] = new_row_id;
