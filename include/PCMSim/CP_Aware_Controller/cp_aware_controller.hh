@@ -5,6 +5,8 @@
 
 namespace PCMSim
 {
+// TODO, CPAwareController should be built on PLP. Let's gradually build our 
+// research.
 class CPAwareController : public FRFCFSController
 {
   protected:

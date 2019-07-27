@@ -92,6 +92,7 @@ class NearRegionAware : public TrainedMMU
 
     // How many rows are the near rows.
     const unsigned num_of_near_rows;
+    const unsigned num_of_near_parts;
 
     // mem_addr_decoding_bits is used to determine the physical location of the page.
     const std::vector<int> mem_addr_decoding_bits;
@@ -104,19 +105,23 @@ class NearRegionAware : public TrainedMMU
                                      cfg.num_of_tiles),
           num_of_near_rows(num_of_rows_per_partition * cfg.num_of_parts /
                            cfg.num_stages),
+          num_of_near_parts(num_of_near_rows / num_of_rows_per_partition),
           mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
-          max_near_page_row_id(num_of_near_rows - 1),
+          max_near_page_group_id(num_of_near_parts - 1),
+          max_near_page_row_id(num_of_rows_per_partition - 1),
           max_near_page_col_id(num_of_cache_lines_per_row - 1),
           max_near_page_dep_id(cfg.num_of_ranks)
     {}
   // Define data structures
   protected:
+    const unsigned max_near_page_group_id;
     const unsigned max_near_page_row_id;
     const unsigned max_near_page_col_id;
     const unsigned max_near_page_dep_id;
     
     struct PageLoc // Physical location
     {
+        unsigned group_id = 0;
         unsigned row_id = 0;
         unsigned col_id = 0;
         unsigned dep_id = 0;
@@ -151,7 +156,12 @@ class NearRegionAware : public TrainedMMU
 
     bool near_region_full = false;
     PageLoc cur_re_alloc_page;
-    void nextReAllocPage();    
+    void nextReAllocPage();
+
+  protected:
+    // Based on the re-allocated physical page and the original address, return the 
+    // correct physical address.
+    Addr translate(Addr ori_addr, Addr p_page_id);
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -220,6 +230,7 @@ class MFUPageToNearRows : public NearRegionAware
     std::unordered_map<Addr,RWCount> first_touch_instructions;
 };
 
+// TODO, wrong!
 // Strategy 2, give the control of near pages to memory controller. Only pages outside
 // near region are accessible to user applications.
 class HiddenNearRows : public NearRegionAware
@@ -229,7 +240,7 @@ class HiddenNearRows : public NearRegionAware
         : NearRegionAware(num_of_cores, cfg)
     {
         // Re-allocation should bypass the near region.
-        cur_re_alloc_page.row_id = num_of_near_rows;
+        // cur_re_alloc_page.row_id = num_of_near_rows;
     }
 
     void va2pa(Request &req) override;

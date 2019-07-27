@@ -2,32 +2,46 @@
 
 namespace System
 {
+// We want to distribute consecutive pages to different partitions.
 void NearRegionAware::nextReAllocPage()
 {
-    if (cur_re_alloc_page.col_id + 2 >= max_near_page_col_id)
+    if (cur_re_alloc_page.group_id + 1 > max_near_page_group_id)
     {
-        cur_re_alloc_page.col_id = 0;
-        if (cur_re_alloc_page.row_id + 1 >= max_near_page_row_id)
+        cur_re_alloc_page.group_id = 0;
+        if (cur_re_alloc_page.col_id + 2 >= max_near_page_col_id)
         {
-            cur_re_alloc_page.row_id = 0;
-            if (cur_re_alloc_page.dep_id + 1 >= max_near_page_dep_id)
+            cur_re_alloc_page.col_id = 0;
+            if (cur_re_alloc_page.row_id + 1 >= max_near_page_row_id)
             {
-                near_region_full = true;
+                cur_re_alloc_page.row_id = 0;
+                if (cur_re_alloc_page.dep_id + 1 >= max_near_page_dep_id)
+                {
+                    near_region_full = true;
+                }
+                else
+                {
+                    cur_re_alloc_page.dep_id = cur_re_alloc_page.dep_id + 1;
+                }
             }
             else
             {
-                cur_re_alloc_page.dep_id = cur_re_alloc_page.dep_id + 1;
+                cur_re_alloc_page.row_id = cur_re_alloc_page.row_id + 1;
             }
         }
         else
         {
-            cur_re_alloc_page.row_id = cur_re_alloc_page.row_id + 1;
+            cur_re_alloc_page.col_id = cur_re_alloc_page.col_id + 2;
         }
     }
     else
     {
-        cur_re_alloc_page.col_id = cur_re_alloc_page.col_id + 2;
+        cur_re_alloc_page.group_id = cur_re_alloc_page.group_id + 1;
     }
+}
+
+Addr NearRegionAware::translate(Addr ori_addr, Addr p_page_id)
+{
+
 }
 
 void MFUPageToNearRows::va2pa(Request &req)
@@ -85,6 +99,8 @@ void MFUPageToNearRows::inference(Request &req)
              iter != re_alloc_pages.end())
     {
         Addr new_page_id = iter->second;
+        
+	// TODO, there should be a function in base handles this.
         Addr new_pa = new_page_id << Mapper::va_page_shift |
                       pa & Mapper::va_page_mask;
 
@@ -97,9 +113,13 @@ void MFUPageToNearRows::inference(Request &req)
     if (auto iter = first_touch_instructions.find(pc);
              iter != first_touch_instructions.end())
     {
+        std::cout << cur_re_alloc_page.group_id << " "
+                  << cur_re_alloc_page.row_id << " "
+                  << cur_re_alloc_page.col_id << " "
+                  << cur_re_alloc_page.dep_id << "\n";
         // Allocate at near row, naive implementations;
-        int new_part_id = cur_re_alloc_page.row_id / num_of_rows_per_partition;
-        int new_row_id = cur_re_alloc_page.row_id % num_of_rows_per_partition;
+        int new_part_id = cur_re_alloc_page.group_id;
+        int new_row_id = cur_re_alloc_page.row_id;
         int new_col_id = cur_re_alloc_page.col_id;
         int new_rank_id = cur_re_alloc_page.dep_id;
 
@@ -107,22 +127,34 @@ void MFUPageToNearRows::inference(Request &req)
         dec_addr.resize(mem_addr_decoding_bits.size());
         Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
 
+        // TODO, there should be a function in base handles this.
+        // Record the old column ID, we need to consider this relative information.
+        int old_col_id = dec_addr[int(Config::Decoding::Col)];
+
         dec_addr[int(Config::Decoding::Partition)] = new_part_id;
         dec_addr[int(Config::Decoding::Row)] = new_row_id;
         dec_addr[int(Config::Decoding::Col)] = new_col_id;
         dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
 
+        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
+                           >> Mapper::va_page_shift;
+
+        if (old_col_id % 2 != 0)
+        {
+            dec_addr[int(Config::Decoding::Col)] += 1;
+        }
         Addr new_pa = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
 
         req.addr = new_pa; // Replace with the new PA
 
-        Addr new_page_id = new_pa >> Mapper::va_page_shift;
         re_alloc_pages.insert({page_id, new_page_id});
 
         nextReAllocPage();
     }
 }
 
+/*
+// TODO, wrong!
 void HiddenNearRows::va2pa(Request &req)
 {
     Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -154,8 +186,8 @@ void HiddenNearRows::va2pa(Request &req)
     if (row_id < num_of_near_rows)
     {
         // This is a near page, re-allocate it.
-        int new_part_id = cur_re_alloc_page.row_id / num_of_rows_per_partition;
-        int new_row_id = cur_re_alloc_page.row_id % num_of_rows_per_partition;
+        int new_part_id = cur_re_alloc_page.group_id;
+        int new_row_id = cur_re_alloc_page.row_id;
         int new_col_id = cur_re_alloc_page.col_id;
         int new_rank_id = cur_re_alloc_page.dep_id;
 
@@ -174,4 +206,5 @@ void HiddenNearRows::va2pa(Request &req)
         nextReAllocPage();
     }
 }
+*/
 }
