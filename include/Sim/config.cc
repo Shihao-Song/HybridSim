@@ -118,11 +118,6 @@ void Config::parse(const std::string &fname)
         {
             extractCacheInfo(Cache_Level::eDRAM, tokens);
         }
-        else if(tokens[0] == "charge_pump_info")
-        {
-            charge_pump_info = tokens[1];
-            parseChargePumpInfo(charge_pump_info);
-        }
         else if(tokens[0] == "mem_controller_type")
         {
             mem_controller_type = tokens[1];

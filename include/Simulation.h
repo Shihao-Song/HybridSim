@@ -37,6 +37,7 @@ enum class Memories : int
 struct ParseArgsRet
 {
     std::string cfg_file;
+    std::string charge_pump_info;
     std::vector<std::string> trace_lists;
     std::vector<uint64_t> profiling_limits;
     std::string stats_output_file;
@@ -88,6 +89,7 @@ auto runCPUTrace(Processor *processor)
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
     std::string cfg_file;
+    std::string charge_pump_info_file;
     std::vector<std::string> cpu_traces;
     std::vector<uint64_t> profiling_limits;
     std::string stats_output;
@@ -98,6 +100,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     desc.add_options() 
         ("help", "Print help messages")
         ("config", po::value<std::string>(&cfg_file)->required(), "Configuration file")
+        ("charge_pump_info", po::value<std::string>(&charge_pump_info_file)->required(),
+                             "Charge pump info file")
         ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
                       "CPU trace")
         ("profiling_limit", po::value<std::vector<uint64_t>>(&profiling_limits),
@@ -131,6 +135,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     }
     
     return ParseArgsRet{cfg_file,
+                        charge_pump_info_file,
                         cpu_traces,
                         profiling_limits,
                         stats_output,

@@ -3,7 +3,7 @@
 
 #include "Simulation.h"
 
-void FullSystemSimulation(std::string cfg_file,
+void FullSystemSimulation(Config &cfg,
                           std::vector<std::string> trace_lists,
                           std::vector<uint64_t> profiling_limits,
                           std::string stats_output_file,
@@ -12,26 +12,13 @@ void FullSystemSimulation(std::string cfg_file,
 int main(int argc, const char *argv[])
 {
     auto [cfg_file,
+          charge_pump_info,
           trace_lists,
           profiling_limits,
           stats_output_file,
           mmu_profiling_data_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
-
-    FullSystemSimulation(cfg_file,
-                         trace_lists,
-                         profiling_limits,
-                         stats_output_file,
-                         mmu_profiling_data_output_file);
-}
-
-void FullSystemSimulation(std::string cfg_file,
-                          std::vector<std::string> trace_lists,
-                          std::vector<uint64_t> profiling_limits,
-                          std::string stats_output_file,
-                          std::string mmu_profiling_data_output_file)
-{
-    unsigned num_of_cores = trace_lists.size();
+    
     std::cout << "\nConfiguration file: " << cfg_file << "\n";
     std::cout << "Stats output file: " << stats_output_file << "\n";
     if (mmu_profiling_data_output_file != "N/A")
@@ -40,9 +27,24 @@ void FullSystemSimulation(std::string cfg_file,
                   << mmu_profiling_data_output_file << "\n\n";
     }
 
-    /* Memory System Creation */
     Config cfg(cfg_file);
+    cfg.parseChargePumpInfo(charge_pump_info.c_str());
+    FullSystemSimulation(cfg,
+                         trace_lists,
+                         profiling_limits,
+                         stats_output_file,
+                         mmu_profiling_data_output_file);
+}
 
+void FullSystemSimulation(Config &cfg,
+                          std::vector<std::string> trace_lists,
+                          std::vector<uint64_t> profiling_limits,
+                          std::string stats_output_file,
+                          std::string mmu_profiling_data_output_file)
+{
+    unsigned num_of_cores = trace_lists.size();
+    
+    /* Memory System Creation */
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 

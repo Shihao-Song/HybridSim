@@ -157,11 +157,6 @@ class NearRegionAware : public TrainedMMU
     bool near_region_full = false;
     PageLoc cur_re_alloc_page;
     void nextReAllocPage();
-
-  protected:
-    // Based on the re-allocated physical page and the original address, return the 
-    // correct physical address.
-    Addr translate(Addr ori_addr, Addr p_page_id);
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -230,7 +225,6 @@ class MFUPageToNearRows : public NearRegionAware
     std::unordered_map<Addr,RWCount> first_touch_instructions;
 };
 
-// TODO, wrong!
 // Strategy 2, give the control of near pages to memory controller. Only pages outside
 // near region are accessible to user applications.
 class HiddenNearRows : public NearRegionAware
