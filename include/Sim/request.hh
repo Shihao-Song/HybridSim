@@ -93,6 +93,24 @@ class Request
 class PLPRequest : public Request
 {
   public:
+    PLPRequest() : Request() {}
+
+    PLPRequest(Request &req) : Request()
+    { 
+        core_id = req.core_id;
+
+        eip = req.eip;
+        setMMUCommuFunct(req.getMMUCommuFunct());
+
+        addr = req.addr;
+        addr_vec = req.addr_vec;
+        size = req.size;
+
+        req_type = req.req_type;
+
+        callback = req.callback;
+    }
+
     // when OoO is enabled
     int OrderID;
 
@@ -111,9 +129,9 @@ class PLPRequest : public Request
     int slave = 0;
 
     // PLP related, master maintains a pointer to slave
-    std::list<Request>::iterator slave_req;
+    std::list<PLPRequest>::iterator slave_req;
     // PLP related, slave maintains a pointer to master
-    std::list<Request>::iterator master_req;
+    std::list<PLPRequest>::iterator master_req;
 };
 
 }

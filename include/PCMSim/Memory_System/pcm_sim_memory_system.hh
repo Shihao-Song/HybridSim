@@ -149,6 +149,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<PLPController> PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
@@ -175,7 +176,8 @@ class PCMSimMemorySystemFactory
 
         factories["CP-AWARE"] = [](Config &cfg)
                             {
-                                return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
+                                // return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
+                                return std::make_unique<PLP_PCMSimMemorySystem>(cfg);
                             };
     }
 
