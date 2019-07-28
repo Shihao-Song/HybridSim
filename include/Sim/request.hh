@@ -120,7 +120,7 @@ class PLPRequest : public Request
         RR, // Two reads scheduled in parallel
         RW, // One read and one write scheduled in parallel
         MAX
-    }pair_type;
+    }pair_type = Pairing_Type::MAX;
 
     // PLP related, master: request whose OrderID and queue arrival time are smaller
     int master = 0;

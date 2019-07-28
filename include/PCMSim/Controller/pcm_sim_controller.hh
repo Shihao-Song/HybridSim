@@ -85,9 +85,11 @@ class BaseController
 
     auto displayReqInfo(auto &req)
     {
-        std::cout << req.addr_vec[int(Config::Decoding::Channel)] << ","
-                  << req.addr_vec[int(Config::Decoding::Rank)] << ","
-                  << req.addr_vec[int(Config::Decoding::Bank)] << ",";
+        std::cout << "C:" << req.addr_vec[int(Config::Decoding::Channel)] << ","
+                  << "R:" << req.addr_vec[int(Config::Decoding::Rank)] << ","
+                  << "B:" << req.addr_vec[int(Config::Decoding::Bank)] << ","
+                  << "P:" << req.addr_vec[int(Config::Decoding::Partition)] << ","
+                  << "R:" << req.addr_vec[int(Config::Decoding::Row)] << ",";
 
         if (req.req_type == Request::Request_Type::READ)
         {
