@@ -99,9 +99,39 @@ class Array
     {
         return singleWriteLatency();
     }
+    unsigned activationLatency() const
+    {
+        return arr_info.tRCD;
+    }
     unsigned dataTransferLatency() const
     {
         return arr_info.tData;
+    }
+    // For our PLP technique
+    unsigned readWithReadLatency() const
+    {
+        return arr_info.tRCD +
+               arr_info.tRCD +
+               arr_info.tRCD +
+               arr_info.tCL +
+               arr_info.tData +
+               arr_info.tRCD +
+               arr_info.tData;
+    }
+    unsigned readWhileWriteLatency() const
+    {
+        return singleWriteLatency() + arr_info.tRCD;
+    }
+    double powerPerBitRead() const
+    {
+        return arr_info.pj_bit_rd /
+               singleReadLatency();
+    }
+    double powerPerBitWrite() const
+    {
+        return (arr_info.pj_bit_set +
+                arr_info.pj_bit_reset) /
+                2.0 / singleWriteLatency();
     }
 
     typename Config::Array_Level level;

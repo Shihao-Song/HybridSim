@@ -8,6 +8,7 @@
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
+#include "PCMSim/PLP_Controller/pcm_sim_plp_controller.hh"
 
 #include <functional>
 #include <iostream>
