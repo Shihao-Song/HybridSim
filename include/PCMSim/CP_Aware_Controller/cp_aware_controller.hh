@@ -5,8 +5,6 @@
 
 namespace PCMSim
 {
-// TODO, CPAwareController should be built on PLP. Let's gradually build our 
-// research.
 class CPAwareController : public FRFCFSController
 {
   protected:
@@ -69,7 +67,6 @@ class CPAwareController : public FRFCFSController
     {
         return stage_accesses[cp_opr][stage];
     }
-
 
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
     {
