@@ -28,7 +28,7 @@ void PLPController::servePendingAccesses()
 
 void PLPController::channelAccess(std::list<PLPRequest>::iterator& scheduled_req)
 {
-    auto [req_latency, bank_latency, channel_latency] = getLatency(scheduled_req);
+    auto [req_latency, bank_latency, channel_latency] = getLatencies(scheduled_req);
 
     // Post access
     postAccess(scheduled_req,

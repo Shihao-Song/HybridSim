@@ -92,7 +92,7 @@ class PLPController : public BaseController
 
   protected:
     virtual std::tuple<unsigned,unsigned,unsigned> 
-            getLatency(std::list<PLPRequest>::iterator& scheduled_req)
+            getLatencies(std::list<PLPRequest>::iterator& scheduled_req)
     {
         scheduled_req->begin_exe = clk;
 
