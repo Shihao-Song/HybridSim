@@ -59,8 +59,7 @@ class PLPController : public BaseController
         if (auto [scheduled, scheduled_req] = getHead();
             scheduled)
         {
-            // TODO, be aware of slave request!
-//            channelAccess(scheduled_req);
+            channelAccess(scheduled_req);
             if (scheduled_req->master == 1)
             {
                 auto &slave = scheduled_req->slave_req;
@@ -81,14 +80,66 @@ class PLPController : public BaseController
 
     std::pair<bool,std::list<PLPRequest>::iterator> getHead();
 
+    void channelAccess(std::list<PLPRequest>::iterator& scheduled_req);
   // Scheduler
   protected:
-    bool OoOPair(std::list<PLPRequest>::iterator &req);
+    virtual bool OoOPair(std::list<PLPRequest>::iterator &req);
     void powerUpdate(std::list<PLPRequest>::iterator &req);
     void pairForRR(std::list<PLPRequest>::iterator &master,
                    std::list<PLPRequest>::iterator &slave);
     void pairForRW(std::list<PLPRequest>::iterator &master,
                    std::list<PLPRequest>::iterator &slave);
+
+  protected:
+    virtual std::tuple<unsigned,unsigned,unsigned> 
+            getLatency(std::list<PLPRequest>::iterator& scheduled_req)
+    {
+        scheduled_req->begin_exe = clk;
+
+        unsigned req_latency = 0;
+        unsigned bank_latency = 0;
+        unsigned channel_latency = 0;
+
+        if (scheduled_req->master != 1)
+        {
+            if (scheduled_req->req_type == Request::Request_Type::READ)
+            {	
+                req_latency = singleReadLatency;
+                bank_latency = singleReadLatency;
+                channel_latency = dataTransferLatency;
+            }
+            else if (scheduled_req->req_type == Request::Request_Type::WRITE)
+            {
+                req_latency = singleWriteLatency;
+                bank_latency = singleWriteLatency;
+                channel_latency = dataTransferLatency;
+            }
+        }
+        else if (scheduled_req->master == 1)
+        {
+            if (scheduled_req->pair_type == PLPRequest::Pairing_Type::RR)
+            {
+                req_latency = readWithReadLatency;
+                bank_latency = readWithReadLatency;
+                channel_latency = dataTransferLatency;
+            }
+            else if (scheduled_req->pair_type == PLPRequest::Pairing_Type::RW)
+            {
+                req_latency = readWhileWriteLatency;
+                bank_latency = readWhileWriteLatency;
+                channel_latency = dataTransferLatency;
+            }
+
+            // Update slave information
+            scheduled_req->slave_req->begin_exe = clk;
+            scheduled_req->slave_req->end_exe = scheduled_req->slave_req->begin_exe +
+                                                req_latency;
+        }
+
+        scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
+
+        return std::make_tuple(req_latency, bank_latency, channel_latency);
+    }
 
   protected:
     PLPReqQueue r_w_q;

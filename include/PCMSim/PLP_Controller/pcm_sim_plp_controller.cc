@@ -26,6 +26,20 @@ void PLPController::servePendingAccesses()
     }
 }
 
+void PLPController::channelAccess(std::list<PLPRequest>::iterator& scheduled_req)
+{
+    auto [req_latency, bank_latency, channel_latency] = getLatency(scheduled_req);
+
+    // Post access
+    postAccess(scheduled_req,
+               channel_latency,
+               req_latency, // This is rank latency for other ranks.
+                            // Since there is no rank-level parall,
+                            // other ranks must wait until the current rank
+                            // to be fully de-coupled.
+               bank_latency);
+}
+
 std::pair<bool,std::list<PLPRequest>::iterator> PLPController::getHead()
 {
     std::list<PLPRequest>::iterator req = r_w_q.queue.begin();
