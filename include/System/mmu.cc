@@ -140,8 +140,13 @@ void MFUPageToNearRows::inference(Request &req)
     }
 }
 
-/*
-// TODO, wrong!
+// Strategy 2, give the control of near pages to memory controller. Only pages outside
+// near region are accessible.
+void HiddenNearRows::nextReAllocPage()
+{
+
+}
+
 void HiddenNearRows::va2pa(Request &req)
 {
     Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -193,5 +198,4 @@ void HiddenNearRows::va2pa(Request &req)
         nextReAllocPage();
     }
 }
-*/
 }

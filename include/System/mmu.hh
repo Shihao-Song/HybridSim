@@ -156,7 +156,7 @@ class NearRegionAware : public TrainedMMU
 
     bool near_region_full = false;
     PageLoc cur_re_alloc_page;
-    void nextReAllocPage();
+    virtual void nextReAllocPage();
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -226,7 +226,7 @@ class MFUPageToNearRows : public NearRegionAware
 };
 
 // Strategy 2, give the control of near pages to memory controller. Only pages outside
-// near region are accessible to user applications.
+// near region are accessible.
 class HiddenNearRows : public NearRegionAware
 {
   public:
@@ -242,6 +242,7 @@ class HiddenNearRows : public NearRegionAware
   // to further regions.
   protected:
     std::unordered_map<Addr,Addr> re_alloc_pages;
+    void nextReAllocPage() override;
 };
 }
 
