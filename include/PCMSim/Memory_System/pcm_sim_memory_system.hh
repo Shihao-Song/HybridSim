@@ -8,6 +8,7 @@
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
+#include "PCMSim/CP_Aware_Controller/cp_aware_controller_plp.hh"
 #include "PCMSim/PLP_Controller/pcm_sim_plp_controller.hh"
 
 #include <functional>
@@ -151,6 +152,7 @@ typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<PLPController> PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<PLPCPAwareController> CP_Aware_PLP_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
