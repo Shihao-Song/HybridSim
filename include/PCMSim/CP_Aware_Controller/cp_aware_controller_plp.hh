@@ -216,27 +216,6 @@ class PLPCPAwareController : public PLPController
         scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
         return req_latency;
     }
-    /*
-    void channelAccess(std::list<Request>::iterator& scheduled_req) override
-    {
-        // Step one, to determine stage level.
-        int part_id = scheduled_req->addr_vec[int(Config::Decoding::Partition)];
-        int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
-        unsigned stage_id = (part_id * num_rows_per_partition + row_id) /
-                            num_rows_per_stage;
-	
-        // Step two, to determine timings.
-        
-                // Post access
-        postAccess(scheduled_req,
-                   channel_latency,
-                   req_latency, // This is rank latency for other ranks.
-                                // Since there is no rank-level parall,
-                                // other ranks must wait until the current rank
-                                // to be fully de-coupled.
-                   bank_latency);
-    }
-    */
 };
 }
 
