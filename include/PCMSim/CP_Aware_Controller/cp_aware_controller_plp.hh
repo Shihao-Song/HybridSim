@@ -72,20 +72,79 @@ class PLPCPAwareController : public PLPController
     std::tuple<unsigned,unsigned,unsigned>
             getLatencies(std::list<PLPRequest>::iterator& scheduled_req) override
     {
+                
+        // Determine charging latency and operation latency
+        unsigned charging_latency = 0;
+        unsigned opr_latency = 0;
+
+        if (scheduled_req->master == 1)
+        {
+            if (scheduled_req->pair_type == PLPRequest::Pairing_Type::RR)
+            {
+                // In this case, the opreration latency is readWithRead
+                opr_latency = readWithReadLatency;
+                // The charging latency is determined by the highest stage
+                unsigned charging_stage = getHighestStageID(scheduled_req);
+                charging_latency =
+                    charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)]
+                                             [charging_stage].nclks_charge_or_discharge;
+            }
+            else if (scheduled_req->pair_type == PLPRequest::Pairing_Type::RW)
+            {
+                // In this case, the operation latency is readWhileWriteLatency.
+                opr_latency = readWhileWriteLatency;
+                // The charging latency is determined by the WRITE request
+                int charging_stage = -1;
+                if (scheduled_req->req_type == Request::Request_Type::WRITE)
+                {
+                    charging_stage = getStageID(scheduled_req);
+                }
+                else if (scheduled_req->slave_req->req_type == Request::Request_Type::WRITE)
+                {
+                    charging_stage = getStageID(scheduled_req->slave_req);
+                }
+                charging_latency = 
+                    charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)]
+                                       [charging_stage].nclks_charge_or_discharge;
+            }
+        }
+        else
+	{
+            int charging_stage = getStageID(scheduled_req);
+            if (scheduled_req->req_type == Request::Request_Type::READ)
+            {
+                opr_latency = singleReadLatency;
+                charging_latency =
+                    charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)]
+                                             [charging_stage].nclks_charge_or_discharge;
+            }
+            else if (scheduled_req->req_type == Request::Request_Type::WRITE)
+            {
+                opr_latency = singleWriteLatency;
+                charging_latency =
+                    charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)]
+                                       [charging_stage].nclks_charge_or_discharge;
+            }
+	}
+
         unsigned req_latency = 0;
         unsigned bank_latency = 0;
         unsigned channel_latency = 0;
-    
-        // Determine charging stage
-        unsigned charging_stage = getStageID(scheduled_req);
+
+        req_latency = setLatencies(scheduled_req,
+                                   opr_latency,
+                                   charging_latency);
         if (scheduled_req->master == 1)
         {
-            if (unsigned slave_stage = getStageID(scheduled_req->slave_req);
-                slave_stage > charging_stage)
-            {
-                charging_stage = slave_stage;
-            }
+            setLatencies(scheduled_req->slave_req,
+                         opr_latency,
+                         charging_latency);
         }
+
+        bank_latency = req_latency;
+        channel_latency = dataTransferLatency;
+
+        return std::make_tuple(req_latency, bank_latency, channel_latency);
     }
 
   protected:
@@ -100,14 +159,27 @@ class PLPCPAwareController : public PLPController
         return stage_id;
     }
 
+    unsigned getHighestStageID(auto scheduled_req) const
+    {
+        unsigned charging_stage = getStageID(scheduled_req);
+        if (scheduled_req->master == 1)
+        {
+            if (unsigned slave_stage = getStageID(scheduled_req->slave_req);
+                slave_stage > charging_stage)
+            {
+                charging_stage = slave_stage;
+            }
+        }
+    }
+
     // Return back the request latency.
     Tick setLatencies(auto scheduled_req,
-                      Tick begin_exe,
-                      unsigned req_stage,
-                      unsigned charging_stage)
+                      unsigned opr_latency,
+                      unsigned charging_latency)
     {
+        int req_stage = getStageID(scheduled_req);
+
         unsigned req_latency = 0;
-        unsigned charging_latency = 0;
 
         scheduled_req->begin_exe = clk;
         if (scheduled_req->req_type == Request::Request_Type::READ)
@@ -115,10 +187,7 @@ class PLPCPAwareController : public PLPController
             // stage access is determined by the request stage.
             ++stage_accesses[int(Config::Charge_Pump_Opr::READ)][req_stage];
             
-            // charging latency is determined by the charging stage.
-	    charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)]
-                                                  [charging_stage].nclks_charge_or_discharge;
-	    req_latency = charging_latency + singleReadLatency + charging_latency;
+	    req_latency = charging_latency + opr_latency + charging_latency;
            
             // stage charging time is determined by the request stage.
 	    stage_total_charging_time[int(Config::Charge_Pump_Opr::READ)][req_stage] +=
@@ -130,11 +199,7 @@ class PLPCPAwareController : public PLPController
             ++stage_accesses[int(Config::Charge_Pump_Opr::SET)][req_stage];
             ++stage_accesses[int(Config::Charge_Pump_Opr::RESET)][req_stage];
 
-            // charging latency is determined by the charging stage
-            charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)]
-                                                  [charging_stage].nclks_charge_or_discharge;
-
-            req_latency = charging_latency + singleWriteLatency + charging_latency;
+            req_latency = charging_latency + opr_latency + charging_latency;
 
             // stage charging time is determined by the request stage.
             stage_total_charging_time[int(Config::Charge_Pump_Opr::SET)][req_stage] +=
