@@ -12,10 +12,6 @@ void PLPController::servePendingAccesses()
     PLPRequest &req = r_w_pending_queue[0];
     if (req.end_exe <= clk)
     {
-        //if (req.pair_type != PLPRequest::Pairing_Type::MAX)
-	//{
-        // displayReqInfo(req);
-	//}
         if (req.callback)
         {
             if (req.callback(req.addr))

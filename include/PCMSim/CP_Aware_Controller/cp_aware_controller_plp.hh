@@ -72,7 +72,6 @@ class PLPCPAwareController : public PLPController
     std::tuple<unsigned,unsigned,unsigned>
             getLatencies(std::list<PLPRequest>::iterator& scheduled_req) override
     {
-                
         // Determine charging latency and operation latency
         unsigned charging_latency = 0;
         unsigned opr_latency = 0;
@@ -143,7 +142,6 @@ class PLPCPAwareController : public PLPController
 
         bank_latency = req_latency;
         channel_latency = dataTransferLatency;
-
         return std::make_tuple(req_latency, bank_latency, channel_latency);
     }
 
@@ -170,6 +168,8 @@ class PLPCPAwareController : public PLPController
                 charging_stage = slave_stage;
             }
         }
+
+        return charging_stage;
     }
 
     // Return back the request latency.
@@ -191,7 +191,7 @@ class PLPCPAwareController : public PLPController
            
             // stage charging time is determined by the request stage.
 	    stage_total_charging_time[int(Config::Charge_Pump_Opr::READ)][req_stage] +=
-                                     singleReadLatency;
+                                     opr_latency;
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
@@ -203,9 +203,9 @@ class PLPCPAwareController : public PLPController
 
             // stage charging time is determined by the request stage.
             stage_total_charging_time[int(Config::Charge_Pump_Opr::SET)][req_stage] +=
-                                     singleWriteLatency;
+                                     opr_latency;
             stage_total_charging_time[int(Config::Charge_Pump_Opr::RESET)][req_stage] +=
-                                     singleWriteLatency;
+                                     opr_latency;
         }
         else
         {

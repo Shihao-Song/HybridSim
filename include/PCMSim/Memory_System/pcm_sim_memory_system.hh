@@ -99,7 +99,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     void registerStats(Simulator::Stats &stats) override
     {
-        if constexpr (std::is_same<CPAwareController, T>::value)
+        if constexpr (std::is_same<PLPCPAwareController, T>::value)
         {
             unsigned num_stages = controllers[0]->numStages();
             for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
@@ -183,7 +183,7 @@ class PCMSimMemorySystemFactory
 
         factories["CP-AWARE"] = [](Config &cfg)
                             {
-                                return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
+                                return std::make_unique<CP_Aware_PLP_PCMSimMemorySystem>(cfg);
                             };
     }
 
