@@ -144,7 +144,47 @@ void MFUPageToNearRows::inference(Request &req)
 // near region are accessible.
 void HiddenNearRows::nextReAllocPage()
 {
+    if (cur_re_alloc_page.group_id + 1 > cur_max_group_id)
+    {
+        cur_re_alloc_page.group_id = cur_min_group_id;
+        if (cur_re_alloc_page.col_id + 2 > max_col_id)
+        {
+            cur_re_alloc_page.col_id = 0;
+            if (cur_re_alloc_page.row_id + 1 > max_row_id)
+            {
+                cur_re_alloc_page.row_id = 0;
+                if (cur_re_alloc_page.dep_id + 1 > max_dep_id)
+                {
+                    // TODO, implement this in the future; if all the pages are occupied.
+                    // if (cur_max_group_id == max_group_id)
+                    // {
+                    // }
+                    cur_re_alloc_page.dep_id = 0;
 
+                    cur_min_group_id = cur_max_group_id + 1;
+                    cur_max_group_id = cur_min_group_id + num_groups_per_stage - 1;
+
+                    cur_re_alloc_page.group_id = cur_min_group_id;		    
+                }
+                else
+                {
+                    cur_re_alloc_page.dep_id = cur_re_alloc_page.dep_id + 1;
+                }
+            }
+            else
+            {
+                cur_re_alloc_page.row_id = cur_re_alloc_page.row_id + 1;
+            }
+        }
+        else
+        {
+            cur_re_alloc_page.col_id = cur_re_alloc_page.col_id + 2;
+        }
+    }
+    else
+    {
+        cur_re_alloc_page.group_id = cur_re_alloc_page.group_id + 1;
+    }
 }
 
 void HiddenNearRows::va2pa(Request &req)
@@ -188,11 +228,14 @@ void HiddenNearRows::va2pa(Request &req)
         dec_addr[int(Config::Decoding::Col)] = new_col_id;
         dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
 
-        Addr new_pa = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
+                           >> Mapper::va_page_shift;
+
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
 
         req.addr = new_pa; // Replace with the new PA
 
-        Addr new_page_id = new_pa >> Mapper::va_page_shift;
         re_alloc_pages.insert({page_id, new_page_id});
 
         nextReAllocPage();

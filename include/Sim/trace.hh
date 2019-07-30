@@ -207,7 +207,7 @@ class Trace
     bool profiling_stage = false;
     uint64_t profiling_limit = 0;
 
-    const unsigned REPEAT = 4;
+    const unsigned REPEAT = 1;
     unsigned runs = 0;
 };
 

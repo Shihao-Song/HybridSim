@@ -42,6 +42,12 @@ void PLPController::channelAccess(std::list<PLPRequest>::iterator& scheduled_req
 
 std::pair<bool,std::list<PLPRequest>::iterator> PLPController::getHead()
 {
+    if (r_w_q.size() == 0)
+    {
+        // Queue is empty, nothing to be scheduled.
+        return std::make_pair(false, r_w_q.queue.end());
+    }
+
     std::list<PLPRequest>::iterator req = r_w_q.queue.begin();
     if (starv_free_enabled && req->OrderID <= THB)
     {

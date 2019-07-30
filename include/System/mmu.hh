@@ -234,11 +234,15 @@ class HiddenNearRows : public NearRegionAware
         : NearRegionAware(num_of_cores, cfg)
         , max_group_id(cfg.num_of_parts - 1)
         , num_groups_per_stage(cfg.num_of_parts / cfg.num_stages)
+        , max_row_id(num_of_rows_per_partition - 1)
+        , max_col_id(num_of_cache_lines_per_row - 1)
+        , max_dep_id(cfg.num_of_ranks)
     {
         // Re-allocation should bypass the near region.
-        // cur_re_alloc_page.row_id = num_of_near_rows;
+        cur_re_alloc_page.group_id = num_of_near_parts;
 
-        // TODO, test nextReAllocPage() first
+        cur_min_group_id = num_of_near_parts;
+        cur_max_group_id = num_of_near_parts + num_groups_per_stage - 1;
     }
 
     void va2pa(Request &req) override;
@@ -246,6 +250,12 @@ class HiddenNearRows : public NearRegionAware
   protected:
     const unsigned max_group_id;
     const unsigned num_groups_per_stage;
+    const unsigned max_row_id;
+    const unsigned max_col_id;
+    const unsigned max_dep_id;
+
+    unsigned cur_min_group_id; 
+    unsigned cur_max_group_id;
 
   // If a page is mapped in the near region (by the Mapper), we should re-allocate it 
   // to further regions.
