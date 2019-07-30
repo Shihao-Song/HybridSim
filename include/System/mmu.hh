@@ -232,12 +232,21 @@ class HiddenNearRows : public NearRegionAware
   public:
     HiddenNearRows(int num_of_cores, Config &cfg)
         : NearRegionAware(num_of_cores, cfg)
+        , max_group_id(cfg.num_of_parts - 1)
+        , num_groups_per_stage(cfg.num_of_parts / cfg.num_stages)
     {
         // Re-allocation should bypass the near region.
         // cur_re_alloc_page.row_id = num_of_near_rows;
+
+        // TODO, test nextReAllocPage() first
     }
 
     void va2pa(Request &req) override;
+
+  protected:
+    const unsigned max_group_id;
+    const unsigned num_groups_per_stage;
+
   // If a page is mapped in the near region (by the Mapper), we should re-allocate it 
   // to further regions.
   protected:

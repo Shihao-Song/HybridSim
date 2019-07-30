@@ -70,7 +70,7 @@ void FullSystemSimulation(Config &cfg,
     // simulator.
     // TODO, factory.
     std::unique_ptr<System::TrainedMMU> mmu(new System::HiddenNearRows(num_of_cores, cfg));
-    // std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
+    //std::unique_ptr<System::TrainedMMU> mmu(new System::MFUPageToNearRows(num_of_cores, cfg));
     
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
