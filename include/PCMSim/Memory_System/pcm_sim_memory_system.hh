@@ -101,6 +101,22 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         if constexpr (std::is_same<PLPCPAwareController, T>::value)
         {
+            for (auto &controller : controllers)
+            {
+                std::string prin = "Channel_" + std::to_string(controller->id) +
+                                   "_Average_Backlogging = " + 
+                                   std::to_string((double)controller->total_back_logging /
+                                                  (double)controller->total_served);
+                stats.registerStats(prin);
+		
+		prin = "Channel_" + std::to_string(controller->id) +
+                       "_Average_Power = " + 
+                        std::to_string((double)controller->total_running_avg_power /
+                                       (double)controller->total_served);
+                stats.registerStats(prin);
+
+            }
+
             unsigned num_stages = controllers[0]->numStages();
             for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
             {

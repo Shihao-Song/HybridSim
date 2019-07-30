@@ -75,6 +75,17 @@ class PLPController : public BaseController
         }
     }
 
+    void reInitialize()
+    {
+        total_served = 0;
+        total_back_logging = 0;
+        total_running_avg_power = 0.0;
+
+        power = 0.0;
+        
+        BaseController::reInitialize();
+    }
+
   protected:
     void servePendingAccesses();
 
@@ -155,6 +166,12 @@ class PLPController : public BaseController
     const unsigned readWhileWriteLatency;
     const double powerPerBitRead;
     const double powerPerBitWrite;
+
+  public:
+    uint64_t total_served = 0;
+
+    long long int total_back_logging = 0;
+    double total_running_avg_power = 0.0;
 
   protected:
     double power = 0.0; // Running average power of the channel

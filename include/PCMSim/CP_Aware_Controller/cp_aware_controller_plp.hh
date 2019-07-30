@@ -55,7 +55,7 @@ class PLPCPAwareController : public PLPController
             stage_total_charging_time[i].resize(num_stages, 0);
         }
 
-        BaseController::reInitialize();
+        PLPController::reInitialize();
     }
     
     unsigned numStages() const

@@ -12,6 +12,10 @@ void PLPController::servePendingAccesses()
     PLPRequest &req = r_w_pending_queue[0];
     if (req.end_exe <= clk)
     {
+        ++total_served;
+        total_back_logging += req.OrderID;
+        total_running_avg_power += power;
+
         if (req.callback)
         {
             if (req.callback(req.addr))
