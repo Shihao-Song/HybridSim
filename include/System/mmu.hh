@@ -263,6 +263,24 @@ class HiddenNearRows : public NearRegionAware
     std::unordered_map<Addr,Addr> re_alloc_pages;
     void nextReAllocPage() override;
 };
+
+class TrainedMMUFactory
+{
+  private:
+    std::unordered_map<std::string,
+                       std::function<std::unique_ptr<TrainedMMU>(int,Config&)>> factories;
+
+  public:
+    typedef Simulator::Config Config;
+
+    TrainedMMUFactory()
+    {
+        factories["MFUPageToNearRows"] = [](int num_of_cores, Config &cfg)
+                 {
+                     return std::make_unique<MFUPageToNearRows>(num_of_cores, cfg);
+                 };
+    }
+};
 }
 
 #endif
