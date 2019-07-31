@@ -43,6 +43,9 @@ class Config
     std::array<Cache_Info, int(Cache_Level::MAX)> caches;
     void extractCacheInfo(Cache_Level level, std::vector<std::string> &tokens);
 
+    // System-level (MMU)
+    std::string mmu_type = "N/A";
+
     // Memory Controller
     std::string mem_controller_type = "N/A";
   

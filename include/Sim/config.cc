@@ -118,6 +118,10 @@ void Config::parse(const std::string &fname)
         {
             extractCacheInfo(Cache_Level::eDRAM, tokens);
         }
+        else if(tokens[0] == "mmu_type")
+        {
+            mmu_type = tokens[1];
+        }
         else if(tokens[0] == "mem_controller_type")
         {
             mem_controller_type = tokens[1];

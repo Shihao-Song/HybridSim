@@ -266,19 +266,39 @@ class HiddenNearRows : public NearRegionAware
 
 class TrainedMMUFactory
 {
+    typedef Simulator::Config Config;
+
   private:
     std::unordered_map<std::string,
                        std::function<std::unique_ptr<TrainedMMU>(int,Config&)>> factories;
 
   public:
-    typedef Simulator::Config Config;
-
     TrainedMMUFactory()
     {
         factories["MFUPageToNearRows"] = [](int num_of_cores, Config &cfg)
                  {
                      return std::make_unique<MFUPageToNearRows>(num_of_cores, cfg);
                  };
+
+        factories["HiddenNearRows"] = [](int num_of_cores, Config &cfg)
+                 {
+                     return std::make_unique<HiddenNearRows>(num_of_cores, cfg);
+                 };
+    }
+
+    auto createMMU(int num_of_cores, Config &cfg)
+    {
+        std::string mmu_type = cfg.mmu_type;
+        if (auto iter = factories.find(mmu_type);
+            iter != factories.end())
+        {
+            return iter->second(num_of_cores, cfg);
+        }
+        else
+        {
+            std::cerr << "Unsupported MMU type. \n";
+            exit(0);
+        }
     }
 };
 }
