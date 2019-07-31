@@ -301,6 +301,12 @@ class TrainedMMUFactory
         }
     }
 };
+
+static TrainedMMUFactory TrainedMMUFactories;
+static auto createTrainedMMU(int num_of_cores, Simulator::Config &cfg)
+{
+    return TrainedMMUFactories.createMMU(num_of_cores, cfg);
+}
 }
 
 #endif

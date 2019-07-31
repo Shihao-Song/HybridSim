@@ -225,7 +225,7 @@ class PCMSimMemorySystemFactory
 };
 
 static PCMSimMemorySystemFactory PCMSimMemorySystemFactories;
-auto createPCMSimMemorySystem(Simulator::Config &cfg)
+static auto createPCMSimMemorySystem(Simulator::Config &cfg)
 {
     return PCMSimMemorySystemFactories.createPCMSimMemorySystem(cfg);
 }

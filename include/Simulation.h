@@ -45,6 +45,11 @@ struct ParseArgsRet
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
+auto createTrainedMMU(int num_of_cores, Config &cfg)
+{
+    return System::createTrainedMMU(num_of_cores, cfg);
+}
+
 auto createMemObject(Config &cfg,
                      Memories mem_type,
                      bool LLC = false)
