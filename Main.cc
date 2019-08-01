@@ -4,10 +4,11 @@
 #include "Simulation.h"
 
 void FullSystemSimulation(Config &cfg,
-                          std::vector<std::string> trace_lists,
-                          std::vector<uint64_t> profiling_limits,
-                          std::string stats_output_file,
-                          std::string mmu_profiling_data_output_file);
+                          std::vector<std::string> &trace_lists,
+                          std::vector<uint64_t> &profiling_limits,
+                          std::vector<int> &trained_mmu_required_sizes,
+                          std::string &stats_output_file,
+                          std::string &mmu_profiling_data_output_file);
 
 int main(int argc, const char *argv[])
 {
@@ -15,6 +16,7 @@ int main(int argc, const char *argv[])
           charge_pump_info,
           trace_lists,
           profiling_limits,
+          num_profiling_entries,
           stats_output_file,
           mmu_profiling_data_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
@@ -27,20 +29,25 @@ int main(int argc, const char *argv[])
                   << mmu_profiling_data_output_file << "\n\n";
     }
 
+    std::vector<int> trained_mmu_required_sizes;
+    trained_mmu_required_sizes.push_back(num_profiling_entries);
+
     Config cfg(cfg_file);
     cfg.parseChargePumpInfo(charge_pump_info.c_str());
     FullSystemSimulation(cfg,
                          trace_lists,
                          profiling_limits,
+                         trained_mmu_required_sizes,
                          stats_output_file,
                          mmu_profiling_data_output_file);
 }
 
 void FullSystemSimulation(Config &cfg,
-                          std::vector<std::string> trace_lists,
-                          std::vector<uint64_t> profiling_limits,
-                          std::string stats_output_file,
-                          std::string mmu_profiling_data_output_file)
+                          std::vector<std::string> &trace_lists,
+                          std::vector<uint64_t> &profiling_limits,
+                          std::vector<int> &trained_mmu_required_sizes,
+                          std::string &stats_output_file,
+                          std::string &mmu_profiling_data_output_file)
 {
     unsigned num_of_cores = trace_lists.size();
     
@@ -73,6 +80,7 @@ void FullSystemSimulation(Config &cfg,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfg));
+    mmu->setSizes(trained_mmu_required_sizes);
     
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));

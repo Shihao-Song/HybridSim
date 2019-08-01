@@ -40,6 +40,7 @@ struct ParseArgsRet
     std::string charge_pump_info;
     std::vector<std::string> trace_lists;
     std::vector<uint64_t> profiling_limits;
+    int num_profiling_entries;
     std::string stats_output_file;
     std::string mmu_profiling_data_output_file;
 };
@@ -97,6 +98,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::string charge_pump_info_file;
     std::vector<std::string> cpu_traces;
     std::vector<uint64_t> profiling_limits;
+    int num_profiling_entries = -1;
     std::string stats_output;
     std::string mmu_profiling_data_output_file = "N/A";
 
@@ -111,6 +113,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                       "CPU trace")
         ("profiling_limit", po::value<std::vector<uint64_t>>(&profiling_limits),
                    "Number of profiling instructions (Optional)")
+        ("num_profiling_entries", po::value<int>(&num_profiling_entries)->required(),
+                   "Number of entries recorded")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
                         "Stats output file")
         ("mmu_profiling_data_output_file",
@@ -143,6 +147,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         charge_pump_info_file,
                         cpu_traces,
                         profiling_limits,
+                        num_profiling_entries,
                         stats_output,
                         mmu_profiling_data_output_file};
 }

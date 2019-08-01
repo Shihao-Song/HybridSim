@@ -62,8 +62,11 @@ class TrainedMMU : public MMU
 
     virtual void printProfiling() {}
 
-    void setProfilingStage() { profiling_stage = true; inference_stage = false; }
-    void setInferenceStage() { inference_stage = true; profiling_stage = false; }
+    virtual void setProfilingStage() { profiling_stage = true; inference_stage = false; }
+    virtual void setInferenceStage() { inference_stage = true; profiling_stage = false; }
+
+
+    virtual void setSizes(std::vector<int> sizes) {}
 
   protected:
     bool profiling_stage = false;
@@ -168,6 +171,45 @@ class MFUPageToNearRows : public NearRegionAware
     {}
 
     void va2pa(Request &req) override;
+
+    void setSizes(std::vector<int> sizes) override
+    {
+        num_profiling_entries = sizes[0];
+    }
+
+    void setInferenceStage() override
+    {
+        inference_stage = true;
+        profiling_stage = false;
+
+        assert(num_profiling_entries >= 0);
+        std::vector<RWCount> profiling_data;
+        for (auto [key, value] : first_touch_instructions)
+        {
+            profiling_data.push_back(value);
+        }
+        std::sort(profiling_data.begin(), profiling_data.end(),
+                  [](const RWCount &a, const RWCount &b)
+                  {
+                      return (a.reads + a.writes) > (b.reads + b.writes);
+                  });
+
+        // Clear the old map
+        first_touch_instructions.clear();
+
+        int i = 0;
+        while (i < profiling_data.size())
+        {
+            if (i == num_profiling_entries)
+            {
+                break;
+            }
+
+            first_touch_instructions.insert({profiling_data[i].eip, profiling_data[i]});
+            i++;
+        }
+    }
+
     void printProfiling() override
     {
         std::vector<RWCount> profiling_data;
@@ -223,6 +265,8 @@ class MFUPageToNearRows : public NearRegionAware
         uint64_t writes = 0;
     };
     std::unordered_map<Addr,RWCount> first_touch_instructions;
+
+    int num_profiling_entries = -1;
 };
 
 // Strategy 2, give the control of near pages to memory controller. Only pages outside
