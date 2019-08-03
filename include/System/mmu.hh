@@ -231,6 +231,9 @@ class MFUPageToNearRows : public NearRegionAware
     }
 
   protected:
+    void inference_new(Request&);
+    void profiling_new(Request&);
+
     void inference(Request&);
     void profiling(Request&);
     auto profilingCallBack()
