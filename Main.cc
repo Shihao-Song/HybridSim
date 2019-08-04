@@ -7,8 +7,8 @@ void FullSystemSimulation(Config &cfg,
                           std::vector<std::string> &trace_lists,
                           std::vector<uint64_t> &profiling_limits,
                           std::vector<int> &trained_mmu_required_sizes,
-                          std::string &stats_output_file,
-                          std::string &mmu_profiling_data_output_file);
+                          std::string stats_output_file,
+                          std::string mmu_profiling_data_output_file);
 
 int main(int argc, const char *argv[])
 {
@@ -46,8 +46,8 @@ void FullSystemSimulation(Config &cfg,
                           std::vector<std::string> &trace_lists,
                           std::vector<uint64_t> &profiling_limits,
                           std::vector<int> &trained_mmu_required_sizes,
-                          std::string &stats_output_file,
-                          std::string &mmu_profiling_data_output_file)
+                          std::string stats_output_file,
+                          std::string mmu_profiling_data_output_file)
 {
     unsigned num_of_cores = trace_lists.size();
     
@@ -98,6 +98,11 @@ void FullSystemSimulation(Config &cfg,
 
         std::cout << "\nProfiling Stage...\n\n";
         runCPUTrace(processor.get());
+
+        // TODO, TMP modification
+        mmu->profilingDataOutput(mmu_profiling_data_output_file);
+        mmu->printProfiling();
+        exit(0);
 
         // Re-initialize all the states.
         processor->reInitialize();
