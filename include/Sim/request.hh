@@ -70,6 +70,9 @@ class Request
     // estimated completion time
     Addr end_exe;
 
+    // when OoO is enabled (track back-logging)
+    int OrderID;
+
     // (general) call-back function
     std::function<bool(Addr)> callback;
 
@@ -90,6 +93,7 @@ class Request
     {}
 };
 
+// TODO, move this PLP_Controller diectory
 class PLPRequest : public Request
 {
   public:
@@ -110,9 +114,6 @@ class PLPRequest : public Request
 
         callback = req.callback;
     }
-
-    // when OoO is enabled
-    int OrderID;
 
     /*  PLP (Partition-level Parallelism) Section */
     enum class Pairing_Type : int

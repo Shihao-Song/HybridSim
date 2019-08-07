@@ -170,6 +170,7 @@ typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<PLPController> PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<PLPCPAwareController> CP_Aware_PLP_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<LASPCM> LASPCM_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -207,6 +208,11 @@ class PCMSimMemorySystemFactory
                             {
                                 return std::make_unique<CP_Aware_PLP_PCMSimMemorySystem>(cfg);
                             };
+
+        factories["LASPCM"] = [](Config &cfg)
+                          {
+                              return std::make_unique<LASPCM_PCMSimMemorySystem>(cfg);
+                          };
     }
 
     auto createPCMSimMemorySystem(Config &cfg)

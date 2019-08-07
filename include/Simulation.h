@@ -113,8 +113,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                       "CPU trace")
         ("profiling_limit", po::value<std::vector<uint64_t>>(&profiling_limits),
                    "Number of profiling instructions (Optional)")
-        ("num_profiling_entries", po::value<int>(&num_profiling_entries)->required(),
-                   "Number of entries recorded")
+        ("num_profiling_entries", po::value<int>(&num_profiling_entries),
+                   "Number of entries recorded (Optional, default: 32)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
                         "Stats output file")
         ("mmu_profiling_data_output_file",
