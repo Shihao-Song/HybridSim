@@ -182,6 +182,7 @@ class MFUPageToNearRows : public NearRegionAware
         inference_stage = true;
         profiling_stage = false;
 
+        // The following is a hack, should use the run-time replacement policy instead.
         assert(num_profiling_entries >= 0);
         std::vector<RWCount> profiling_data;
         for (auto [key, value] : first_touch_instructions)
