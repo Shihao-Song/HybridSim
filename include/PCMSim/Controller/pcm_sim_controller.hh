@@ -143,6 +143,7 @@ class FCFSController : public BaseController
             return false;
         }
         
+        req.OrderID = r_w_q.size(); // To track back-logging.
 	r_w_q.push_back(req);
         
         return true;
@@ -163,9 +164,14 @@ class FCFSController : public BaseController
 
             r_w_pending_queue.push_back(std::move(*scheduled_req));
             r_w_q.erase(scheduled_req);
+
+            // Update back-logging information.
+            for (auto &waiting_req : r_w_q)
+            {
+                --waiting_req.OrderID;
+            }
         }
     }
-
 
   protected:
     void servePendingAccesses()

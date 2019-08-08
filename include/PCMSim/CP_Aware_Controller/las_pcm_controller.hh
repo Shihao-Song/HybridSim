@@ -8,6 +8,7 @@ namespace PCMSim
 // TODO, limitation, only 1-stage charging is supported so far.
 // To fully integrate LAS-PCM with multiple charging and PALP, we may need to change 
 // the existing architecture (Future Work).
+// TODO, template<typename S>
 class LASPCM : public FCFSController
 {
   public:
@@ -41,6 +42,33 @@ class LASPCM : public FCFSController
                 iTab[i][j].idle.resize(int(CP_Type::MAX), 0);
 
                 total_charging[i][j] = 0;
+            }
+        }
+    }
+
+    void tick() override
+    {
+        clk++;
+        channel->update(clk);
+        // Update xTab information at tick level (fine-grained control).
+        tableUpdate();
+        discharge();
+
+        servePendingAccesses();
+
+        if (auto [scheduled, scheduled_req] = getHead();
+            scheduled)
+        {
+            channelAccess(scheduled_req);
+            scheduled_req->commuToMMU();
+
+            r_w_pending_queue.push_back(std::move(*scheduled_req));
+            r_w_q.erase(scheduled_req);
+
+            // Update back-logging information.
+            for (auto &waiting_req : r_w_q)
+            {
+                --waiting_req.OrderID;
             }
         }
     }
@@ -85,6 +113,46 @@ class LASPCM : public FCFSController
     };
     // One record for each bank
     std::vector<std::vector<Idle_Entry>> iTab;
+
+    void tableUpdate()
+    {
+        for (int i = 0; i < sTab.size(); i++)
+        {
+            for (int j = 0; j < sTab[0].size(); j++)
+            {
+                if (sTab[i][j].open && sTab[i][j].cp_type == int(CP_Type::RCP) ||
+                    sTab[i][j].open && sTab[i][j].cp_type == -1)
+                {
+                    if (!channel->isFree(i,j))
+                    {
+                        ++aTab[i][j].aging[int(CP_Type::RCP)];
+                    }
+                    else
+                    {
+                        ++iTab[i][j].idle[int(CP_Type::RCP)];
+                    }
+                }
+
+                if (sTab[i][j].open && sTab[i][j].cp_type == int(CP_Type::WCP) ||
+                    sTab[i][j].open && sTab[i][j].cp_type == -1)
+                {
+                    if (!channel->isFree(i,j))
+                    {
+                        ++aTab[i][j].aging[int(CP_Type::WCP)];
+                    }
+                    else
+                    {
+                        ++iTab[i][j].idle[int(CP_Type::WCP)];
+                    }
+                }
+            }
+        }
+    }
+
+    void discharge()
+    {
+        
+    }
 
   // Stats
   protected:
