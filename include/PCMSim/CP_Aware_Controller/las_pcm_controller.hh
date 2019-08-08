@@ -8,7 +8,15 @@ namespace PCMSim
 // TODO, limitation, only 1-stage charging is supported so far.
 // To fully integrate LAS-PCM with multiple charging and PALP, we may need to change 
 // the existing architecture (Future Work).
-// TODO, template<typename S>
+// FCFS_OR_FRFCFS - Should our scheduler be fairness-centric (FCFS) or
+//                  performance-centric (FRFCFS)
+// Scheduler - LAS-PCM? Base? CP-Static?
+struct FCFS{};
+struct FRFCFS{};
+struct BASE{};
+struct CP_STATIC{};
+struct LAS_PCM{};
+template<typename FCFS_OR_FRFCFS, typename Scheduler>
 class LASPCM : public FCFSController
 {
   public:
@@ -120,29 +128,19 @@ class LASPCM : public FCFSController
         {
             for (int j = 0; j < sTab[0].size(); j++)
             {
-                if (sTab[i][j].open && sTab[i][j].cp_type == int(CP_Type::RCP) ||
-                    sTab[i][j].open && sTab[i][j].cp_type == -1)
+                for (int cp = int(CP_Type::RCP); cp < int(CP_Type::MAX); cp++)
                 {
-                    if (!channel->isFree(i,j))
+                    if (sTab[i][j].open && sTab[i][j].cp_type == cp ||
+                        sTab[i][j].open && sTab[i][j].cp_type == -1)
                     {
-                        ++aTab[i][j].aging[int(CP_Type::RCP)];
-                    }
-                    else
-                    {
-                        ++iTab[i][j].idle[int(CP_Type::RCP)];
-                    }
-                }
-
-                if (sTab[i][j].open && sTab[i][j].cp_type == int(CP_Type::WCP) ||
-                    sTab[i][j].open && sTab[i][j].cp_type == -1)
-                {
-                    if (!channel->isFree(i,j))
-                    {
-                        ++aTab[i][j].aging[int(CP_Type::WCP)];
-                    }
-                    else
-                    {
-                        ++iTab[i][j].idle[int(CP_Type::WCP)];
+                        if (!channel->isFree(i,j))
+                        {
+                            ++aTab[i][j].aging[cp];
+                        }
+                        else
+                        {
+                            ++iTab[i][j].idle[cp];
+                        }
                     }
                 }
             }
@@ -151,7 +149,64 @@ class LASPCM : public FCFSController
 
     void discharge()
     {
-        
+        for (int i = 0; i < sTab.size(); i++)
+        {
+            for (int j = 0; j < sTab[0].size(); j++)
+            {
+                for (int cp = int(CP_Type::RCP); cp < int(CP_Type::MAX); cp++)
+                {
+                    if (sTab[i][j].open && sTab[i][j].cp_type == cp ||
+                        sTab[i][j].open && sTab[i][j].cp_type == -1)
+                    {
+                        Tick total_aging = aTab[i][j].aging[cp] + 
+                                           iTab[i][j].idle[cp];
+
+                        if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+                        {
+                            // Intelligent dis-charging for both read charge pump and
+                            // write charge pump
+                            if (total_aging >= aging_threshold)
+                            {
+                                if (channel->isFree(i,j))
+                                {
+                                    Tick discharging_latency = 0;
+                                    if (cp == int(CP_Type::RCP))
+                                    {
+                                        discharging_latency = nclks_rcp;
+                                    }
+                                    else
+                                    {
+                                        discharging_latency = nclks_wcp;
+                                    }
+                                    channel->postAccess(i,j,
+                                                        0,
+                                                        discharging_latency,
+                                                        discharging_latency);
+                                    assert(!channel->isFree(i,j));
+
+                                    if (sTab[i][j].cp_type == -1)
+                                    {
+                                        if (cp == int(CP_Type::RCP))
+                                        {
+                                            sTab[i][j].cp_type = int(CP_Type::WCP);
+                                        }
+                                        else if (cp == int(CP_Type::WCP))
+                                        {
+                                            sTab[i][j].cp_type = int(CP_Type::RCP);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        sTab[i][j].open = false;
+                                        sTab[i][j].cp_type = int(CP_Type::MAX);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
   // Stats
@@ -160,6 +215,15 @@ class LASPCM : public FCFSController
     int max_charging = -1;
     int min_charging = -1;
 };
+
+typedef LASPCM<FCFS,LAS_PCM> LAS_PCM_Controller;
+typedef LASPCM<FRFCFS,LAS_PCM> PERF_LAS_PCM_Controller;
+
+typedef LASPCM<FCFS,CP_STATIC> CP_STATIC_Controller;
+typedef LASPCM<FRFCFS,CP_STATIC> PERF_CP_STATIC_Controller;
+
+typedef LASPCM<FCFS,BASE> BASE_Controller;
+typedef LASPCM<FRFCFS,BASE> PERF_BASE_Controller;
 }
 
 #endif
