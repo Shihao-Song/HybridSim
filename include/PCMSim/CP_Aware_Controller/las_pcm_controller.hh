@@ -60,7 +60,7 @@ class LASPCM : public FCFSController
         channel->update(clk);
         // Update xTab information at tick level (fine-grained control).
         tableUpdate();
-        discharge();
+        dischargeOpenBanks();
 
         servePendingAccesses();
 
@@ -147,7 +147,7 @@ class LASPCM : public FCFSController
         }
     }
 
-    void discharge()
+    void dischargeOpenBanks()
     {
         for (int i = 0; i < sTab.size(); i++)
         {
@@ -167,44 +167,68 @@ class LASPCM : public FCFSController
                             // write charge pump
                             if (total_aging >= aging_threshold)
                             {
-                                if (channel->isFree(i,j))
-                                {
-                                    Tick discharging_latency = 0;
-                                    if (cp == int(CP_Type::RCP))
-                                    {
-                                        discharging_latency = nclks_rcp;
-                                    }
-                                    else
-                                    {
-                                        discharging_latency = nclks_wcp;
-                                    }
-                                    channel->postAccess(i,j,
-                                                        0,
-                                                        discharging_latency,
-                                                        discharging_latency);
-                                    assert(!channel->isFree(i,j));
-
-                                    if (sTab[i][j].cp_type == -1)
-                                    {
-                                        if (cp == int(CP_Type::RCP))
-                                        {
-                                            sTab[i][j].cp_type = int(CP_Type::WCP);
-                                        }
-                                        else if (cp == int(CP_Type::WCP))
-                                        {
-                                            sTab[i][j].cp_type = int(CP_Type::RCP);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        sTab[i][j].open = false;
-                                        sTab[i][j].cp_type = int(CP_Type::MAX);
-                                    }
-                                }
+                                dischargeSingleBank(cp, i, j);
                             }
+                        }
+
+                        if constexpr (std::is_same<CP_STATIC, Scheduler>::value)
+                        {
+                            // Intelligent discharging for Read Charge Pump
+                            if (cp == int(CP_Type::RCP) && 
+                                total_aging >= aging_threshold ||
+                                cp == int(CP_Type::WCP))
+                            {
+                                dischargeSingleBank(cp, i, j);
+                            }
+                        }
+                        
+                        if constexpr (std::is_same<BASE, Scheduler>::value)
+                        {
+                            dischargeSingleBank(cp, i, j);
                         }
                     }
                 }
+            }
+        }
+    }
+
+    void dischargeSingleBank(int cp_type, int rank_id, int bank_id)
+    {
+        // Discharge the bank when it's done serving on-going request
+        if (channel->isFree(rank_id, bank_id))
+        {
+            Tick discharging_latency = 0;
+            if (cp_type == int(CP_Type::RCP))
+            {
+                discharging_latency = nclks_rcp;
+            }
+            else
+            {
+                discharging_latency = nclks_wcp;
+            }
+            channel->postAccess(rank_id, bank_id,
+                                0,
+                                discharging_latency,
+                                discharging_latency);
+            assert(!channel->isFree(rank_id, bank_id));
+
+            if (sTab[rank_id][bank_id].cp_type == -1)
+            {
+                if (cp_type == int(CP_Type::RCP))
+                {
+                    // Only write charge pump is left ON
+                    sTab[rank_id][bank_id].cp_type = int(CP_Type::WCP);
+                }
+                else if (cp_type == int(CP_Type::WCP))
+                {
+                    // Only read charge pump is left ON
+                    sTab[rank_id][bank_id].cp_type = int(CP_Type::RCP);
+                }
+            }
+            else
+            {
+                sTab[rank_id][bank_id].open = false;
+                sTab[rank_id][bank_id].cp_type = int(CP_Type::MAX);
             }
         }
     }
