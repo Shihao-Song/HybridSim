@@ -72,6 +72,10 @@ class Config
     double RAPL; // running average power limit
     int THB; // back-logging threshold
 
+    // LAS-PCM specific
+    int THI;
+    int THA;
+
     // PCM Array Architecture
     unsigned num_of_word_lines_per_tile;
     unsigned num_of_bit_lines_per_tile;

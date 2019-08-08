@@ -142,6 +142,14 @@ void Config::parse(const std::string &fname)
         {
             THB = atoi(tokens[1].c_str());
         }
+        else if(tokens[0] == "THI")
+        {
+            THI = atoi(tokens[1].c_str());
+        }
+        else if(tokens[0] == "THA")
+        {
+            THA = atoi(tokens[1].c_str());
+        }
 	else if(tokens[0] == "num_of_word_lines_per_tile")
         {
             num_of_word_lines_per_tile = atoi(tokens[1].c_str());
