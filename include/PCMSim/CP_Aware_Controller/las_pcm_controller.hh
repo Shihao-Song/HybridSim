@@ -93,10 +93,11 @@ class LASPCM : public FCFSController
             // Queue is empty, nothing to be scheduled.
             return std::make_pair(false, r_w_q.end());
         }
-        /*
-        if constexpr (std::is_same<Base, Scheduler>::value || 
+
+        if constexpr (std::is_same<BASE, Scheduler>::value || 
                       std::is_same<CP_STATIC, Scheduler>::value)
         {
+            // For Base and CP_STATIC, we use either FCFS or FRFCFS
             auto req = r_w_q.begin();
             if (issueable(req))
             {
@@ -107,9 +108,17 @@ class LASPCM : public FCFSController
 
         if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
         {
-            
+            auto req = r_w_q.begin();
+            // To check 
+            if (req->OrderID <= back_logging_threshold)
+            {
+                if (issueable(req))
+                {
+                    return std::make_pair(true, req);
+                }
+                return std::make_pair(false, r_w_q.end());
+            }
         }
-	*/
     }
 
   // Technology-specific parameters (You should tune it based on the need of your system)
@@ -239,14 +248,18 @@ class LASPCM : public FCFSController
                         dischargeSingleBank(CP_Type::RCP, i, j);
                     }
 
-                    // Discharge because of idle
                     if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
                     {
+                        // Discharge because of idle
                         if (idle_threshold != -1 &&
                             iTab[i][j].idle[int(CP_Type::RCP)] >= idle_threshold)
                         {
                             dischargeSingleBank(CP_Type::RCP, i, j);
                         }
+
+                        // Discharge because there are no more requests to this
+                        // charge pump
+                        
                     }
                 }
 		
