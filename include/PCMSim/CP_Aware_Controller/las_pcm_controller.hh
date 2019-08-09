@@ -184,6 +184,7 @@ class LASPCM : public FCFSController
                     }
                     else
                     {
+                        // Bank's read charge pump is left idle.
                         ++iTab[i][j].idle[int(CP_Type::RCP)];
                     }
                 }
@@ -199,6 +200,7 @@ class LASPCM : public FCFSController
                     }
                     else
                     {
+	                // Bank's write charge pump is left idle.
                         ++iTab[i][j].idle[int(CP_Type::WCP)];
                     }
                 }
@@ -237,6 +239,7 @@ class LASPCM : public FCFSController
                         dischargeSingleBank(CP_Type::RCP, i, j);
                     }
 
+                    // Discharge because of idle
                     if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
                     {
                         if (idle_threshold != -1 &&
@@ -253,8 +256,10 @@ class LASPCM : public FCFSController
                     Tick total_aging = aTab[i][j].aging[int(CP_Type::WCP)] +
                                        iTab[i][j].idle[int(CP_Type::WCP)];
 
+                    // Discharge because of aging
                     if constexpr (std::is_same<LAS_PCM, Scheduler>::value) 
                     {
+                        // LAS_PCM discharges write charge pump based on a threshold.
                         if (total_aging >= aging_threshold)
                         {
                             dischargeSingleBank(CP_Type::WCP, i, j);
@@ -264,9 +269,12 @@ class LASPCM : public FCFSController
                     if constexpr (std::is_same<CP_STATIC, Scheduler>::value || 
                                   std::is_same<BASE, Scheduler>::value)
                     {
+                        // CP_STATIC and BASE discharge write charge pump after every
+                        // request.
                         dischargeSingleBank(CP_Type::WCP, i, j);
                     }
 
+                    // Discharge because of idle.
                     if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
                     {
                         if (idle_threshold != -1 &&
@@ -282,8 +290,12 @@ class LASPCM : public FCFSController
 
     void dischargeSingleBank(CP_Type cp_type, int rank_id, int bank_id)
     {
-        // Discharge the bank when it's done serving on-going request
-        if (channel->isFree(rank_id, bank_id))
+        // Discharge the bank when it's done serving on-going request.
+        // Or the bank is serving another type of request.
+        // TODO, this logic needs to be revisited if we want to integrate PLP with
+        // LAS-PCM.
+        if (channel->isFree(rank_id, bank_id) || 
+            cp_type != sTab[rank_id][bank_id].cur_busy_cp)
         {
             Tick discharging_latency = 0;
             if (cp_type == CP_Type::RCP)
