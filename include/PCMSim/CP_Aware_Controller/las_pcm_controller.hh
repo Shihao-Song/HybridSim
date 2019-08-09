@@ -25,31 +25,35 @@ class LASPCM : public FCFSController
         , back_logging_threshold(cfg.THB)
         , aging_threshold(cfg.THA)
         , idle_threshold(cfg.THI)
+        , num_of_ranks(cfg.num_of_ranks)
+        , num_of_banks(cfg.num_of_banks)
     {
-        sTab.resize(cfg.num_of_ranks);
-        aTab.resize(cfg.num_of_ranks);
-        iTab.resize(cfg.num_of_ranks);
+        sTab.resize(num_of_ranks);
+        aTab.resize(num_of_ranks);
+        iTab.resize(num_of_ranks);
 
-        total_charging.resize(cfg.num_of_ranks);
+        // total_charging.resize(num_of_ranks);
 
-        for (int i = 0; i < cfg.num_of_ranks; i++)
+        for (int i = 0; i < num_of_ranks; i++)
         {
-            sTab[i].resize(cfg.num_of_banks);
-            aTab[i].resize(cfg.num_of_banks);
-            iTab[i].resize(cfg.num_of_banks);
+            sTab[i].resize(num_of_banks);
+            aTab[i].resize(num_of_banks);
+            iTab[i].resize(num_of_banks);
 
-            total_charging[i].resize(cfg.num_of_banks);
+            // total_charging[i].resize(num_of_banks);
 
-            for (int j = 0; j < cfg.num_of_banks; j++)
+            for (int j = 0; j < num_of_banks; j++)
             {
-                sTab[i][j].open = false;
-                sTab[i][j].cp_type = int(CP_Type::MAX);
+                // Initially, all the charge pumps are off.
+                sTab[i][j].cp_status = CP_Status::BOTH_OFF;
+                // Initially, none of the charge pump is busy.
+                sTab[i][j].cur_busy_cp = CP_Type::MAX;
 
                 aTab[i][j].aging.resize(int(CP_Type::MAX), 0);
 
                 iTab[i][j].idle.resize(int(CP_Type::MAX), 0);
 
-                total_charging[i][j] = 0;
+                // total_charging[i][j] = 0;
             }
         }
     }
@@ -89,7 +93,7 @@ class LASPCM : public FCFSController
             // Queue is empty, nothing to be scheduled.
             return std::make_pair(false, r_w_q.end());
         }
-        
+        /*
         if constexpr (std::is_same<Base, Scheduler>::value || 
                       std::is_same<CP_STATIC, Scheduler>::value)
         {
@@ -105,6 +109,7 @@ class LASPCM : public FCFSController
         {
             
         }
+	*/
     }
 
   // Technology-specific parameters (You should tune it based on the need of your system)
@@ -114,21 +119,35 @@ class LASPCM : public FCFSController
     const int idle_threshold;
 
   protected:
+    const unsigned num_of_ranks;
+    const unsigned num_of_banks;
+
     // For simplicity, we generalize two types of charge pump (Read CP and Write CP)
     enum class CP_Type : int
     {
         RCP, // Read charge pump
         WCP, // Write charge pump
         MAX
-    }cp_type;
+    };
+
+    // Charge pump status for each bank (two charge pumps per bank).
+    enum class CP_Status : int
+    {
+        RCP_ON,
+        WCP_ON,
+        BOTH_ON,
+        BOTH_OFF,
+        MAX
+    };
 
     const unsigned nclks_wcp = 48; // Charging or discharging
     const unsigned nclks_rcp = 11; // Charging or discharging
 
     struct Status_Entry
     {
-        bool open;
-        int cp_type; // Read CP is on? Write CP is on? Both?
+        CP_Status cp_status; // Read CP is on? Write CP is on? Both?
+
+        CP_Type cur_busy_cp; // We also need to record the current busy cp
     };
     // One record for each bank
     std::vector<std::vector<Status_Entry>> sTab;
@@ -150,23 +169,37 @@ class LASPCM : public FCFSController
 
     void tableUpdate()
     {
-        for (int i = 0; i < sTab.size(); i++)
+        for (int i = 0; i < num_of_ranks; i++)
         {
-            for (int j = 0; j < sTab[0].size(); j++)
+            for (int j = 0; j < num_of_banks; j++)
             {
-                for (int cp = int(CP_Type::RCP); cp < int(CP_Type::MAX); cp++)
+                if (sTab[i][j].cp_status == CP_Status::RCP_ON || 
+                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
                 {
-                    if (sTab[i][j].open && sTab[i][j].cp_type == cp ||
-                        sTab[i][j].open && sTab[i][j].cp_type == -1)
+                    if (sTab[i][j].cur_busy_cp == CP_Type::RCP && 
+                        !channel->isFree(i,j))
                     {
-                        if (!channel->isFree(i,j))
-                        {
-                            ++aTab[i][j].aging[cp];
-                        }
-                        else
-                        {
-                            ++iTab[i][j].idle[cp];
-                        }
+                        // Bank's read charge pump is currently working.
+                        ++aTab[i][j].aging[int(CP_Type::RCP)];
+                    }
+                    else
+                    {
+                        ++iTab[i][j].idle[int(CP_Type::RCP)];
+                    }
+                }
+
+                if (sTab[i][j].cp_status == CP_Status::WCP_ON || 
+                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                {
+                    if (sTab[i][j].cur_busy_cp == CP_Type::WCP && 
+                        !channel->isFree(i,j))
+                    {
+                        // Bank's write charge pump is currently working.
+                        ++aTab[i][j].aging[int(CP_Type::WCP)];
+                    }
+                    else
+                    {
+                        ++iTab[i][j].idle[int(CP_Type::WCP)];
                     }
                 }
             }
@@ -175,42 +208,71 @@ class LASPCM : public FCFSController
 
     void dischargeOpenBanks()
     {
-        for (int i = 0; i < sTab.size(); i++)
+        for (int i = 0; i < num_of_ranks; i++)
         {
-            for (int j = 0; j < sTab[0].size(); j++)
+            for (int j = 0; j < num_of_banks; j++)
             {
-                for (int cp = int(CP_Type::RCP); cp < int(CP_Type::MAX); cp++)
+                // Discharge read charge pump
+                if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
+                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
                 {
-                    if (sTab[i][j].open && sTab[i][j].cp_type == cp ||
-                        sTab[i][j].open && sTab[i][j].cp_type == -1)
+                    Tick total_aging = aTab[i][j].aging[int(CP_Type::RCP)] +
+                                       iTab[i][j].idle[int(CP_Type::RCP)];
+
+                    // Discharge because of aging
+                    if constexpr (std::is_same<LAS_PCM, Scheduler>::value || 
+                                  std::is_same<CP_STATIC, Scheduler>::value)
                     {
-                        Tick total_aging = aTab[i][j].aging[cp] + 
-                                           iTab[i][j].idle[cp];
-
-                        if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+                        // CP_STATIC and LAS_PCM discharge read charge based on
+                        // an aging threshold
+                        if (total_aging >= aging_threshold)
                         {
-                            // Intelligent dis-charging for both read charge pump and
-                            // write charge pump
-                            if (total_aging >= aging_threshold)
-                            {
-                                dischargeSingleBank(cp, i, j);
-                            }
+                            dischargeSingleBank(CP_Type::RCP, i, j);
                         }
+                    }
 
-                        if constexpr (std::is_same<CP_STATIC, Scheduler>::value)
+                    if constexpr (std::is_same<BASE, Scheduler>::value)
+                    {
+                        // BASE discharges read charge for every request
+                        dischargeSingleBank(CP_Type::RCP, i, j);
+                    }
+
+                    if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+                    {
+                        if (idle_threshold != -1 &&
+                            iTab[i][j].idle[int(CP_Type::RCP)] >= idle_threshold)
                         {
-                            // Intelligent discharging for Read Charge Pump
-                            if (cp == int(CP_Type::RCP) && 
-                                total_aging >= aging_threshold ||
-                                cp == int(CP_Type::WCP))
-                            {
-                                dischargeSingleBank(cp, i, j);
-                            }
+                            dischargeSingleBank(CP_Type::RCP, i, j);
                         }
-                        
-                        if constexpr (std::is_same<BASE, Scheduler>::value)
+                    }
+                }
+		
+                if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
+                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                {
+                    Tick total_aging = aTab[i][j].aging[int(CP_Type::WCP)] +
+                                       iTab[i][j].idle[int(CP_Type::WCP)];
+
+                    if constexpr (std::is_same<LAS_PCM, Scheduler>::value) 
+                    {
+                        if (total_aging >= aging_threshold)
                         {
-                            dischargeSingleBank(cp, i, j);
+                            dischargeSingleBank(CP_Type::WCP, i, j);
+                        }
+                    }
+
+                    if constexpr (std::is_same<CP_STATIC, Scheduler>::value || 
+                                  std::is_same<BASE, Scheduler>::value)
+                    {
+                        dischargeSingleBank(CP_Type::WCP, i, j);
+                    }
+
+                    if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+                    {
+                        if (idle_threshold != -1 &&
+                            iTab[i][j].idle[int(CP_Type::WCP)] >= idle_threshold)
+                        {
+                            dischargeSingleBank(CP_Type::WCP, i, j);
                         }
                     }
                 }
@@ -218,13 +280,13 @@ class LASPCM : public FCFSController
         }
     }
 
-    void dischargeSingleBank(int cp_type, int rank_id, int bank_id)
+    void dischargeSingleBank(CP_Type cp_type, int rank_id, int bank_id)
     {
         // Discharge the bank when it's done serving on-going request
         if (channel->isFree(rank_id, bank_id))
         {
             Tick discharging_latency = 0;
-            if (cp_type == int(CP_Type::RCP))
+            if (cp_type == CP_Type::RCP)
             {
                 discharging_latency = nclks_rcp;
             }
@@ -238,31 +300,30 @@ class LASPCM : public FCFSController
                                 discharging_latency);
             assert(!channel->isFree(rank_id, bank_id));
 
-            if (sTab[rank_id][bank_id].cp_type == -1)
+            if (sTab[rank_id][bank_id].cp_status == CP_Status::BOTH_ON)
             {
-                if (cp_type == int(CP_Type::RCP))
+                if (cp_type == CP_Type::RCP)
                 {
                     // Only write charge pump is left ON
-                    sTab[rank_id][bank_id].cp_type = int(CP_Type::WCP);
+                    sTab[rank_id][bank_id].cp_status = CP_Status::WCP_ON;
                 }
-                else if (cp_type == int(CP_Type::WCP))
+                else if (cp_type == CP_Type::WCP)
                 {
                     // Only read charge pump is left ON
-                    sTab[rank_id][bank_id].cp_type = int(CP_Type::RCP);
+                    sTab[rank_id][bank_id].cp_status = CP_Status::RCP_ON;
                 }
             }
             else
             {
                 // Both pumps are OFF
-                sTab[rank_id][bank_id].open = false;
-                sTab[rank_id][bank_id].cp_type = int(CP_Type::MAX);
+                sTab[rank_id][bank_id].cp_status = CP_Status::BOTH_OFF;
             }
         }
     }
 
   // Stats
   protected:
-    std::vector<std::vector<Tick>> total_charging;
+    // std::vector<std::vector<Tick>> total_charging;
     int max_charging = -1;
     int min_charging = -1;
 };
