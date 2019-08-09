@@ -81,6 +81,32 @@ class LASPCM : public FCFSController
         }
     }
 
+  protected:
+    std::pair<bool,std::list<Request>::iterator> getHead() override
+    {
+        if (r_w_q.size() == 0)
+        {
+            // Queue is empty, nothing to be scheduled.
+            return std::make_pair(false, r_w_q.end());
+        }
+        
+        if constexpr (std::is_same<Base, Scheduler>::value || 
+                      std::is_same<CP_STATIC, Scheduler>::value)
+        {
+            auto req = r_w_q.begin();
+            if (issueable(req))
+            {
+                return std::make_pair(true, req);
+            }
+            return std::make_pair(false, r_w_q.end());
+        }
+
+        if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+        {
+            
+        }
+    }
+
   // Technology-specific parameters (You should tune it based on the need of your system)
   protected:
     const int back_logging_threshold;
@@ -227,6 +253,7 @@ class LASPCM : public FCFSController
             }
             else
             {
+                // Both pumps are OFF
                 sTab[rank_id][bank_id].open = false;
                 sTab[rank_id][bank_id].cp_type = int(CP_Type::MAX);
             }
