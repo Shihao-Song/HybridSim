@@ -47,13 +47,70 @@ void MFUPageToNearRows::va2pa(Request &req)
     // Hardware-guided Profiling
     if (profiling_stage)
     {
-        profiling(req);
+        // profiling(req);
+        profiling_new(req);
     }
 
     if (inference_stage && !near_region_full)
     {
         inference(req);
     }
+}
+
+void MFUPageToNearRows::profiling_new(Request& req)
+{
+    // PC
+    Addr pc = req.eip;
+    // Get page ID
+    Addr page_id = req.addr >> Mapper::va_page_shift;
+    // Is the page has already been touched?
+    if (auto iter = pages.find(page_id);
+             iter != pages.end())
+    {
+        if (auto iter = first_touch_instructions.find(pc);
+                 iter != first_touch_instructions.end())
+        {
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++iter->second.reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++iter->second.writes;
+            }
+        }
+    }
+    else
+    {
+        if (first_touch_instructions.size() == num_profiling_entries)
+        {
+            std::vector<RWCount> ordered_by_ref;
+            for (auto [key, value] : first_touch_instructions)
+            {
+                ordered_by_ref.push_back(value);
+            }
+            std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
+                      [](const RWCount &a, const RWCount &b)
+                      {
+                          return (a.reads + a.writes) > (b.reads + b.writes);
+                      });
+
+            assert(ordered_by_ref.size() == num_profiling_entries);
+            // Erase the least referenced instruction
+            first_touch_instructions.erase(ordered_by_ref[num_profiling_entries - 1].eip);
+        }
+
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            first_touch_instructions.insert({pc, {pc,1,0}});
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            first_touch_instructions.insert({pc, {pc,0,1}});
+        }
+        pages.insert({page_id, true});
+    }
+
 }
 
 void MFUPageToNearRows::profiling(Request& req)

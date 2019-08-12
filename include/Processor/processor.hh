@@ -158,15 +158,7 @@ class Processor
                 }
                 else
                 {
-                    Request req;
-                    req.core_id = core_id;
-                    req.eip = cur_inst.eip;
-                    req.addr = cur_inst.target_vaddr; // Assign virtual first
-                    // Address translation
-                    mmu->va2pa(req);
-                    // Update the instruction with the translated physical address
-                    cur_inst.target_paddr = req.addr;
-                    
+                    Request req;                                        
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
                         req.req_type = Request::Request_Type::READ;
@@ -176,6 +168,14 @@ class Processor
                     {
                         req.req_type = Request::Request_Type::WRITE;
                     }
+
+                    req.core_id = core_id;
+                    req.eip = cur_inst.eip;
+                    req.addr = cur_inst.target_vaddr; // Assign virtual first
+                    // Address translation
+                    mmu->va2pa(req);
+                    // Update the instruction with the translated physical address
+                    cur_inst.target_paddr = req.addr;
 
                     // Align the address before sending to cache.
                     req.addr = req.addr & ~window.block_mask;
