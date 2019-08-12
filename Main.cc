@@ -101,11 +101,6 @@ void FullSystemSimulation(Config &cfg,
         std::cout << "\nProfiling Stage...\n\n";
         runCPUTrace(processor.get());
 
-        // TODO, TMP modification
-        mmu->profilingDataOutput(mmu_profiling_data_output_file);
-        mmu->printProfiling();
-        exit(0);
-
         // Re-initialize all the states.
         processor->reInitialize();
         mmu->setInferenceStage();

@@ -47,7 +47,6 @@ void MFUPageToNearRows::va2pa(Request &req)
     // Hardware-guided Profiling
     if (profiling_stage)
     {
-        // profiling(req);
         profiling_new(req);
     }
 
@@ -113,6 +112,8 @@ void MFUPageToNearRows::profiling_new(Request& req)
 
 }
 
+// This is the old profiling technique which requires all levels of memory to communicate with
+// MMU, very expensive.
 void MFUPageToNearRows::profiling(Request& req)
 {
     // PC

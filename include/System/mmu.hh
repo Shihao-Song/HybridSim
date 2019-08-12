@@ -177,40 +177,6 @@ class MFUPageToNearRows : public NearRegionAware
         num_profiling_entries = sizes[0];
     }
 
-    void setInferenceStage() override
-    {
-        inference_stage = true;
-        profiling_stage = false;
-
-        // TODO, the following is a hack, should use the run-time replacement policy instead.
-        assert(num_profiling_entries >= 0);
-        std::vector<RWCount> profiling_data;
-        for (auto [key, value] : first_touch_instructions)
-        {
-            profiling_data.push_back(value);
-        }
-        std::sort(profiling_data.begin(), profiling_data.end(),
-                  [](const RWCount &a, const RWCount &b)
-                  {
-                      return (a.reads + a.writes) > (b.reads + b.writes);
-                  });
-
-        // Clear the old map
-        first_touch_instructions.clear();
-
-        int i = 0;
-        while (i < profiling_data.size())
-        {
-            if (i == num_profiling_entries)
-            {
-                break;
-            }
-
-            first_touch_instructions.insert({profiling_data[i].eip, profiling_data[i]});
-            i++;
-        }
-    }
-
     void printProfiling() override
     {
         std::vector<RWCount> profiling_data;
@@ -232,7 +198,6 @@ class MFUPageToNearRows : public NearRegionAware
     }
 
   protected:
-    void inference_new(Request&);
     void profiling_new(Request&);
 
     void inference(Request&);
