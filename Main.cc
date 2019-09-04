@@ -34,12 +34,16 @@ int main(int argc, const char *argv[])
 
     Config cfg(cfg_file);
     cfg.parseChargePumpInfo(charge_pump_info.c_str());
+
+    LLCTrace(cfg, trace_lists, stats_output_file);
+/*
     FullSystemSimulation(cfg,
                          trace_lists,
                          profiling_limits,
                          trained_mmu_required_sizes,
                          stats_output_file,
                          mmu_profiling_data_output_file);
+*/
 }
 
 void FullSystemSimulation(Config &cfg,

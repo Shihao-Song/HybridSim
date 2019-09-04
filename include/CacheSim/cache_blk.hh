@@ -48,6 +48,7 @@ class Blk
     Tick when_touched; // Last clock tick the Block is touched.
 
     // Advanced features, record instruction (EIP) that brings this block
+    int core_id;
     Addr eip;
     std::function<void(Simulator::Request&)> mmu_commu_cb = 0;
     // Do this when a new block is inserted.
