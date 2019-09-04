@@ -9,13 +9,11 @@
 #include <sstream>
 #include <string>
 
-#include "protobuf/cpu_trace.pb.h"
 #include "Sim/instruction.hh"
 #include "Sim/request.hh"
 
 namespace Simulator
 {
-struct ProtobufMode {}; // We will use google protofbuf in this mode
 struct TXTMode {}; // Simply to parse a text file 
 template<typename T>
 class Trace
@@ -26,18 +24,7 @@ class Trace
     Trace(const std::string trace_fname)
     {
         trace_name = trace_fname;
-        if constexpr (std::is_same<ProtobufMode, T>::value)
-        {
-            GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-            std::ifstream input(trace_fname);
-            if (!trace_file.ParseFromIstream(&input))
-            {
-                std::cerr << "Failed to parse trace file. \n";
-                exit(0);
-            }
-        }
-
+        
         if constexpr (std::is_same<TXTMode, T>::value)
         {
             trace_file_expr.open(trace_fname);
@@ -47,42 +34,6 @@ class Trace
 
     bool getInstruction(Instruction &inst)
     {
-        if constexpr (std::is_same<ProtobufMode, T>::value)
-        {
-            if (instruction_index == trace_file.micro_ops_size())
-            {
-                google::protobuf::ShutdownProtobufLibrary();
-                return false;
-            }
-
-            const CPUTrace::MicroOp &micro_op = trace_file.micro_ops(instruction_index);
-
-            inst.ready_to_commit = false;
-            inst.eip = micro_op.eip();
-
-            if (micro_op.opr() == CPUTrace::MicroOp::EXE)
-            {
-                inst.opr = Instruction::Operation::EXE;
-            }
-            else
-            {
-                if (micro_op.opr() == CPUTrace::MicroOp::LOAD)
-                {
-                    inst.opr = Instruction::Operation::LOAD;
-                }
-
-                if (micro_op.opr() == CPUTrace::MicroOp::STORE)
-                {
-                    inst.opr = Instruction::Operation::STORE;
-                }
-                inst.target_vaddr = micro_op.load_or_store_addr();
-                inst.size = micro_op.size();
-            }
-
-            ++instruction_index;
-            return true;
-        }
-
         if constexpr (std::is_same<TXTMode, T>::value)
         {
             if (profiling_stage && instruction_index == profiling_limit)
@@ -197,7 +148,6 @@ class Trace
     }
 
   private:
-    CPUTrace::TraceFile trace_file;
     uint64_t instruction_index = 0;
 
     std::string trace_name;
@@ -211,7 +161,6 @@ class Trace
     unsigned runs = 0;
 };
 
-typedef Trace<ProtobufMode> ProtobufTrace;
 typedef Trace<TXTMode> TXTTrace;
 }
 #endif

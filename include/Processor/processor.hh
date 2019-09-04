@@ -21,7 +21,6 @@ typedef uint64_t Tick;
 typedef Simulator::Instruction Instruction;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
-typedef Simulator::ProtobufTrace ProtobufTrace;
 typedef Simulator::TXTTrace TXTTrace;
 
 typedef System::MMU MMU;

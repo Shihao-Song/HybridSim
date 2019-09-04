@@ -157,7 +157,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
 auto runCacheTest(const char* cfg_file, const char *trace_name)
 {
     Config cfg(cfg_file);
-    Simulator::ProtobufTrace cpu_trace(trace_name);
+    Simulator::TXTTrace cpu_trace(trace_name);
     
     Simulator::Instruction instr;
 
