@@ -1,10 +1,10 @@
-This simulator is still under development.
+## A Cycle-Level, Multi-Core CPU Trace Driven PCM-Based System Simulator
+This simulator has been used in our CASES 2019 submission:
++ Enabling and Exploiting Partition-Level Parallelism (PALP) in Phase Change Memories, **CASES 2019**
 
-I keep my development diary in repo of [Transition-to-C17](https://github.com/Shihao-Song/Transition-to-C17)
+This repository is for development only. Please use the [stable release](https://github.com/drexel-DISCO/PALP) for your own research.
 
-Please also install the latest c++ boost library.
-
-## Congratulations! Accepted papers that use our simulator
-
-Enabling and Exploiting Partition-Level Parallelism (PALP) in Phase Change Memories, **CASES 2019**
+### Dependencies:
++ C++17 and above
++ C++ Boost Library
 
