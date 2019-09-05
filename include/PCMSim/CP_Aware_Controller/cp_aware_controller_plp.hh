@@ -5,6 +5,7 @@
 
 namespace PCMSim
 {
+// TODO, this should be changed. Refer to the normal CPAwareController
 class PLPCPAwareController : public PLPController
 {
   protected:

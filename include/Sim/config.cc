@@ -8,6 +8,8 @@ Config::Config(const std::string &cfg_file)
 
     // Generate memory address decoding bits
     genMemAddrDecodingBits();
+
+//    std::cout << "PCM Size: " << sizeOfPCMInGB() << "GB\n";
 }
 
 void Config::genMemAddrDecodingBits()
@@ -15,25 +17,39 @@ void Config::genMemAddrDecodingBits()
     mem_addr_decoding_bits.resize(int(Decoding::MAX));
 
     mem_addr_decoding_bits[int(Decoding::Rank)] = int(log2(num_of_ranks));
-
-    // I assume all the tiles lined up horizontally, the number of rows in a partition equals
-    // to the number of rows in a tile.
-    mem_addr_decoding_bits[int(Decoding::Row)] = int(log2(num_of_word_lines_per_tile));
-
-    // Same as above, I assume all the tiles lined up horizontally.
-    unsigned num_of_byte_lines_per_bank = num_of_bit_lines_per_tile /
-                                          8 *
-                                          num_of_tiles;
-    mem_addr_decoding_bits[int(Decoding::Col)] =
-        int(log2(num_of_byte_lines_per_bank / block_size));
+//    std::cout << "Number of Ranks: " << num_of_ranks << "\n";
+//    std::cout << "Rank bits: " << mem_addr_decoding_bits[int(Decoding::Rank)] << "\n";
 
     mem_addr_decoding_bits[int(Decoding::Partition)] = int(log2(num_of_parts));
+//    std::cout << "Number of Partitions: " << num_of_parts << "\n";
+//    std::cout << "Partition bits: " 
+//              << mem_addr_decoding_bits[int(Decoding::Partition)] << "\n";
+
+    mem_addr_decoding_bits[int(Decoding::Tile)] = int(log2(num_of_tiles));
+//    std::cout << "Number of Tiles: " << num_of_tiles << "\n";
+//    std::cout << "Tile bits: " << mem_addr_decoding_bits[int(Decoding::Tile)] << "\n";
+
+    mem_addr_decoding_bits[int(Decoding::Row)] = int(log2(num_of_word_lines_per_tile));
+//    std::cout << "Number of Rows: " << num_of_word_lines_per_tile << "\n";
+//    std::cout << "Row bits: " << mem_addr_decoding_bits[int(Decoding::Row)] << "\n";
+    
+    mem_addr_decoding_bits[int(Decoding::Col)] = 
+        int(log2(num_of_bit_lines_per_tile / 8 / block_size));
+//    std::cout << "Number of cache lines per Tile: " 
+//              << num_of_bit_lines_per_tile / 8 / block_size << "\n";
+//    std::cout << "Col bits: " << mem_addr_decoding_bits[int(Decoding::Col)] << "\n";
 
     mem_addr_decoding_bits[int(Decoding::Bank)] = int(log2(num_of_banks));
+//    std::cout << "Number of Banks: " << num_of_banks << "\n";
+//    std::cout << "Bank bits: " << mem_addr_decoding_bits[int(Decoding::Bank)] << "\n";
 
     mem_addr_decoding_bits[int(Decoding::Channel)] = int(log2(num_of_channels));
+//    std::cout << "Number of Channels: " << num_of_channels << "\n";
+//    std::cout << "Channel bits: " << mem_addr_decoding_bits[int(Decoding::Channel)] << "\n";
 
     mem_addr_decoding_bits[int(Decoding::Cache_Line)] = int(log2(block_size));
+//    std::cout << "Block Size: " << block_size << "\n";
+//    std::cout << "Cache bits: " << mem_addr_decoding_bits[int(Decoding::Cache_Line)] << "\n";
 }
 
 void Config::parse(const std::string &fname)

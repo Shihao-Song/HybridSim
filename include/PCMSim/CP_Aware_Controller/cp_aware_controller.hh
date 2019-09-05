@@ -9,9 +9,6 @@ class CPAwareController : public FRFCFSController
 {
   protected:
     const unsigned num_stages;
-
-    const unsigned num_partitions_per_bank;
-    const unsigned num_rows_per_partition;
     const unsigned num_rows_per_stage;
 
     const std::vector<Config::Charging_Stage> 
@@ -25,10 +22,7 @@ class CPAwareController : public FRFCFSController
     CPAwareController(int _id, Config &cfg)
         : FRFCFSController(_id, cfg),
           num_stages(cfg.num_stages),
-          num_partitions_per_bank(cfg.num_of_parts),
-          num_rows_per_partition(cfg.num_of_word_lines_per_tile),
-          num_rows_per_stage(num_rows_per_partition * num_partitions_per_bank /
-                             num_stages),
+          num_rows_per_stage(cfg.num_of_word_lines_per_tile / num_stages),
           charging_lookaside_buffer(cfg.charging_lookaside_buffer)
     {
         assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)].size());
@@ -71,10 +65,8 @@ class CPAwareController : public FRFCFSController
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
     {
         // Step one, to determine stage level.
-        int part_id = scheduled_req->addr_vec[int(Config::Decoding::Partition)];
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
-        unsigned stage_id = (part_id * num_rows_per_partition + row_id) /
-                            num_rows_per_stage;
+        unsigned stage_id = row_id / num_rows_per_stage;
 	
         // Step two, to determine timings.
         scheduled_req->begin_exe = clk;

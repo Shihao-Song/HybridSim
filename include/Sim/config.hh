@@ -113,10 +113,8 @@ class Config
         // Address mapping: bank-interleaving
         // Rank, Row, Col, Bank, Channel, Cache_Line, MAX
 
-        // Channel-interleaving + Bank-interleaving + Partition-interleaving
-	// When PLP is enable, you can do this:
-        // Rank, Row, Col, Partition, Bank, Channel, Cache_Line, MAX
-        Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
+        // TODO, I'm not sure how partition and tile should be placed.
+        Rank, Partition, Tile, Row, Col, Bank, Channel, Cache_Line, MAX
     };
     std::vector<int> mem_addr_decoding_bits;
     void genMemAddrDecodingBits();
