@@ -292,12 +292,14 @@ auto LLCTrace(Config &cfg, std::vector<std::string> &trace_lists, std::string ou
                         wb_required)
                     {
                         // Step three, evict the block to next level
-                        // auto [wb_eip, wb_mmu_commu] = L1_D.retriMMUCommu(aligned_addr);
+                        auto [wb_core, 
+                              wb_eip,
+                              wb_mmu_commu] = L1_D.retriMMUCommu(aligned_addr);
                         ++num_evictions;
                     }
 
                     // Record the instruction that brings in this cache block
-                    L1_D.recordMMUCommu(aligned_addr, req.eip, NULL);
+                    L1_D.recordMMUCommu(aligned_addr, req.core_id, req.eip, 0);
                 }
                 else
                 {

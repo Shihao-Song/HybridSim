@@ -92,6 +92,7 @@ class SetWayAssocTags : public TagsWithSetWayBlk
     }
 
     void recordMMUCommu(Addr block_addr,
+                        int core_id,
                         Addr eip,
                         std::function<void(Simulator::Request&)> mmu_cb) override
     {
@@ -101,10 +102,12 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         assert(blk);
 
         blk->clearMMUCommu();
-        blk->recordMMUCommu(eip, mmu_cb);
+        blk->recordMMUCommu(core_id, eip, mmu_cb);
     }
 
-    std::pair<Addr, std::function<void(Simulator::Request&)>> 
+    std::tuple<int,
+               Addr,
+               std::function<void(Simulator::Request&)>> 
         retriMMUCommu(Addr block_addr) override
     {
         Addr blk_aligned_addr = blkAlign(block_addr);
