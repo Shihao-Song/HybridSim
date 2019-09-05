@@ -281,7 +281,7 @@ auto LLCTrace(Config &cfg, std::vector<std::string> &trace_lists, std::string ou
                     // This is a miss.
 		    // Step one, need to load the missing block from the next level.
 		    trace_out << req.core_id << " " << req.eip << " "
-                              << aligned_addr << " L\n" << std::flush;
+                              << aligned_addr << " L\n";
 
                     // Step two, insert the block into cache
                     if (auto [wb_required, wb_addr] = 
@@ -292,9 +292,12 @@ auto LLCTrace(Config &cfg, std::vector<std::string> &trace_lists, std::string ou
                         wb_required)
                     {
                         // Step three, evict the block to next level
-                        auto [wb_core, 
+                        auto [wb_core_id, 
                               wb_eip,
                               wb_mmu_commu] = L1_D.retriMMUCommu(aligned_addr);
+
+                        trace_out << wb_core_id << " " << wb_eip << " "
+                                  << wb_addr << " S\n";
                         ++num_evictions;
                     }
 
@@ -310,11 +313,12 @@ auto LLCTrace(Config &cfg, std::vector<std::string> &trace_lists, std::string ou
             ++core_id; 
         }
         ++cycles;
-        exit(0);
 	more_instructions = cpu_trace.getInstruction(cur_inst);
     }
 
     trace_out.close();
+    std::cout << "Number of misses: " << num_misses << "\n";
+    std::cout << "Number of evictions: " << num_evictions << "\n";
 }
 
 auto runMemTrace(MemObject *mem_obj,
