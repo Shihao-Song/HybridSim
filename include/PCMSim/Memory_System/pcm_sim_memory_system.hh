@@ -59,7 +59,17 @@ class PCMSimMemorySystem : public Simulator::MemObject
         req.addr_vec.resize(int(Config::Decoding::MAX));
 
         Decoder::decode(req.addr, memory_addr_decoding_bits, req.addr_vec);
-
+/*
+        std::cout << "\n Address: " << req.addr << "\n";
+        std::cout << "Rank: " << req.addr_vec[int(Config::Decoding::Rank)] << "\n"; 
+        std::cout << "Partition: " << req.addr_vec[int(Config::Decoding::Partition)] << "\n";
+        std::cout << "Tile: " << req.addr_vec[int(Config::Decoding::Tile)] << "\n";
+        std::cout << "Row: " << req.addr_vec[int(Config::Decoding::Row)] << "\n";
+        std::cout << "Col: " << req.addr_vec[int(Config::Decoding::Col)] << "\n";
+        std::cout << "Bank: " << req.addr_vec[int(Config::Decoding::Bank)] << "\n";
+        std::cout << "Channel: " << req.addr_vec[int(Config::Decoding::Channel)] << "\n";
+        std::cout << "Block: " << req.addr_vec[int(Config::Decoding::Cache_Line)] << "\n";
+*/
         int channel_id = req.addr_vec[int(Config::Decoding::Channel)];
 
         if(controllers[channel_id]->enqueue(req))
@@ -100,24 +110,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     void registerStats(Simulator::Stats &stats) override
     {
-        if constexpr (std::is_same<PLPCPAwareController, T>::value)
+        if constexpr (std::is_same<CPAwareController, T>::value)
         {
-            for (auto &controller : controllers)
-            {
-                std::string prin = "Channel_" + std::to_string(controller->id) +
-                                   "_Average_Backlogging = " + 
-                                   std::to_string((double)controller->total_back_logging /
-                                                  (double)controller->total_served);
-                stats.registerStats(prin);
-		
-		prin = "Channel_" + std::to_string(controller->id) +
-                       "_Average_Power = " + 
-                        std::to_string((double)controller->total_running_avg_power /
-                                       (double)controller->total_served);
-                stats.registerStats(prin);
-
-            }
-
             unsigned num_stages = controllers[0]->numStages();
             for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
             {

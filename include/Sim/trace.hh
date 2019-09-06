@@ -69,6 +69,7 @@ class Trace
             assert(tokens.size());
 
             inst.ready_to_commit = false;
+            inst.already_translated = false;
             inst.eip = std::stoull(tokens[0]);
             
             if (tokens[1] == "E")
@@ -157,7 +158,7 @@ class Trace
     bool profiling_stage = false;
     uint64_t profiling_limit = 0;
 
-    const unsigned REPEAT = 2;
+    const unsigned REPEAT = 1;
     unsigned runs = 0;
 };
 

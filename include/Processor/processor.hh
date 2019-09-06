@@ -170,11 +170,19 @@ class Processor
 
                     req.core_id = core_id;
                     req.eip = cur_inst.eip;
-                    req.addr = cur_inst.target_vaddr; // Assign virtual first
                     // Address translation
-                    mmu->va2pa(req);
-                    // Update the instruction with the translated physical address
-                    cur_inst.target_paddr = req.addr;
+                    if (!cur_inst.already_translated)
+                    {
+                        req.addr = cur_inst.target_vaddr; // Assign virtual first
+                        mmu->va2pa(req);
+                        // Update the instruction with the translated physical address
+                        cur_inst.target_paddr = req.addr;
+                    }
+                    else
+                    {
+                        // Already translated, no need to pass to mmu.
+                        req.addr = cur_inst.target_paddr;
+                    }
 
                     // Align the address before sending to cache.
                     req.addr = req.addr & ~window.block_mask;
@@ -195,6 +203,7 @@ class Processor
                     }
                     else
                     {
+                        cur_inst.already_translated = true;
                         break;
                     }
                 }

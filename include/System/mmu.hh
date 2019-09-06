@@ -232,6 +232,9 @@ class MFUPageToNearRows : public NearRegionAware
 
         uint64_t reads = 0;
         uint64_t writes = 0;
+
+        // More info
+        uint64_t touched_pages = 0;
     };
     std::unordered_map<Addr,RWCount> first_touch_instructions;
 

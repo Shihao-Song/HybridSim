@@ -29,6 +29,7 @@ class Instruction
                    // we are not utilizing this field currently.
 
     bool ready_to_commit = false;
+    bool already_translated = false;
 };
 }
 

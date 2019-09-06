@@ -45,15 +45,16 @@ void MFUPageToNearRows::va2pa(Request &req)
     req.addr = pa;
 
     // Hardware-guided Profiling
-    if (profiling_stage)
-    {
+    // TODO, tmp modification
+//    if (profiling_stage)
+//    {
         profiling_new(req);
-    }
+//    }
 
-    if (inference_stage && !near_region_full)
-    {
-        inference(req);
-    }
+//    if (inference_stage && !near_region_full)
+//    {
+//        inference(req);
+//    }
 }
 
 void MFUPageToNearRows::profiling_new(Request& req)
@@ -81,6 +82,26 @@ void MFUPageToNearRows::profiling_new(Request& req)
     }
     else
     {
+        // Step one, check if its already cached into the iTab
+        if (auto iter = first_touch_instructions.find(pc);
+                 iter != first_touch_instructions.end())
+        {
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++iter->second.reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++iter->second.writes;
+            }
+
+            ++iter->second.touched_pages;
+            pages.insert({page_id, true});
+
+            return;
+        }
+
+        // Step two, erase the LFU entry.
         if (first_touch_instructions.size() == num_profiling_entries)
         {
             std::vector<RWCount> ordered_by_ref;
@@ -99,13 +120,14 @@ void MFUPageToNearRows::profiling_new(Request& req)
             first_touch_instructions.erase(ordered_by_ref[num_profiling_entries - 1].eip);
         }
 
+        // Step three, insert into the iTab. 
         if (req.req_type == Request::Request_Type::READ)
         {
-            first_touch_instructions.insert({pc, {pc,1,0}});
+            first_touch_instructions.insert({pc, {pc,1,0,1}});
         }
         else if (req.req_type == Request::Request_Type::WRITE)
         {
-            first_touch_instructions.insert({pc, {pc,0,1}});
+            first_touch_instructions.insert({pc, {pc,0,1,1}});
         }
         pages.insert({page_id, true});
     }
