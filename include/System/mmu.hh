@@ -193,7 +193,8 @@ class MFUPageToNearRows : public NearRegionAware
         {
             mmu_profiling_data_out << entry.eip << " "
                                    << entry.reads << " "
-                                   << entry.writes << "\n" << std::flush;
+                                   << entry.writes << " "
+                                   << entry.touched_pages << "\n";
         }
     }
 

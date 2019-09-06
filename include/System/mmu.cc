@@ -63,75 +63,72 @@ void MFUPageToNearRows::profiling_new(Request& req)
     Addr pc = req.eip;
     // Get page ID
     Addr page_id = req.addr >> Mapper::va_page_shift;
-    // Is the page has already been touched?
-    if (auto iter = pages.find(page_id);
-             iter != pages.end())
+
+    // Step one, check if the PC in iTab
+    if (auto f_instr = first_touch_instructions.find(pc);
+            f_instr != first_touch_instructions.end())
     {
-        if (auto iter = first_touch_instructions.find(pc);
-                 iter != first_touch_instructions.end())
+        // The PC has already been cached in iTab.
+        // Step two, increment counters
+        if (req.req_type == Request::Request_Type::READ)
         {
-            if (req.req_type == Request::Request_Type::READ)
-            {
-                ++iter->second.reads;
-            }
-            else if (req.req_type == Request::Request_Type::WRITE)
-            {
-                ++iter->second.writes;
-            }
+            ++f_instr->second.reads;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            ++f_instr->second.writes;
+        }
+
+        // Step three, page fault?
+        if (auto p_iter = pages.find(page_id);
+                p_iter == pages.end())
+        {
+            // Yes, insert the page ID.
+            pages.insert({page_id, true});
+            // This instruction touched a new page.
+            ++f_instr->second.touched_pages;
         }
     }
     else
     {
-        // Step one, check if its already cached into the iTab
-        if (auto iter = first_touch_instructions.find(pc);
-                 iter != first_touch_instructions.end())
+        // The PC is not cached in iTab.
+        // Step one, determine if it is a first-touch instruction
+        if (auto p_iter = pages.find(page_id);
+                p_iter == pages.end())
         {
+            // Page fault! Yes, it is a first-touch instruction. Need to record.
+            // Step two, erase the LFU entry if iTab is full.
+            if (num_profiling_entries != -1 && 
+                first_touch_instructions.size() == num_profiling_entries)
+            {
+                std::vector<RWCount> ordered_by_ref;
+                for (auto [key, value] : first_touch_instructions)
+                {
+                    ordered_by_ref.push_back(value);
+                }
+                std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
+                          [](const RWCount &a, const RWCount &b)
+                          {
+                              return (a.reads + a.writes) > (b.reads + b.writes);
+                          });
+
+                assert(ordered_by_ref.size() == num_profiling_entries);
+                // Erase the least referenced instruction
+                first_touch_instructions.erase(ordered_by_ref[num_profiling_entries - 1].eip);
+            }
+
+            // Step three, insert into the iTab. 
             if (req.req_type == Request::Request_Type::READ)
             {
-                ++iter->second.reads;
+                first_touch_instructions.insert({pc, {pc,1,0,1}});
             }
             else if (req.req_type == Request::Request_Type::WRITE)
             {
-                ++iter->second.writes;
+                first_touch_instructions.insert({pc, {pc,0,1,1}});
             }
-
-            ++iter->second.touched_pages;
             pages.insert({page_id, true});
-
-            return;
         }
-
-        // Step two, erase the LFU entry.
-        if (first_touch_instructions.size() == num_profiling_entries)
-        {
-            std::vector<RWCount> ordered_by_ref;
-            for (auto [key, value] : first_touch_instructions)
-            {
-                ordered_by_ref.push_back(value);
-            }
-            std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
-                      [](const RWCount &a, const RWCount &b)
-                      {
-                          return (a.reads + a.writes) > (b.reads + b.writes);
-                      });
-
-            assert(ordered_by_ref.size() == num_profiling_entries);
-            // Erase the least referenced instruction
-            first_touch_instructions.erase(ordered_by_ref[num_profiling_entries - 1].eip);
-        }
-
-        // Step three, insert into the iTab. 
-        if (req.req_type == Request::Request_Type::READ)
-        {
-            first_touch_instructions.insert({pc, {pc,1,0,1}});
-        }
-        else if (req.req_type == Request::Request_Type::WRITE)
-        {
-            first_touch_instructions.insert({pc, {pc,0,1,1}});
-        }
-        pages.insert({page_id, true});
     }
-
 }
 
 // This is the old profiling technique which requires all levels of memory to communicate with
