@@ -83,7 +83,7 @@ void FullSystemSimulation(Config &cfg,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfg));
-    mmu->setSizes(trained_mmu_required_sizes);
+//    mmu->setSizes(trained_mmu_required_sizes);
     
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
