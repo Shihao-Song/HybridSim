@@ -399,6 +399,9 @@ class Cache : public Simulator::MemObject
                     
 		    if (req.req_type == Request::Request_Type::WRITE)
                     {
+                        // TODO, delete this exit() later.
+                        std::cerr << "Should not happen.\n";
+                        exit(0);
                         if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
                                                                  clk + tag_lookup_latency);
                             hit_in_mshr_queue)
@@ -556,6 +559,11 @@ class CacheFactory
     // We have limit the use of Set-Assoc-LRU here.
     auto createCache(Config::Cache_Level level, Config &cfg, bool LLC = false)
     {
+        if (level == Config::Cache_Level::eDRAM)
+        {
+            return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg);
+        }
+
         if (LLC)
         {
             return factories["SET_WAY_LRU_LLC"](level, cfg);

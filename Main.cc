@@ -55,7 +55,9 @@ void FullSystemSimulation(Config &cfg,
     /* Memory System Creation */
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+    exit(0);
 
+//    exit(0);
     // Create eDRAM
     std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM, isLLC));
     eDRAM->setNextLevel(PCM.get());

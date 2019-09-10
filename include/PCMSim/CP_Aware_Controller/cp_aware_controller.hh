@@ -18,6 +18,38 @@ class CPAwareController : public FRFCFSController
     std::vector<uint64_t> stage_accesses[int(Config::Charge_Pump_Opr::MAX)];
     std::vector<uint64_t> stage_total_charging_time[int(Config::Charge_Pump_Opr::MAX)];
 
+  // TODO, tmp modifications for CAL submission
+  protected:
+    // One for reading and one for writing
+    std::vector<unsigned> latency_lookaside_buffer[int(Config::Charge_Pump_Opr::MAX)];
+    const float clk_period = 3.76;
+    const float read_latencies_ns[8] = {37.6169351, 
+                                        37.9677406,
+                                        38.5524163,
+                                        39.3709623,
+                                        40.4233787,
+                                        41.7096653,
+                                        43.2298222,
+                                        44.9838494};
+
+    const float set_latencies_ns[8] = {120.129504,
+                                       120.518016,
+                                       121.165536,
+                                       122.072064,
+                                       123.2376,
+                                       124.662143,
+                                       126.345695,
+                                       128.288255};
+
+    const float reset_latencies_ns[8] = {30.1561587,
+                                         30.6246347,
+                                         31.405428,
+                                         32.4985386,
+                                         33.9039666,
+                                         35.6217119,
+                                         37.6517745,
+                                         39.9941545};
+
   public:
     CPAwareController(int _id, Config &cfg)
         : FRFCFSController(_id, cfg),
@@ -34,6 +66,30 @@ class CPAwareController : public FRFCFSController
             stage_accesses[i].resize(num_stages, 0);
             stage_total_charging_time[i].resize(num_stages, 0);
         }
+
+        // TODO, tmp modification for CAL submission
+        latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)].resize(8);
+        latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)].resize(8);
+        latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)].resize(8);
+
+        for (int i = 0; i < 8; i++)
+        {
+            latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] = 
+                ceil(read_latencies_ns[i] / clk_period);
+            std::cout << "READ-Stage-" << i << ": " << 
+                      latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] << "\n";
+
+            latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] = 
+                ceil(set_latencies_ns[i] / clk_period);
+            std::cout << "SET-Stage-" << i << ": " <<
+                      latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] << "\n";
+            
+            latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] = 
+                ceil(reset_latencies_ns[i] / clk_period);
+            std::cout << "RESET-Stage-" << i << ": " <<
+                      latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] << "\n";
+        }
+        exit(0);
     }
 
     void reInitialize() override
