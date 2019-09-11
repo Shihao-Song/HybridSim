@@ -39,8 +39,8 @@ class Trace
             if (profiling_stage && instruction_index == profiling_limit)
             {
                 profiling_stage = false;
-                trace_file_expr.clear();
-                trace_file_expr.seekg(0, std::ios::beg);
+//                trace_file_expr.clear();
+//                trace_file_expr.seekg(0, std::ios::beg);
                 return false;
             }
 
@@ -158,7 +158,7 @@ class Trace
     bool profiling_stage = false;
     uint64_t profiling_limit = 0;
 
-    const unsigned REPEAT = 2;
+    const unsigned REPEAT = 1;
     unsigned runs = 0;
 };
 

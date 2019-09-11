@@ -122,12 +122,12 @@ class Processor
         // Re-initialize
         void reInitialize()
         {
-            cycles = 0;
-            retired = 0;
+//            cycles = 0;
+//            retired = 0;
             trace.disableProfiling();
 
             // Re-initialize caches
-            d_cache->reInitialize();
+//            d_cache->reInitialize();
 
             more_insts = trace.getInstruction(cur_inst);
         }
@@ -277,7 +277,7 @@ class Processor
     // Re-initialize
     void reInitialize()
     {
-        cycles = 0;
+//        cycles = 0;
 
         // Re-initialize each core with its local cache.
         for (auto &core : cores)
@@ -286,7 +286,7 @@ class Processor
         }
 
         // Re-initialize the shared memory object
-        shared_m_obj->reInitialize();
+//        shared_m_obj->reInitialize();
     }
 
     // Are we in profiling stage?

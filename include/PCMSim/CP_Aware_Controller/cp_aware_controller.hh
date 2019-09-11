@@ -87,7 +87,7 @@ class CPAwareController : public FRFCFSController
             latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] = 
                 ceil(reset_latencies_ns[i] / clk_period);
 //            std::cout << "RESET-Stage-" << i << ": " <<
-//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] << "\n";
+//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] << "\n\n";
         }
 //        exit(0);
     }

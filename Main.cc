@@ -55,7 +55,6 @@ void FullSystemSimulation(Config &cfg,
     /* Memory System Creation */
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
-    exit(0);
 
 //    exit(0);
     // Create eDRAM
@@ -94,7 +93,7 @@ void FullSystemSimulation(Config &cfg,
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-/*   
+   
     if (profiling_limits.size())
     {
         // Nofity processor that we are in profiling stage;
@@ -108,7 +107,7 @@ void FullSystemSimulation(Config &cfg,
         processor->reInitialize();
         mmu->setInferenceStage();
     }
-*/
+
     std::cout << "\nSimulation Stage...\n\n";
     runCPUTrace(processor.get());
 

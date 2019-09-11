@@ -65,6 +65,137 @@ void MFUPageToNearRows::profiling_new(Request& req)
     // Get page ID
     Addr page_id = req.addr >> Mapper::va_page_shift;
 
+    // Step One, check if it is a page fault
+    if (auto p_iter = pages.find(page_id);
+            p_iter == pages.end())
+    {
+        // Yes, it is a page fault.
+        // Step two, insert into the iTab. 
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            if (auto f_instr = first_touch_instructions.find(pc);
+                    f_instr != first_touch_instructions.end())
+            {
+                if (profiling_stage)
+                {
+                    ++f_instr->second.reads_profiling_stage;
+                    ++f_instr->second.touched_pages_profiling_stage; // Touched a new page
+                }
+                else if(inference_stage)
+                {
+                    ++f_instr->second.reads_inference_stage;
+                    ++f_instr->second.touched_pages_inference_stage; // Touched a new page
+                }
+            }
+            else
+            {
+                if (profiling_stage)
+                {
+                    first_touch_instructions.insert({pc, 
+                                                    {pc,
+                                                     true, // captured in profiling
+                                                     1, // reads_profiling_stage + 1
+                                                     0, // writes_profiling_stage = 0
+                                                     0, // reads_inference_stage = 0
+                                                     0, // writes_inference_stage = 0
+                                                     1, // touched_pages_profiling_stage + 1
+                                                     0 // touched_pages_inference_stage = 0
+                                                     }});
+                }
+                else if(inference_stage)
+                {
+                    first_touch_instructions.insert({pc, 
+                                                    {pc,
+                                                     false, // captured in profiling
+                                                     0, // reads_profiling_stage = 0
+                                                     0, // writes_profiling_stage = 0
+                                                     1, // reads_inference_stage + 1
+                                                     0, // writes_inference_stage = 0
+                                                     0, // touched_pages_profiling_stage = 0
+                                                     1 // touched_pages_inference_stage + 1
+                                                     }});
+                }
+            }
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            if (auto f_instr = first_touch_instructions.find(pc);
+                    f_instr != first_touch_instructions.end())
+            {
+                if (profiling_stage)
+                {
+                    ++f_instr->second.writes_profiling_stage;
+                    ++f_instr->second.touched_pages_profiling_stage; // Touched a new page
+                }
+                else if(inference_stage)
+                {
+                    ++f_instr->second.writes_inference_stage;
+                    ++f_instr->second.touched_pages_inference_stage; // Touched a new page
+                }
+            }
+            else
+            {
+                if (profiling_stage)
+                {
+                    first_touch_instructions.insert({pc, 
+                                                    {pc,
+                                                     true, // captured in profiling
+                                                     0, // reads_profiling_stage = 0
+                                                     1, // writes_profiling_stage + 1
+                                                     0, // reads_inference_stage = 0
+                                                     0, // writes_inference_stage = 0
+                                                     1, // touched_pages_profiling_stage + 1
+                                                     0 // touched_pages_inference_stage = 0
+                                                     }});
+                }
+                else if(inference_stage)
+                {
+                    first_touch_instructions.insert({pc, 
+                                                    {pc,
+                                                     false, // captured in profiling
+                                                     0, // reads_profiling_stage = 0
+                                                     0, // writes_profiling_stage = 0
+                                                     0, // reads_inference_stage = 0
+                                                     1, // writes_inference_stage + 1
+                                                     0, // touched_pages_profiling_stage = 0
+                                                     1 // touched_pages_inference_stage + 1
+                                                     }});
+                }
+            }
+
+        }
+        pages.insert({page_id, pc});
+    }
+    else
+    {
+        // Not a page fault.
+        // Find the first touch instruction that brings in the page.
+        auto f_instr = first_touch_instructions.find(p_iter->second);
+        assert(f_instr != first_touch_instructions.end());
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            if (profiling_stage)
+            {
+                ++f_instr->second.reads_profiling_stage;
+            }
+            else if(inference_stage)
+            {
+                ++f_instr->second.reads_inference_stage;
+            }
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            if (profiling_stage)
+            {
+                ++f_instr->second.writes_profiling_stage;
+            }
+            else if(inference_stage)
+            {
+                ++f_instr->second.writes_inference_stage;
+            }
+        }
+    }
+/*
     // Step one, check if the PC in iTab
     if (auto f_instr = first_touch_instructions.find(pc);
             f_instr != first_touch_instructions.end())
@@ -130,6 +261,7 @@ void MFUPageToNearRows::profiling_new(Request& req)
             pages.insert({page_id, true});
         }
     }
+*/
 }
 
 // This is the old profiling technique which requires all levels of memory to communicate with

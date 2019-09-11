@@ -175,6 +175,19 @@ class MFUPageToNearRows : public NearRegionAware
 
     void printProfiling() override
     {
+        for (auto [key, value] : first_touch_instructions)
+        {
+            mmu_profiling_data_out << value.eip << " "
+                                   << value.captured_in_profiling_stage << " "
+                                   << value.reads_profiling_stage << " "
+                                   << value.writes_profiling_stage << " "
+                                   << value.reads_inference_stage << " "
+                                   << value.writes_inference_stage << " "
+                                   << value.touched_pages_profiling_stage << " "
+                                   << value.touched_pages_inference_stage << "\n";
+        }
+
+        /*
         std::vector<RWCount> profiling_data;
         for (auto [key, value] : first_touch_instructions)
         {
@@ -192,6 +205,7 @@ class MFUPageToNearRows : public NearRegionAware
                                    << entry.writes << " "
                                    << entry.touched_pages << "\n";
         }
+        */
     }
 
   protected:
@@ -203,6 +217,9 @@ class MFUPageToNearRows : public NearRegionAware
     {
         return [this](Request &req)
                {
+                   std::cerr << "Not supported now.\n";
+                   exit(0);
+                   /*
                    auto iter = first_touch_instructions.find(req.eip);
                    assert(iter != first_touch_instructions.end());
 
@@ -214,26 +231,56 @@ class MFUPageToNearRows : public NearRegionAware
                    {
                        ++(iter->second).writes;
                    }
+                   */
                };
     }
 
-    std::unordered_map<Addr,bool> pages; // All the touched (allocated) pages, used in
+    struct Page_Info
+    {
+        Addr first_touch_instruction; // The first-touch instruction that brings in this page
+
+        bool allocated_in_profiling_stage = false;
+
+        uint64_t reads_by_profiled_instructions = 0;
+        uint64_t writes_by_profiled_instructions = 0;
+
+        uint64_t reads_by_non_profiled_instructions = 0;
+        uint64_t writes_by_non_profiled_instructions = 0;
+
+        uint64_t reads_in_profiling_stage = 0;
+        uint64_t writes_in_profiling_stage = 0;
+
+        uint64_t reads_in_inference_stage = 0;
+        uint64_t writes_in_inference_stage = 0;
+    };
+    std::unordered_map<Addr,Addr> pages; // All the touched (allocated) pages, used in
                                          // profiling stage.
 
     std::unordered_map<Addr,Addr> re_alloc_pages; // All the re-allocated MFU pages, used in
                                                   // inference stage.
 
-    struct RWCount
+    struct FT_Instr_Info // Information of first-touch instruction
     {
         Addr eip;
 
-        uint64_t reads = 0;
-        uint64_t writes = 0;
+        // Is this instruction captured in profiling stage
+        bool captured_in_profiling_stage = false;
 
-        // More info
-        uint64_t touched_pages = 0;
+        // Number of accesses in profiling stage
+        uint64_t reads_profiling_stage = 0;
+        uint64_t writes_profiling_stage = 0;
+
+        // Number of accesses in inference stage
+        uint64_t reads_inference_stage = 0;
+        uint64_t writes_inference_stage = 0;
+
+        // Number of pages in profiling stage
+        uint64_t touched_pages_profiling_stage = 0;
+
+        // Number of pages in inference stage
+        uint64_t touched_pages_inference_stage = 0;
     };
-    std::unordered_map<Addr,RWCount> first_touch_instructions;
+    std::unordered_map<Addr,FT_Instr_Info> first_touch_instructions;
 
     int num_profiling_entries = -1;
 };
