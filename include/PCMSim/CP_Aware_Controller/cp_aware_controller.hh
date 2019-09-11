@@ -76,20 +76,20 @@ class CPAwareController : public FRFCFSController
         {
             latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] = 
                 ceil(read_latencies_ns[i] / clk_period);
-            std::cout << "READ-Stage-" << i << ": " << 
-                      latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] << "\n";
+//            std::cout << "READ-Stage-" << i << ": " << 
+//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] << "\n";
 
             latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] = 
                 ceil(set_latencies_ns[i] / clk_period);
-            std::cout << "SET-Stage-" << i << ": " <<
-                      latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] << "\n";
+//            std::cout << "SET-Stage-" << i << ": " <<
+//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] << "\n";
             
             latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] = 
                 ceil(reset_latencies_ns[i] / clk_period);
-            std::cout << "RESET-Stage-" << i << ": " <<
-                      latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] << "\n";
+//            std::cout << "RESET-Stage-" << i << ": " <<
+//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] << "\n";
         }
-        exit(0);
+//        exit(0);
     }
 
     void reInitialize() override

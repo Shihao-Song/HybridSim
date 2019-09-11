@@ -86,16 +86,15 @@ class TrainedMMU : public MMU
 
 // TODO, Limitations
 // (1) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank, 1 GB bank;
-// (2) I assume Decoding is Rank, Partition, Row, Col, Bank, Channel, Cache_Line, MAX
+// (2) Decoding is fixed: Rank, Partition, Tile, Row, Col, Bank, Channel, Cache_Line
 class NearRegionAware : public TrainedMMU
 {
   protected:
-    const unsigned num_of_rows_per_partition;
     const unsigned num_of_cache_lines_per_row;
-
-    // How many rows are the near rows.
+    const unsigned num_of_tiles;
+    const unsigned num_of_partitions;
+    const unsigned num_of_ranks;
     const unsigned num_of_near_rows;
-    const unsigned num_of_near_parts;
 
     // mem_addr_decoding_bits is used to determine the physical location of the page.
     const std::vector<int> mem_addr_decoding_bits;
@@ -103,45 +102,40 @@ class NearRegionAware : public TrainedMMU
   public:
     NearRegionAware(int num_of_cores, Config &cfg)
         : TrainedMMU(num_of_cores, cfg),
-          num_of_rows_per_partition(cfg.num_of_word_lines_per_tile),
-          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size *
-                                     cfg.num_of_tiles),
-          num_of_near_rows(num_of_rows_per_partition * cfg.num_of_parts /
-                           cfg.num_stages),
-          num_of_near_parts(num_of_near_rows / num_of_rows_per_partition),
-          mem_addr_decoding_bits(cfg.mem_addr_decoding_bits),
-          max_near_page_group_id(num_of_near_parts - 1),
-          max_near_page_row_id(num_of_rows_per_partition - 1),
-          max_near_page_col_id(num_of_cache_lines_per_row - 1),
-          max_near_page_dep_id(cfg.num_of_ranks)
+          num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size),
+          num_of_tiles(cfg.num_of_tiles),
+          num_of_partitions(cfg.num_of_parts),
+          num_of_ranks(cfg.num_of_ranks),
+          num_of_near_rows(cfg.num_of_word_lines_per_tile /cfg.num_stages),
+          mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
     {}
   // Define data structures
   protected:
-    const unsigned max_near_page_group_id;
-    const unsigned max_near_page_row_id;
-    const unsigned max_near_page_col_id;
-    const unsigned max_near_page_dep_id;
-    
     struct PageLoc // Physical location
     {
-        unsigned group_id = 0;
+        unsigned rank_id = 0;
+        unsigned part_id = 0;
+        unsigned tile_id = 0;
         unsigned row_id = 0;
         unsigned col_id = 0;
-        unsigned dep_id = 0;
 
         PageLoc& operator=(PageLoc other)
         {
+            rank_id = other.rank_id;
+            part_id = other.part_id;
+            tile_id = other.tile_id;
             row_id = other.row_id;
             col_id = other.col_id;
-            dep_id = other.dep_id;
             return *this;
         }
 
 	bool operator==(const PageLoc &other) const
         {
-            return row_id == other.row_id && 
-                   col_id == other.col_id &&
-                   dep_id == other.dep_id;
+            return rank_id == other.rank_id &&
+                   part_id == other.part_id &&
+                   tile_id == other.tile_id &&
+                   row_id == other.row_id && 
+                   col_id == other.col_id;
         }
     };
 
@@ -150,9 +144,11 @@ class NearRegionAware : public TrainedMMU
         template<typename T = PageLoc>
         std::size_t operator()(T &p) const
         {
-            return std::hash<unsigned>()(p.row_id) ^ 
-                   std::hash<unsigned>()(p.col_id) ^ 
-                   std::hash<unsigned>()(p.dep_id);
+            return std::hash<unsigned>()(p.rank_id) ^
+                   std::hash<unsigned>()(p.part_id) ^
+                   std::hash<unsigned>()(p.tile_id) ^
+                   std::hash<unsigned>()(p.row_id) ^ 
+                   std::hash<unsigned>()(p.col_id); 
         }
     };
     typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
@@ -241,7 +237,7 @@ class MFUPageToNearRows : public NearRegionAware
 
     int num_profiling_entries = -1;
 };
-
+/*
 // Strategy 2, give the control of near pages to memory controller. Only pages outside
 // near region are accessible.
 class HiddenNearRows : public NearRegionAware
@@ -280,7 +276,7 @@ class HiddenNearRows : public NearRegionAware
     std::unordered_map<Addr,Addr> re_alloc_pages;
     void nextReAllocPage() override;
 };
-
+*/
 class TrainedMMUFactory
 {
     typedef Simulator::Config Config;
@@ -297,10 +293,10 @@ class TrainedMMUFactory
                      return std::make_unique<MFUPageToNearRows>(num_of_cores, cfg);
                  };
 
-        factories["HiddenNearRows"] = [](int num_of_cores, Config &cfg)
-                 {
-                     return std::make_unique<HiddenNearRows>(num_of_cores, cfg);
-                 };
+//        factories["HiddenNearRows"] = [](int num_of_cores, Config &cfg)
+//                 {
+//                     return std::make_unique<HiddenNearRows>(num_of_cores, cfg);
+//                 };
     }
 
     auto createMMU(int num_of_cores, Config &cfg)

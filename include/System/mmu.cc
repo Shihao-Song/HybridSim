@@ -2,9 +2,9 @@
 
 namespace System
 {
-// We want to distribute consecutive pages to different partitions.
 void NearRegionAware::nextReAllocPage()
 {
+    /*
     if (cur_re_alloc_page.group_id + 1 > max_near_page_group_id)
     {
         cur_re_alloc_page.group_id = 0;
@@ -37,6 +37,7 @@ void NearRegionAware::nextReAllocPage()
     {
         cur_re_alloc_page.group_id = cur_re_alloc_page.group_id + 1;
     }
+    */
 }
 
 void MFUPageToNearRows::va2pa(Request &req)
@@ -178,7 +179,7 @@ void MFUPageToNearRows::inference(Request &req)
 
         return;
     }
-
+/*
     // Not found, should we allocate to near rows?
     if (auto iter = first_touch_instructions.find(pc);
              iter != first_touch_instructions.end())
@@ -215,8 +216,9 @@ void MFUPageToNearRows::inference(Request &req)
 
         nextReAllocPage();
     }
+*/
 }
-
+/*
 // Strategy 2, give the control of near pages to memory controller. Only pages outside
 // near region are accessible.
 void HiddenNearRows::nextReAllocPage()
@@ -318,4 +320,5 @@ void HiddenNearRows::va2pa(Request &req)
         nextReAllocPage();
     }
 }
+*/
 }
