@@ -79,8 +79,8 @@ class TrainedMMU : public MMU
     void profilingDataOutput(std::string file)
     {
         mmu_profiling_data_output_file = file;
-        mmu_profiling_data_out.open(file);
-        assert(mmu_profiling_data_out.good());
+        //mmu_profiling_data_out.open(file);
+        //assert(mmu_profiling_data_out.good());
     }
 };
 
@@ -175,8 +175,25 @@ class MFUPageToNearRows : public NearRegionAware
 
     void printProfiling() override
     {
+        unsigned num_profilied_instr = 0;
+        unsigned num_missed_instr = 0;
+        unsigned num_profilied_instr_accessed_in_inference_stage = 0;
         for (auto [key, value] : first_touch_instructions)
         {
+            if (value.captured_in_profiling_stage)
+            {
+                ++num_profilied_instr;
+
+                if (value.reads_inference_stage + value.writes_inference_stage > 0)
+                {
+                    ++num_profilied_instr_accessed_in_inference_stage;
+                }
+            }
+            else
+            {
+                ++num_missed_instr;
+            }
+            /*
             mmu_profiling_data_out << value.eip << " "
                                    << value.captured_in_profiling_stage << " "
                                    << value.reads_profiling_stage << " "
@@ -185,9 +202,117 @@ class MFUPageToNearRows : public NearRegionAware
                                    << value.writes_inference_stage << " "
                                    << value.touched_pages_profiling_stage << " "
                                    << value.touched_pages_inference_stage << "\n";
+            */
+        }
+//        mmu_profiling_data_out << num_profilied_instr << " " 
+//                               << num_missed_instr << " "
+//                               << num_profilied_instr_accessed_in_inference_stage << " ";
+
+        unsigned num_pages_allocated_in_profiling_stage = 0;
+        unsigned num_pages_allocated_in_inference_stage = 0;
+        unsigned num_profilied_pages_accessed_in_inference_stage = 0;
+        for (auto [key, value] : pages)
+        {
+            if (value.allocated_in_profiling_stage)
+            {
+                ++num_pages_allocated_in_profiling_stage;
+
+                if (value.reads_in_inference_stage + value.writes_in_inference_stage > 0)
+                {
+                    ++num_profilied_pages_accessed_in_inference_stage;
+                }
+            }
+            else
+            {
+                ++num_pages_allocated_in_inference_stage;
+            }
+        }
+//        mmu_profiling_data_out << num_pages_allocated_in_profiling_stage << " "
+//                               << num_pages_allocated_in_inference_stage << " "
+//                               << num_profilied_pages_accessed_in_inference_stage << "\n";
+
+        std::vector<Page_Info> MFU_pages_profiling;
+        std::vector<Page_Info> MFU_pages_inference;
+
+        for (auto [key, value] : pages)
+        {
+            MFU_pages_profiling.push_back(value);
+            MFU_pages_inference.push_back(value);
         }
 
-        /*
+        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.reads_in_profiling_stage + a.writes_in_profiling_stage) > 
+                             (b.reads_in_profiling_stage + b.writes_in_profiling_stage);
+                  });
+	
+        std::sort(MFU_pages_inference.begin(), MFU_pages_inference.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.reads_in_inference_stage + a.writes_in_inference_stage) > 
+                             (b.reads_in_inference_stage + b.writes_in_inference_stage);
+                  });
+
+        std::string profiling_file = mmu_profiling_data_output_file + "_3M.csv";
+        std::ofstream profiling_output(profiling_file);
+        assert(profiling_output.good());
+
+        std::string inference_file = mmu_profiling_data_output_file + "_7M.csv";
+        std::ofstream inference_output(inference_file);
+        assert(inference_output.good());
+
+        for (int i = 0; i < pages.size(); i++)
+        {
+            unsigned accesses = MFU_pages_profiling[i].reads_in_profiling_stage +
+                                MFU_pages_profiling[i].writes_in_profiling_stage;
+
+            if (MFU_pages_profiling[i].allocated_in_profiling_stage &&
+                accesses)
+            {
+
+                profiling_output << MFU_pages_profiling[i].page_id << ","
+                                 << MFU_pages_profiling[i].first_touch_instruction << ","
+                                 << accesses << "\n";
+            }
+	    else
+            {
+                break;
+            }
+        }
+
+        for (int i = 0; i < pages.size(); i++)
+        {
+            unsigned accesses = MFU_pages_inference[i].reads_in_inference_stage +
+                                MFU_pages_inference[i].writes_in_inference_stage;
+            if (accesses)
+            {
+	        inference_output << MFU_pages_inference[i].page_id << ","
+                                 << MFU_pages_inference[i].first_touch_instruction << ","
+                                 << accesses << "\n";
+            }
+	    else
+	    {
+                break;    
+	    }
+        //}
+        //mmu_profiling_data_out << "\n";
+        //for (int i = 0; i < 8; i++)
+        //{
+            /*
+            if (unsigned accesses = MFU_pages_inference[i].reads_in_inference_stage +
+                                    MFU_pages_inference[i].writes_in_inference_stage;
+                accesses > 0)
+            {
+                mmu_profiling_data_out << MFU_pages_inference[i].page_id << ","
+                                       << MFU_pages_inference[i].first_touch_instruction << ","
+                                       << accesses << "\n";
+            }
+            */
+        }
+        profiling_output.close();
+	inference_output.close();
+	/*
         std::vector<RWCount> profiling_data;
         for (auto [key, value] : first_touch_instructions)
         {
@@ -237,15 +362,18 @@ class MFUPageToNearRows : public NearRegionAware
 
     struct Page_Info
     {
+        Addr page_id;
         Addr first_touch_instruction; // The first-touch instruction that brings in this page
 
         bool allocated_in_profiling_stage = false;
 
+        /*
         uint64_t reads_by_profiled_instructions = 0;
         uint64_t writes_by_profiled_instructions = 0;
 
         uint64_t reads_by_non_profiled_instructions = 0;
         uint64_t writes_by_non_profiled_instructions = 0;
+        */
 
         uint64_t reads_in_profiling_stage = 0;
         uint64_t writes_in_profiling_stage = 0;
@@ -253,7 +381,7 @@ class MFUPageToNearRows : public NearRegionAware
         uint64_t reads_in_inference_stage = 0;
         uint64_t writes_in_inference_stage = 0;
     };
-    std::unordered_map<Addr,Addr> pages; // All the touched (allocated) pages, used in
+    std::unordered_map<Addr,Page_Info> pages; // All the touched (allocated) pages, used in
                                          // profiling stage.
 
     std::unordered_map<Addr,Addr> re_alloc_pages; // All the re-allocated MFU pages, used in

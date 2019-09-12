@@ -162,16 +162,17 @@ void MFUPageToNearRows::profiling_new(Request& req)
                                              touched_pages_inference_stage
 					     }});
         }
+
         // Insert new page
         // Organize page information
         bool allocated_in_profiling_stage = false;
-
+/*
         uint64_t reads_by_profiled_instructions = 0;
         uint64_t writes_by_profiled_instructions = 0;
 
         uint64_t reads_by_non_profiled_instructions = 0;
         uint64_t writes_by_non_profiled_instructions = 0;
-
+*/
         uint64_t reads_in_profiling_stage = 0;
         uint64_t writes_in_profiling_stage = 0;
 
@@ -204,22 +205,38 @@ void MFUPageToNearRows::profiling_new(Request& req)
                 writes_in_inference_stage = 1;
             }
         }
+ 
+        // TODO, need to handle other information as well
+
+        pages.insert({page_id, {page_id,
+                                pc,
+                                allocated_in_profiling_stage,
+                                // reads_by_profiled_instructions,
+                                // writes_by_profiled_instructions,
+                                // reads_by_non_profiled_instructions,
+                                // writes_by_non_profiled_instructions,
+                                reads_in_profiling_stage,
+                                writes_in_profiling_stage,
+                                reads_in_inference_stage,
+                                writes_in_inference_stage}});
     }
     else
     {
         // Not a page fault.
         // Find the first touch instruction that brings in the page.
-        auto f_instr = first_touch_instructions.find(p_iter->second);
+        auto f_instr = first_touch_instructions.find(p_iter->second.first_touch_instruction);
         assert(f_instr != first_touch_instructions.end());
         if (req.req_type == Request::Request_Type::READ)
         {
             if (profiling_stage)
             {
                 ++f_instr->second.reads_profiling_stage;
+                ++p_iter->second.reads_in_profiling_stage;
             }
             else if(inference_stage)
             {
                 ++f_instr->second.reads_inference_stage;
+                ++p_iter->second.reads_in_inference_stage;
             }
         }
         else if (req.req_type == Request::Request_Type::WRITE)
@@ -227,10 +244,12 @@ void MFUPageToNearRows::profiling_new(Request& req)
             if (profiling_stage)
             {
                 ++f_instr->second.writes_profiling_stage;
+                ++p_iter->second.writes_in_profiling_stage;
             }
             else if(inference_stage)
             {
                 ++f_instr->second.writes_inference_stage;
+                ++p_iter->second.writes_in_inference_stage;
             }
         }
     }
@@ -305,6 +324,7 @@ void MFUPageToNearRows::profiling_new(Request& req)
 
 // This is the old profiling technique which requires all levels of memory to communicate with
 // MMU, very expensive.
+/*
 void MFUPageToNearRows::profiling(Request& req)
 {
     // PC
@@ -331,6 +351,7 @@ void MFUPageToNearRows::profiling(Request& req)
         req.setMMUCommuFunct(profilingCallBack());
     }
 }
+*/
 
 void MFUPageToNearRows::inference(Request &req)
 {
