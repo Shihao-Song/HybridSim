@@ -259,13 +259,15 @@ class MFUPageToNearRows : public NearRegionAware
     std::unordered_map<Addr,Addr> re_alloc_pages; // All the re-allocated MFU pages, used in
                                                   // inference stage.
 
-    struct FT_Instr_Info // Information of first-touch instruction
+    struct First_Touch_Instr_Info // Information of first-touch instruction
     {
         Addr eip;
 
         // Is this instruction captured in profiling stage
         bool captured_in_profiling_stage = false;
 
+        // I keep as many information as possible, so that different ordering can be
+        // applied.
         // Number of accesses in profiling stage
         uint64_t reads_profiling_stage = 0;
         uint64_t writes_profiling_stage = 0;
@@ -280,7 +282,7 @@ class MFUPageToNearRows : public NearRegionAware
         // Number of pages in inference stage
         uint64_t touched_pages_inference_stage = 0;
     };
-    std::unordered_map<Addr,FT_Instr_Info> first_touch_instructions;
+    std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
 
     int num_profiling_entries = -1;
 };

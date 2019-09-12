@@ -70,101 +70,140 @@ void MFUPageToNearRows::profiling_new(Request& req)
             p_iter == pages.end())
     {
         // Yes, it is a page fault.
-        // Step two, insert into the iTab. 
-        if (req.req_type == Request::Request_Type::READ)
+        // Step two, is the first-touch instruction already cache?
+        if (auto f_instr = first_touch_instructions.find(pc);
+                f_instr != first_touch_instructions.end())
         {
-            if (auto f_instr = first_touch_instructions.find(pc);
-                    f_instr != first_touch_instructions.end())
+            // Yes, cached!
+
+            // Are we in profiling stage?
+            if (profiling_stage)
             {
-                if (profiling_stage)
+                // Yes, we are in profiling stage
+                if (req.req_type == Request::Request_Type::READ)
                 {
                     ++f_instr->second.reads_profiling_stage;
-                    ++f_instr->second.touched_pages_profiling_stage; // Touched a new page
                 }
-                else if(inference_stage)
+                else if (req.req_type == Request::Request_Type::WRITE)
+		{
+                    ++f_instr->second.writes_profiling_stage;
+                }
+
+                ++f_instr->second.touched_pages_profiling_stage; // Touched a new page
+            }
+            else
+            {
+                // Yes, we are in inference stage
+                if (req.req_type == Request::Request_Type::READ)
                 {
                     ++f_instr->second.reads_inference_stage;
-                    ++f_instr->second.touched_pages_inference_stage; // Touched a new page
                 }
-            }
-            else
-            {
-                if (profiling_stage)
-                {
-                    first_touch_instructions.insert({pc, 
-                                                    {pc,
-                                                     true, // captured in profiling
-                                                     1, // reads_profiling_stage + 1
-                                                     0, // writes_profiling_stage = 0
-                                                     0, // reads_inference_stage = 0
-                                                     0, // writes_inference_stage = 0
-                                                     1, // touched_pages_profiling_stage + 1
-                                                     0 // touched_pages_inference_stage = 0
-                                                     }});
-                }
-                else if(inference_stage)
-                {
-                    first_touch_instructions.insert({pc, 
-                                                    {pc,
-                                                     false, // captured in profiling
-                                                     0, // reads_profiling_stage = 0
-                                                     0, // writes_profiling_stage = 0
-                                                     1, // reads_inference_stage + 1
-                                                     0, // writes_inference_stage = 0
-                                                     0, // touched_pages_profiling_stage = 0
-                                                     1 // touched_pages_inference_stage + 1
-                                                     }});
-                }
-            }
-        }
-        else if (req.req_type == Request::Request_Type::WRITE)
-        {
-            if (auto f_instr = first_touch_instructions.find(pc);
-                    f_instr != first_touch_instructions.end())
-            {
-                if (profiling_stage)
-                {
-                    ++f_instr->second.writes_profiling_stage;
-                    ++f_instr->second.touched_pages_profiling_stage; // Touched a new page
-                }
-                else if(inference_stage)
-                {
+                else if (req.req_type == Request::Request_Type::WRITE)
+		{
                     ++f_instr->second.writes_inference_stage;
-                    ++f_instr->second.touched_pages_inference_stage; // Touched a new page
                 }
-            }
-            else
-            {
-                if (profiling_stage)
-                {
-                    first_touch_instructions.insert({pc, 
-                                                    {pc,
-                                                     true, // captured in profiling
-                                                     0, // reads_profiling_stage = 0
-                                                     1, // writes_profiling_stage + 1
-                                                     0, // reads_inference_stage = 0
-                                                     0, // writes_inference_stage = 0
-                                                     1, // touched_pages_profiling_stage + 1
-                                                     0 // touched_pages_inference_stage = 0
-                                                     }});
-                }
-                else if(inference_stage)
-                {
-                    first_touch_instructions.insert({pc, 
-                                                    {pc,
-                                                     false, // captured in profiling
-                                                     0, // reads_profiling_stage = 0
-                                                     0, // writes_profiling_stage = 0
-                                                     0, // reads_inference_stage = 0
-                                                     1, // writes_inference_stage + 1
-                                                     0, // touched_pages_profiling_stage = 0
-                                                     1 // touched_pages_inference_stage + 1
-                                                     }});
-                }
-            }
 
+                ++f_instr->second.touched_pages_inference_stage; // Touched a new page
+            }
         }
-        pages.insert({page_id, pc});
+	else
+        {
+            // No, not cached.
+            // Organize first-touch instruction information
+            bool captured_in_profiling_stage = false;
+
+            uint64_t reads_profiling_stage = 0;
+	    uint64_t writes_profiling_stage = 0;
+
+            uint64_t reads_inference_stage = 0;
+            uint64_t writes_inference_stage = 0;
+
+            uint64_t touched_pages_profiling_stage = 0;
+            uint64_t touched_pages_inference_stage = 0;
+
+            if (profiling_stage)
+            {
+                captured_in_profiling_stage = true;
+
+                touched_pages_profiling_stage = 1;
+                
+                if (req.req_type == Request::Request_Type::READ)
+                {
+                    reads_profiling_stage = 1;
+                }
+                else if (req.req_type == Request::Request_Type::WRITE)
+                {
+                    writes_profiling_stage = 1;
+                }
+            }
+            else if (inference_stage)
+            {
+                captured_in_profiling_stage = false;
+
+                touched_pages_inference_stage = 1;
+                
+                if (req.req_type == Request::Request_Type::READ)
+                {
+                    reads_inference_stage = 1;
+                }
+                else if (req.req_type == Request::Request_Type::WRITE)
+                {
+                    writes_inference_stage = 1;
+                }
+            }
+            first_touch_instructions.insert({pc,
+                                            {pc,
+                                             captured_in_profiling_stage,
+                                             reads_profiling_stage,
+                                             writes_profiling_stage,
+                                             reads_inference_stage,
+                                             writes_inference_stage,
+                                             touched_pages_profiling_stage,
+                                             touched_pages_inference_stage
+					     }});
+        }
+        // Insert new page
+        // Organize page information
+        bool allocated_in_profiling_stage = false;
+
+        uint64_t reads_by_profiled_instructions = 0;
+        uint64_t writes_by_profiled_instructions = 0;
+
+        uint64_t reads_by_non_profiled_instructions = 0;
+        uint64_t writes_by_non_profiled_instructions = 0;
+
+        uint64_t reads_in_profiling_stage = 0;
+        uint64_t writes_in_profiling_stage = 0;
+
+        uint64_t reads_in_inference_stage = 0;
+        uint64_t writes_in_inference_stage = 0;
+        
+        if (profiling_stage)
+        {
+            allocated_in_profiling_stage = true;
+
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                reads_in_profiling_stage = 1;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                writes_in_profiling_stage = 1;
+            }
+        }
+        else if (inference_stage)
+        {
+            allocated_in_profiling_stage = false;
+                
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                reads_in_inference_stage = 1;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                writes_in_inference_stage = 1;
+            }
+        }
     }
     else
     {
