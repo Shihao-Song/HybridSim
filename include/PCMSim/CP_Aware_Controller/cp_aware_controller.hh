@@ -8,8 +8,8 @@ namespace PCMSim
 class CPAwareController : public FRFCFSController
 {
   protected:
-    const unsigned num_stages;
-    const unsigned num_rows_per_stage;
+    const unsigned num_stages = 2;
+    const unsigned num_rows_per_stage = 512;
 
     const std::vector<Config::Charging_Stage> 
           charging_lookaside_buffer[int(Config::Charge_Pump_Opr::MAX)];
@@ -22,7 +22,7 @@ class CPAwareController : public FRFCFSController
   protected:
     // One for reading and one for writing
     std::vector<unsigned> latency_lookaside_buffer[int(Config::Charge_Pump_Opr::MAX)];
-    const float clk_period = 3.76;
+    const float clk_period = 0.4688; // For 2133MHz memory clock frequency
     const float read_latencies_ns[8] = {37.6169351, 
                                         37.9677406,
                                         38.5524163,
@@ -53,8 +53,8 @@ class CPAwareController : public FRFCFSController
   public:
     CPAwareController(int _id, Config &cfg)
         : FRFCFSController(_id, cfg),
-          num_stages(cfg.num_stages),
-          num_rows_per_stage(cfg.num_of_word_lines_per_tile / num_stages),
+//          num_stages(cfg.num_stages),
+//          num_rows_per_stage(cfg.num_of_word_lines_per_tile / num_stages),
           charging_lookaside_buffer(cfg.charging_lookaside_buffer)
     {
         assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)].size());
@@ -122,7 +122,11 @@ class CPAwareController : public FRFCFSController
     {
         // Step one, to determine stage level.
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
-        unsigned stage_id = row_id / num_rows_per_stage;
+        unsigned latency_id = (row_id / num_rows_per_stage >= num_stages - 1) 
+                              ? 7 : row_id / num_rows_per_stage;
+
+        unsigned stage_id = (row_id / num_rows_per_stage >= num_stages - 1)
+                              ? num_stages - 1 : row_id / num_rows_per_stage;
         // std::cout << "Stage ID: " << stage_id << "\n";
 
         // Step two, to determine timings.
@@ -136,7 +140,12 @@ class CPAwareController : public FRFCFSController
         if (scheduled_req->req_type == Request::Request_Type::READ)
         {
             ++stage_accesses[int(Config::Charge_Pump_Opr::READ)][stage_id];
-            
+
+            req_latency = 
+                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][latency_id];
+            bank_latency = req_latency;
+            channel_latency = dataTransferLatency;
+            /*
 	    charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)]
                                                         [stage_id].nclks_charge_or_discharge;
 	    req_latency = charging_latency + singleReadLatency + charging_latency;
@@ -145,12 +154,20 @@ class CPAwareController : public FRFCFSController
             
 	    stage_total_charging_time[int(Config::Charge_Pump_Opr::READ)][stage_id] +=
                                      singleReadLatency;
+            */
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
             ++stage_accesses[int(Config::Charge_Pump_Opr::SET)][stage_id];
             ++stage_accesses[int(Config::Charge_Pump_Opr::RESET)][stage_id];
 
+            req_latency =
+                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][latency_id] +
+                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][latency_id] +
+                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][latency_id];
+            bank_latency = req_latency;
+            channel_latency = dataTransferLatency;
+            /*
             charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)]
                                                         [stage_id].nclks_charge_or_discharge;
             req_latency = charging_latency + singleWriteLatency + charging_latency;
@@ -161,6 +178,7 @@ class CPAwareController : public FRFCFSController
                                      singleWriteLatency;
             stage_total_charging_time[int(Config::Charge_Pump_Opr::RESET)][stage_id] +=
                                      singleWriteLatency;
+            */
         }
         else
         {

@@ -60,7 +60,7 @@ void FullSystemSimulation(Config &cfg,
     // Create eDRAM
     std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM, isLLC));
     eDRAM->setNextLevel(PCM.get());
-
+    
     // Create L2
     std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isNonLLC));
 //    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));

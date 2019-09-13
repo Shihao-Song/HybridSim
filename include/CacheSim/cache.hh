@@ -250,8 +250,7 @@ class Cache : public Simulator::MemObject
           num_misses(0),
           num_loads(0),
           num_evicts(0)
-    {
-    }
+    {}
 
     int pendingRequests() override
     {
