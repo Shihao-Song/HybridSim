@@ -181,6 +181,47 @@ class MFUPageToNearRows : public NearRegionAware
         num_profiling_entries = sizes[0];
     }
 
+    // TODO, how to predict most accessed pages.
+    void printProfiling() override
+    {
+        // Only contains pages allocated in profiling stage
+        std::vector<Page_Info> MFU_pages_profiling;
+        // Only contains pages allocated in the inference stage
+        std::vector<Page_Info> MFU_pages_inference;
+
+        for (auto [key, value] : pages)
+        {
+            if (value.allocated_in_profiling_stage)
+            {
+                MFU_pages_profiling.push_back(value);
+            }
+            else
+            {
+                MFU_pages_inference.push_back(value);
+            }
+        }
+
+        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.reads_in_profiling_stage + a.writes_in_profiling_stage) > 
+                             (b.reads_in_profiling_stage + b.writes_in_profiling_stage);
+                  });
+        
+        std::sort(MFU_pages_inference.begin(), MFU_pages_inference.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.reads_in_inference_stage + a.writes_in_inference_stage) > 
+                             (b.reads_in_inference_stage + b.writes_in_inference_stage);
+                  });
+
+//        for (int i = 0; i < 16; i++)
+//        {
+//            MFU_pages_inference[i].first_touch_instruction
+//        }
+    }
+
+    /*
     void printProfiling() override
     {
         std::vector<Page_Info> MFU_pages_profiling;
@@ -253,6 +294,7 @@ class MFUPageToNearRows : public NearRegionAware
         profiling_output.close();
 	inference_output.close();
     }
+    */
 
   protected:
     void profiling_new(Request&);
