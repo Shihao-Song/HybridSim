@@ -109,6 +109,7 @@ class NearRegionAware : public TrainedMMU
           num_of_near_rows(cfg.num_of_word_lines_per_tile /cfg.num_stages),
           mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
     {}
+
   // Define data structures
   protected:
     struct PageLoc // Physical location
@@ -139,6 +140,8 @@ class NearRegionAware : public TrainedMMU
         }
     };
 
+    // TODO, this hash structure is not used currently. I forgot why
+    // I coded it.
     struct PageLocHashKey
     {
         template<typename T = PageLoc>
@@ -155,7 +158,12 @@ class NearRegionAware : public TrainedMMU
 
     bool near_region_full = false;
     PageLoc cur_re_alloc_page;
-    virtual void nextReAllocPage();
+    
+    enum INCREMENT_LEVEL: int
+    {
+        COL,ROW,TILE,PARTITION,RANK
+    };
+    virtual bool nextReAllocPage(int);
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -175,62 +183,6 @@ class MFUPageToNearRows : public NearRegionAware
 
     void printProfiling() override
     {
-        unsigned num_profilied_instr = 0;
-        unsigned num_missed_instr = 0;
-        unsigned num_profilied_instr_accessed_in_inference_stage = 0;
-        for (auto [key, value] : first_touch_instructions)
-        {
-            if (value.captured_in_profiling_stage)
-            {
-                ++num_profilied_instr;
-
-                if (value.reads_inference_stage + value.writes_inference_stage > 0)
-                {
-                    ++num_profilied_instr_accessed_in_inference_stage;
-                }
-            }
-            else
-            {
-                ++num_missed_instr;
-            }
-            /*
-            mmu_profiling_data_out << value.eip << " "
-                                   << value.captured_in_profiling_stage << " "
-                                   << value.reads_profiling_stage << " "
-                                   << value.writes_profiling_stage << " "
-                                   << value.reads_inference_stage << " "
-                                   << value.writes_inference_stage << " "
-                                   << value.touched_pages_profiling_stage << " "
-                                   << value.touched_pages_inference_stage << "\n";
-            */
-        }
-//        mmu_profiling_data_out << num_profilied_instr << " " 
-//                               << num_missed_instr << " "
-//                               << num_profilied_instr_accessed_in_inference_stage << " ";
-
-        unsigned num_pages_allocated_in_profiling_stage = 0;
-        unsigned num_pages_allocated_in_inference_stage = 0;
-        unsigned num_profilied_pages_accessed_in_inference_stage = 0;
-        for (auto [key, value] : pages)
-        {
-            if (value.allocated_in_profiling_stage)
-            {
-                ++num_pages_allocated_in_profiling_stage;
-
-                if (value.reads_in_inference_stage + value.writes_in_inference_stage > 0)
-                {
-                    ++num_profilied_pages_accessed_in_inference_stage;
-                }
-            }
-            else
-            {
-                ++num_pages_allocated_in_inference_stage;
-            }
-        }
-//        mmu_profiling_data_out << num_pages_allocated_in_profiling_stage << " "
-//                               << num_pages_allocated_in_inference_stage << " "
-//                               << num_profilied_pages_accessed_in_inference_stage << "\n";
-
         std::vector<Page_Info> MFU_pages_profiling;
         std::vector<Page_Info> MFU_pages_inference;
 
@@ -254,10 +206,12 @@ class MFUPageToNearRows : public NearRegionAware
                              (b.reads_in_inference_stage + b.writes_in_inference_stage);
                   });
 
+        // TODO, change the naming convention.
         std::string profiling_file = mmu_profiling_data_output_file + "_3M.csv";
         std::ofstream profiling_output(profiling_file);
         assert(profiling_output.good());
 
+        // TODO, change the naming convention.
         std::string inference_file = mmu_profiling_data_output_file + "_7M.csv";
         std::ofstream inference_output(inference_file);
         assert(inference_output.good());
@@ -294,43 +248,10 @@ class MFUPageToNearRows : public NearRegionAware
 	    else
 	    {
                 break;    
-	    }
-        //}
-        //mmu_profiling_data_out << "\n";
-        //for (int i = 0; i < 8; i++)
-        //{
-            /*
-            if (unsigned accesses = MFU_pages_inference[i].reads_in_inference_stage +
-                                    MFU_pages_inference[i].writes_in_inference_stage;
-                accesses > 0)
-            {
-                mmu_profiling_data_out << MFU_pages_inference[i].page_id << ","
-                                       << MFU_pages_inference[i].first_touch_instruction << ","
-                                       << accesses << "\n";
             }
-            */
-        }
+	}
         profiling_output.close();
 	inference_output.close();
-	/*
-        std::vector<RWCount> profiling_data;
-        for (auto [key, value] : first_touch_instructions)
-        {
-            profiling_data.push_back(value);
-        }
-        std::sort(profiling_data.begin(), profiling_data.end(),
-                  [](const RWCount &a, const RWCount &b)
-                  {
-                      return (a.reads + a.writes) > (b.reads + b.writes);
-                  });
-        for (auto entry : profiling_data)
-        {
-            mmu_profiling_data_out << entry.eip << " "
-                                   << entry.reads << " "
-                                   << entry.writes << " "
-                                   << entry.touched_pages << "\n";
-        }
-        */
     }
 
   protected:
@@ -338,42 +259,13 @@ class MFUPageToNearRows : public NearRegionAware
 
     void inference(Request&);
     void profiling(Request&);
-    auto profilingCallBack()
-    {
-        return [this](Request &req)
-               {
-                   std::cerr << "Not supported now.\n";
-                   exit(0);
-                   /*
-                   auto iter = first_touch_instructions.find(req.eip);
-                   assert(iter != first_touch_instructions.end());
-
-                   if (req.req_type == Request::Request_Type::READ)
-                   {
-                       ++(iter->second).reads;
-                   }
-                   else
-                   {
-                       ++(iter->second).writes;
-                   }
-                   */
-               };
-    }
-
+    
     struct Page_Info
     {
         Addr page_id;
         Addr first_touch_instruction; // The first-touch instruction that brings in this page
 
         bool allocated_in_profiling_stage = false;
-
-        /*
-        uint64_t reads_by_profiled_instructions = 0;
-        uint64_t writes_by_profiled_instructions = 0;
-
-        uint64_t reads_by_non_profiled_instructions = 0;
-        uint64_t writes_by_non_profiled_instructions = 0;
-        */
 
         uint64_t reads_in_profiling_stage = 0;
         uint64_t writes_in_profiling_stage = 0;
@@ -414,46 +306,7 @@ class MFUPageToNearRows : public NearRegionAware
 
     int num_profiling_entries = -1;
 };
-/*
-// Strategy 2, give the control of near pages to memory controller. Only pages outside
-// near region are accessible.
-class HiddenNearRows : public NearRegionAware
-{
-  public:
-    HiddenNearRows(int num_of_cores, Config &cfg)
-        : NearRegionAware(num_of_cores, cfg)
-        , max_group_id(cfg.num_of_parts - 1)
-        , num_groups_per_stage(cfg.num_of_parts / cfg.num_stages)
-        , max_row_id(num_of_rows_per_partition - 1)
-        , max_col_id(num_of_cache_lines_per_row - 1)
-        , max_dep_id(cfg.num_of_ranks)
-    {
-        // Re-allocation should bypass the near region.
-        cur_re_alloc_page.group_id = num_of_near_parts;
 
-        cur_min_group_id = num_of_near_parts;
-        cur_max_group_id = num_of_near_parts + num_groups_per_stage - 1;
-    }
-
-    void va2pa(Request &req) override;
-
-  protected:
-    const unsigned max_group_id;
-    const unsigned num_groups_per_stage;
-    const unsigned max_row_id;
-    const unsigned max_col_id;
-    const unsigned max_dep_id;
-
-    unsigned cur_min_group_id; 
-    unsigned cur_max_group_id;
-
-  // If a page is mapped in the near region (by the Mapper), we should re-allocate it 
-  // to further regions.
-  protected:
-    std::unordered_map<Addr,Addr> re_alloc_pages;
-    void nextReAllocPage() override;
-};
-*/
 class TrainedMMUFactory
 {
     typedef Simulator::Config Config;
@@ -469,11 +322,6 @@ class TrainedMMUFactory
                  {
                      return std::make_unique<MFUPageToNearRows>(num_of_cores, cfg);
                  };
-
-//        factories["HiddenNearRows"] = [](int num_of_cores, Config &cfg)
-//                 {
-//                     return std::make_unique<HiddenNearRows>(num_of_cores, cfg);
-//                 };
     }
 
     auto createMMU(int num_of_cores, Config &cfg)

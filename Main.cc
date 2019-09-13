@@ -93,7 +93,7 @@ void FullSystemSimulation(Config &cfg,
     {
         processor->setDCache(i, L1_D_all[i].get());
     }
-   
+
     if (profiling_limits.size())
     {
         // Nofity processor that we are in profiling stage;
