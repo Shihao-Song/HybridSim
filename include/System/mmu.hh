@@ -181,7 +181,7 @@ class MFUPageToNearRows : public NearRegionAware
         num_profiling_entries = sizes[0];
     }
 
-    // TODO, how to predict most accessed pages.
+    // TODO, how to predict most accessed pages?
     void printProfiling() override
     {
         // Only contains pages allocated in profiling stage
@@ -215,10 +215,35 @@ class MFUPageToNearRows : public NearRegionAware
                              (b.reads_in_inference_stage + b.writes_in_inference_stage);
                   });
 
-//        for (int i = 0; i < 16; i++)
-//        {
-//            MFU_pages_inference[i].first_touch_instruction
-//        }
+        std::set<uint64_t> expensive_first_touch_instr_profiling_stage;
+        std::set<uint64_t> expensive_first_touch_instr_inference_stage;
+        
+        int i = 0;
+        while (expensive_first_touch_instr_profiling_stage.size() != 32)
+        {
+            if (i == MFU_pages_profiling.size()) { break; }
+            expensive_first_touch_instr_profiling_stage.insert(
+                MFU_pages_profiling[i].first_touch_instruction);
+            i++;
+        }
+
+        i = 0;
+        while (expensive_first_touch_instr_inference_stage.size() != 32)
+        {
+            if (i == MFU_pages_inference.size()) { break; }
+            expensive_first_touch_instr_inference_stage.insert(
+                MFU_pages_inference[i].first_touch_instruction);
+            i++;
+        }
+
+        std::vector<uint64_t> common;
+        std::set_intersection(expensive_first_touch_instr_profiling_stage.begin(),
+                              expensive_first_touch_instr_profiling_stage.end(),
+                              expensive_first_touch_instr_inference_stage.begin(),
+                              expensive_first_touch_instr_inference_stage.end(),
+                              back_inserter(common));
+
+        std::cout << common.size() << "\n";
     }
 
     /*
