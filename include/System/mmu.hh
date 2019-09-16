@@ -180,7 +180,7 @@ class MFUPageToNearRows : public NearRegionAware
     {
         num_profiling_entries = sizes[0];
     }
-
+/*
     // TODO, how to predict most accessed pages?
     void printProfiling() override
     {
@@ -245,8 +245,8 @@ class MFUPageToNearRows : public NearRegionAware
 
         std::cout << common.size() << "\n";
     }
+*/
 
-    /*
     void printProfiling() override
     {
         std::vector<Page_Info> MFU_pages_profiling;
@@ -273,12 +273,12 @@ class MFUPageToNearRows : public NearRegionAware
                   });
 
         // TODO, change the naming convention.
-        std::string profiling_file = mmu_profiling_data_output_file + "_3M.csv";
+        std::string profiling_file = mmu_profiling_data_output_file + "_10M.csv";
         std::ofstream profiling_output(profiling_file);
         assert(profiling_output.good());
 
         // TODO, change the naming convention.
-        std::string inference_file = mmu_profiling_data_output_file + "_7M.csv";
+        std::string inference_file = mmu_profiling_data_output_file + "_100M.csv";
         std::ofstream inference_output(inference_file);
         assert(inference_output.good());
 
@@ -319,7 +319,6 @@ class MFUPageToNearRows : public NearRegionAware
         profiling_output.close();
 	inference_output.close();
     }
-    */
 
   protected:
     void profiling_new(Request&);
