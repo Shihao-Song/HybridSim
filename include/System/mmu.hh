@@ -164,6 +164,11 @@ class NearRegionAware : public TrainedMMU
         COL,ROW,TILE,PARTITION,RANK
     };
     virtual bool nextReAllocPage(int);
+
+    // Another idea
+    // Keep rank, part, tile same, only change row id and col id
+    std::vector<std::vector<std::vector<unsigned>>> re_alloc_tracker;
+    std::vector<std::vector<std::vector<bool>>> near_region_status;
 };
 
 // Strategy 1, bring MFU pages to the near rows.
