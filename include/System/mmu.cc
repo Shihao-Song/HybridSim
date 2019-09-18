@@ -2,7 +2,7 @@
 
 namespace System
 {
-bool NearRegionAware::nextReAllocPage(int incre_level)
+bool NearRegionAware::nextReAllocPage(PageLoc &cur_re_alloc_page, int incre_level)
 {
     if (incre_level == int(INCREMENT_LEVEL::COL))
     {
@@ -19,7 +19,7 @@ bool NearRegionAware::nextReAllocPage(int incre_level)
         }
     }
 
-    if (bool overflow = nextReAllocPage(incre_level - 1);
+    if (bool overflow = nextReAllocPage(cur_re_alloc_page, incre_level - 1);
         !overflow)
     {
         return false;
@@ -31,6 +31,8 @@ bool NearRegionAware::nextReAllocPage(int incre_level)
             if (cur_re_alloc_page.row_id += 1;
                 cur_re_alloc_page.row_id == num_of_near_rows)
             {
+//                std::cerr << "Abnormal. \n";
+//                exit(0);
                 cur_re_alloc_page.row_id = 0;
                 return true; // Overflow detected.
             }
@@ -75,6 +77,8 @@ bool NearRegionAware::nextReAllocPage(int incre_level)
             {
                 cur_re_alloc_page.rank_id = 0;
                 near_region_full = true;
+		std::cerr << "Abnormal. \n";
+                exit(0);
                 return true; // Overflow detected.
             }
             else
@@ -89,18 +93,17 @@ void MFUPageToNearRows::va2pa(Request &req)
 {
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
-    
-    // Hardware-guided Profiling
-    // TODO, tmp modification
-//    if (profiling_stage)
-//    {
-        profiling_new(req);
-//    }
 
-//    if (inference_stage && !near_region_full)
-//    {
-//        inference(req);
-//    }
+    // Hardware-guided Profiling
+    if (profiling_stage)
+    {
+        profiling_new(req);
+    }
+
+    if (inference_stage && !near_region_full)
+    {
+        inference(req);
+    }
 }
 
 void MFUPageToNearRows::profiling_new(Request& req)
@@ -286,73 +289,6 @@ void MFUPageToNearRows::profiling_new(Request& req)
             }
         }
     }
-/*
-    // Step one, check if the PC in iTab
-    if (auto f_instr = first_touch_instructions.find(pc);
-            f_instr != first_touch_instructions.end())
-    {
-        // The PC has already been cached in iTab.
-        // Step two, increment counters
-        if (req.req_type == Request::Request_Type::READ)
-        {
-            ++f_instr->second.reads;
-        }
-        else if (req.req_type == Request::Request_Type::WRITE)
-        {
-            ++f_instr->second.writes;
-        }
-
-        // Step three, page fault?
-        if (auto p_iter = pages.find(page_id);
-                p_iter == pages.end())
-        {
-            // Yes, insert the page ID.
-            pages.insert({page_id, true});
-            // This instruction touched a new page.
-            ++f_instr->second.touched_pages;
-        }
-    }
-    else
-    {
-        // The PC is not cached in iTab.
-        // Step one, determine if it is a first-touch instruction
-        if (auto p_iter = pages.find(page_id);
-                p_iter == pages.end())
-        {
-            // Page fault! Yes, it is a first-touch instruction. Need to record.
-            // Step two, erase the LFU entry if iTab is full.
-            if (num_profiling_entries != -1 && 
-                first_touch_instructions.size() == num_profiling_entries)
-            {
-                std::vector<RWCount> ordered_by_ref;
-                for (auto [key, value] : first_touch_instructions)
-                {
-                    ordered_by_ref.push_back(value);
-                }
-                std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
-                          [](const RWCount &a, const RWCount &b)
-                          {
-                              return (a.reads + a.writes) > (b.reads + b.writes);
-                          });
-
-                assert(ordered_by_ref.size() == num_profiling_entries);
-                // Erase the least referenced instruction
-                first_touch_instructions.erase(ordered_by_ref[num_profiling_entries - 1].eip);
-            }
-
-            // Step three, insert into the iTab. 
-            if (req.req_type == Request::Request_Type::READ)
-            {
-                first_touch_instructions.insert({pc, {pc,1,0,1}});
-            }
-            else if (req.req_type == Request::Request_Type::WRITE)
-            {
-                first_touch_instructions.insert({pc, {pc,0,1,1}});
-            }
-            pages.insert({page_id, true});
-        }
-    }
-*/
 }
 
 void MFUPageToNearRows::inference(Request &req)
@@ -373,32 +309,39 @@ void MFUPageToNearRows::inference(Request &req)
 
         return;
     }
-/*
     // Not found, should we allocate to near rows?
     if (auto iter = first_touch_instructions.find(pc);
              iter != first_touch_instructions.end())
     {          	
-        // Allocate at near row, naive implementations;
-        int new_part_id = cur_re_alloc_page.group_id;
-        int new_row_id = cur_re_alloc_page.row_id;
-        int new_col_id = cur_re_alloc_page.col_id;
-        int new_rank_id = cur_re_alloc_page.dep_id;
-
-        // std::cout << new_part_id << " "
-        //           << new_row_id << " "
-        //           << new_col_id << " "
-        //           << new_rank_id << "\n";
-
         std::vector<int> dec_addr;
         dec_addr.resize(mem_addr_decoding_bits.size());
-        Decoder::decode(pa, mem_addr_decoding_bits, dec_addr);
-        
-	dec_addr[int(Config::Decoding::Partition)] = new_part_id;
+        Decoder::decode(page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
+        dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
+        dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
+        dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
+        dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
+
+        nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
+/*
+        unsigned rank_id = dec_addr[int(Config::Decoding::Rank)];
+        unsigned part_id = dec_addr[int(Config::Decoding::Partition)];
+        unsigned tile_id = dec_addr[int(Config::Decoding::Tile)];
+
+        unsigned new_row_id = re_alloc_tracker[rank_id][part_id][part_id].row_id;
+        unsigned new_col_id = re_alloc_tracker[rank_id][part_id][part_id].col_id;
+
+        near_region_status[rank_id][part_id][part_id] =
+            nextReAllocPage(re_alloc_tracker[rank_id][part_id][part_id],
+                            int(INCREMENT_LEVEL::ROW));
+
         dec_addr[int(Config::Decoding::Row)] = new_row_id;
         dec_addr[int(Config::Decoding::Col)] = new_col_id;
-        dec_addr[int(Config::Decoding::Rank)] = new_rank_id;
-
-        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
+*/
+        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
                            >> Mapper::va_page_shift;
 
         Addr new_pa = new_page_id << Mapper::va_page_shift |
@@ -407,9 +350,6 @@ void MFUPageToNearRows::inference(Request &req)
         req.addr = new_pa; // Replace with the new PA
 
         re_alloc_pages.insert({page_id, new_page_id});
-
-        nextReAllocPage();
     }
-*/
 }
 }

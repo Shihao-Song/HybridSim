@@ -108,7 +108,30 @@ class NearRegionAware : public TrainedMMU
           num_of_ranks(cfg.num_of_ranks),
           num_of_near_rows(cfg.num_of_word_lines_per_tile /cfg.num_stages),
           mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
-    {}
+    {
+        re_alloc_tracker.resize(num_of_ranks);
+        near_region_status.resize(num_of_ranks);
+
+        for (int i = 0; i < num_of_ranks; i++)
+        {
+            re_alloc_tracker[i].resize(num_of_partitions);
+            near_region_status[i].resize(num_of_partitions);
+
+            for (int j = 0; j < num_of_partitions; j++)
+            {
+                re_alloc_tracker[i][j].resize(num_of_tiles);
+                near_region_status[i][j].resize(num_of_tiles);
+
+                for (int k = 0; k < num_of_tiles; k++)
+                {
+                    re_alloc_tracker[i][j][k].row_id = 0;
+                    re_alloc_tracker[i][j][k].col_id = 0;
+
+                    near_region_status[i][j][k] = false;
+                }
+            }
+        }
+    }
 
   // Define data structures
   protected:
@@ -163,11 +186,11 @@ class NearRegionAware : public TrainedMMU
     {
         COL,ROW,TILE,PARTITION,RANK
     };
-    virtual bool nextReAllocPage(int);
+    virtual bool nextReAllocPage(PageLoc&, int);
 
     // Another idea
     // Keep rank, part, tile same, only change row id and col id
-    std::vector<std::vector<std::vector<unsigned>>> re_alloc_tracker;
+    std::vector<std::vector<std::vector<PageLoc>>> re_alloc_tracker;
     std::vector<std::vector<std::vector<bool>>> near_region_status;
 };
 
@@ -185,72 +208,6 @@ class MFUPageToNearRows : public NearRegionAware
     {
         num_profiling_entries = sizes[0];
     }
-/*
-    // TODO, how to predict most accessed pages?
-    void printProfiling() override
-    {
-        // Only contains pages allocated in profiling stage
-        std::vector<Page_Info> MFU_pages_profiling;
-        // Only contains pages allocated in the inference stage
-        std::vector<Page_Info> MFU_pages_inference;
-
-        for (auto [key, value] : pages)
-        {
-            if (value.allocated_in_profiling_stage)
-            {
-                MFU_pages_profiling.push_back(value);
-            }
-            else
-            {
-                MFU_pages_inference.push_back(value);
-            }
-        }
-
-        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
-                  [](const Page_Info &a, const Page_Info &b)
-                  {
-                      return (a.reads_in_profiling_stage + a.writes_in_profiling_stage) > 
-                             (b.reads_in_profiling_stage + b.writes_in_profiling_stage);
-                  });
-        
-        std::sort(MFU_pages_inference.begin(), MFU_pages_inference.end(),
-                  [](const Page_Info &a, const Page_Info &b)
-                  {
-                      return (a.reads_in_inference_stage + a.writes_in_inference_stage) > 
-                             (b.reads_in_inference_stage + b.writes_in_inference_stage);
-                  });
-
-        std::set<uint64_t> expensive_first_touch_instr_profiling_stage;
-        std::set<uint64_t> expensive_first_touch_instr_inference_stage;
-        
-        int i = 0;
-        while (expensive_first_touch_instr_profiling_stage.size() != 32)
-        {
-            if (i == MFU_pages_profiling.size()) { break; }
-            expensive_first_touch_instr_profiling_stage.insert(
-                MFU_pages_profiling[i].first_touch_instruction);
-            i++;
-        }
-
-        i = 0;
-        while (expensive_first_touch_instr_inference_stage.size() != 32)
-        {
-            if (i == MFU_pages_inference.size()) { break; }
-            expensive_first_touch_instr_inference_stage.insert(
-                MFU_pages_inference[i].first_touch_instruction);
-            i++;
-        }
-
-        std::vector<uint64_t> common;
-        std::set_intersection(expensive_first_touch_instr_profiling_stage.begin(),
-                              expensive_first_touch_instr_profiling_stage.end(),
-                              expensive_first_touch_instr_inference_stage.begin(),
-                              expensive_first_touch_instr_inference_stage.end(),
-                              back_inserter(common));
-
-        std::cout << common.size() << "\n";
-    }
-*/
 
     void printProfiling() override
     {
@@ -323,6 +280,86 @@ class MFUPageToNearRows : public NearRegionAware
 	}
         profiling_output.close();
 	inference_output.close();
+    }
+
+    void setInferenceStage() override 
+    {
+        inference_stage = true; 
+        profiling_stage = false;
+    
+        // Locate the top num_profiling_entries first-touch instructions
+        std::vector<First_Touch_Instr_Info> ordered_by_ref;
+        for (auto [key, value] : first_touch_instructions)
+        {
+            ordered_by_ref.push_back(value);
+        }
+        std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
+                      [](const First_Touch_Instr_Info &a, const First_Touch_Instr_Info &b)
+                      {
+                          return (a.reads_profiling_stage + a.writes_profiling_stage) > 
+                                 (b.reads_profiling_stage + b.writes_profiling_stage);
+                      });
+
+        first_touch_instructions.clear();
+        assert(first_touch_instructions.size() == 0);
+        for (int i = 0; i < num_profiling_entries && i < ordered_by_ref.size(); i++)
+        {
+            first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
+        }
+
+        // Locate the top num_profiling_entries touched pages
+        std::vector<Page_Info> MFU_pages_profiling;
+
+        for (auto [key, value] : pages)
+        {
+            MFU_pages_profiling.push_back(value);
+        }
+
+        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.reads_in_profiling_stage + a.writes_in_profiling_stage) >
+                             (b.reads_in_profiling_stage + b.writes_in_profiling_stage);
+                  });
+
+        for (int i = 0; i < num_profiling_entries && i < MFU_pages_profiling.size(); i++)
+        {
+            // Re-alloc the pages to the fast-access region
+            Addr page_id = MFU_pages_profiling[i].page_id;
+
+            std::vector<int> dec_addr;
+            dec_addr.resize(mem_addr_decoding_bits.size());
+            Decoder::decode(page_id << Mapper::va_page_shift, 
+                            mem_addr_decoding_bits,
+                            dec_addr);
+
+            dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
+            dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
+            dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
+            dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
+            dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
+            
+            nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
+/*
+            unsigned rank_id = dec_addr[int(Config::Decoding::Rank)];
+            unsigned part_id = dec_addr[int(Config::Decoding::Partition)];
+            unsigned tile_id = dec_addr[int(Config::Decoding::Tile)];
+
+            unsigned new_row_id = re_alloc_tracker[rank_id][part_id][part_id].row_id;
+            unsigned new_col_id = re_alloc_tracker[rank_id][part_id][part_id].col_id;
+
+            near_region_status[rank_id][part_id][part_id] = 
+                nextReAllocPage(re_alloc_tracker[rank_id][part_id][part_id],
+                                int(INCREMENT_LEVEL::ROW));
+
+            dec_addr[int(Config::Decoding::Row)] = new_row_id;
+            dec_addr[int(Config::Decoding::Col)] = new_col_id;
+*/
+            Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
+                               >> Mapper::va_page_shift;
+
+            re_alloc_pages.insert({page_id, new_page_id});
+        }
     }
 
   protected:
