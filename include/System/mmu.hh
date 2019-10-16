@@ -46,7 +46,7 @@ class TrainedMMU : public MMU
     typedef Simulator::Config Config;
     typedef Simulator::Decoder Decoder;
     typedef Simulator::Instruction Instruction;
-    typedef Simulator::TXTTrace TXTTrace;
+    typedef Simulator::Trace Trace;
 
     TrainedMMU(int num_of_cores, Config &cfg)
         : MMU(num_of_cores)

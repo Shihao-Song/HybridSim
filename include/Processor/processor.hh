@@ -21,7 +21,7 @@ typedef uint64_t Tick;
 typedef Simulator::Instruction Instruction;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
-typedef Simulator::TXTTrace TXTTrace;
+typedef Simulator::Trace Trace;
 
 typedef System::MMU MMU;
 typedef System::TrainedMMU TrainedMMU;
@@ -230,7 +230,7 @@ class Processor
       private:
         TrainedMMU *mmu;
 
-        TXTTrace trace;
+        Trace trace;
 
         Tick cycles;
         uint64_t num_loads = 0;;

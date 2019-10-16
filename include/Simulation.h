@@ -157,7 +157,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
 auto runCacheTest(const char* cfg_file, const char *trace_name)
 {
     Config cfg(cfg_file);
-    Simulator::TXTTrace cpu_trace(trace_name);
+    Simulator::Trace cpu_trace(trace_name);
     
     Simulator::Instruction instr;
 
@@ -230,7 +230,7 @@ auto LLCTrace(Config &cfg, std::vector<std::string> &trace_lists, std::string ou
     System::MMU mmu(num_of_cores); 
 
     // Trace parser
-    Simulator::TXTTrace cpu_trace(trace_lists[0]);
+    Simulator::Trace cpu_trace(trace_lists[0]);
 
     // Simulation
     uint64_t cycles = 0;
@@ -325,7 +325,7 @@ auto runMemTrace(MemObject *mem_obj,
                  const char *trace_name,
                  System::TrainedMMU *mmu)
 {
-    Simulator::TXTTrace mem_trace(trace_name);
+    Simulator::Trace mem_trace(trace_name);
 
     Request req;
 

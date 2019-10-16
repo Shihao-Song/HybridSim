@@ -14,8 +14,6 @@
 
 namespace Simulator
 {
-struct TXTMode {}; // Simply to parse a text file 
-template<typename T>
 class Trace
 {
     typedef uint64_t Addr;
@@ -25,78 +23,110 @@ class Trace
     {
         trace_name = trace_fname;
         
-        if constexpr (std::is_same<TXTMode, T>::value)
-        {
-            trace_file_expr.open(trace_fname);
-            assert(trace_file_expr.good());
-        }
+        trace_file_expr.open(trace_fname);
+        assert(trace_file_expr.good());
     }
 
     bool getInstruction(Instruction &inst)
     {
-        if constexpr (std::is_same<TXTMode, T>::value)
+        inst.ready_to_commit = false;
+        inst.already_translated = false;
+
+        // Drain all the pending exes and pending mem_ops
+        if (pending_exes > 0)
         {
-            if (profiling_stage && instruction_index == profiling_limit)
-            {
-                profiling_stage = false;
+            inst.opr = Instruction::Operation::EXE;
+            --pending_exes;
+
+            ++instruction_index;
+            // std::cout << "E\n";
+            return true;
+        }
+        if (pending_mem_opr != Instruction::Operation::MAX)
+        {
+            inst.eip = pending_mem_opr_pc;
+            inst.opr = pending_mem_opr;
+            inst.target_vaddr = pending_mem_vaddr;
+
+            pending_mem_opr = Instruction::Operation::MAX; // Re-initialize
+            ++instruction_index;
+            // std::cout << "M\n";
+            return true;
+        }
+
+        if (profiling_stage && instruction_index == profiling_limit)
+        {
+            profiling_stage = false;
 //                trace_file_expr.clear();
 //                trace_file_expr.seekg(0, std::ios::beg);
+            return false;
+        }
+
+        std::string line;
+        getline(trace_file_expr, line);
+        if (trace_file_expr.eof()) 
+        {
+            ++runs;
+            if (runs == REPEAT)
+            {
+                trace_file_expr.close();
                 return false;
             }
-
-            std::string line;
+            trace_file_expr.clear();
+            trace_file_expr.seekg(0, std::ios::beg);
             getline(trace_file_expr, line);
-            if (trace_file_expr.eof()) 
-            {
-                ++runs;
-                if (runs == REPEAT)
-                {
-                    trace_file_expr.close();
-                    return false;
-                }
-                trace_file_expr.clear();
-                trace_file_expr.seekg(0, std::ios::beg);
-                getline(trace_file_expr, line);
-            }
+        }
 
-            std::stringstream line_stream(line);
-            std::vector<std::string> tokens;
-            std::string intermidiate;
-            while (getline(line_stream, intermidiate, ' '))
-            {
-                tokens.push_back(intermidiate);
-            }
-            assert(tokens.size());
+        std::stringstream line_stream(line);
+        std::vector<std::string> tokens;
+        std::string intermidiate;
+        while (getline(line_stream, intermidiate, ' '))
+        {
+            tokens.push_back(intermidiate);
+        }
+        assert(tokens.size());
+        
+        if (tokens.size() == 4)
+        {
+            pending_exes = std::stoul(tokens[0]);
 
-            inst.ready_to_commit = false;
-            inst.already_translated = false;
+            pending_mem_opr_pc = std::stoull(tokens[1]);
+            if (tokens[2] == "L")
+            {
+                pending_mem_opr = Instruction::Operation::LOAD;
+            }
+            else if (tokens[2] == "S")
+            {
+                pending_mem_opr = Instruction::Operation::STORE;
+            }
+            pending_mem_vaddr = std::stoul(tokens[3]);
+
+            // Return with an EXE instruction
+            // std::cout << "E\n";
+            inst.opr = Instruction::Operation::EXE;
+            --pending_exes;
+        }
+        else
+        {
             inst.eip = std::stoull(tokens[0]);
             
-            if (tokens[1] == "E")
+            if (tokens[1] == "L")
             {
-                inst.opr = Instruction::Operation::EXE;
+                inst.opr = Instruction::Operation::LOAD;
+            }
+            else if (tokens[1] == "S")
+            {
+                inst.opr = Instruction::Operation::STORE;
             }
             else
             {
-                if (tokens[1] == "L")
-                {
-                    inst.opr = Instruction::Operation::LOAD;
-                }
-                else if (tokens[1] == "S")
-                {
-                    inst.opr = Instruction::Operation::STORE;
-                }
-                else
-                {
-                    std::cerr << "Unsupported Instruction Type \n";
-                    exit(0);
-		}
-                inst.target_vaddr = std::stoull(tokens[2]);
-                inst.size = std::stoull(tokens[3]);
+                std::cerr << "Unsupported Instruction Type \n";
+                exit(0);
             }
-            ++instruction_index;
-            return true;
+            inst.target_vaddr = std::stoull(tokens[2]);
         }
+        ++instruction_index;
+        return true;
     }
 
     bool getMemtraceRequest(Request &req)
@@ -149,6 +179,12 @@ class Trace
     }
 
   private:
+    unsigned pending_exes = 0;
+
+    Addr pending_mem_opr_pc;
+    Instruction::Operation pending_mem_opr = Instruction::Operation::MAX;
+    Addr pending_mem_vaddr;
+
     uint64_t instruction_index = 0;
 
     std::string trace_name;
@@ -161,7 +197,5 @@ class Trace
     const unsigned REPEAT = 1;
     unsigned runs = 0;
 };
-
-typedef Trace<TXTMode> TXTTrace;
 }
 #endif
