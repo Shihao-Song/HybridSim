@@ -53,7 +53,7 @@ class CPAwareController : public FRFCFSController
   public:
     CPAwareController(int _id, Config &cfg)
         : FRFCFSController(_id, cfg),
-//          num_stages(cfg.num_stages),
+          num_stages(cfg.num_stages),
 //          num_rows_per_stage(cfg.num_of_word_lines_per_tile / num_stages),
           charging_lookaside_buffer(cfg.charging_lookaside_buffer)
     {
@@ -122,12 +122,14 @@ class CPAwareController : public FRFCFSController
     {
         // Step one, to determine stage level.
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
+//        std::cout << "Row ID: " << row_id << "\n";
         unsigned latency_id = (row_id / num_rows_per_stage >= num_stages - 1) 
                               ? 7 : row_id / num_rows_per_stage;
+//        std::cout << "Latency ID: " << latency_id << "\n";
 
         unsigned stage_id = (row_id / num_rows_per_stage >= num_stages - 1)
                               ? num_stages - 1 : row_id / num_rows_per_stage;
-        // std::cout << "Stage ID: " << stage_id << "\n";
+//        std::cout << "Stage ID: " << stage_id << "\n\n";
 
         // Step two, to determine timings.
         scheduled_req->begin_exe = clk;
