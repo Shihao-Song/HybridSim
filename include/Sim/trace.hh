@@ -39,7 +39,7 @@ class Trace
             --pending_exes;
 
             ++instruction_index;
-            // std::cout << "E\n";
+//            std::cout << "E\n";
             return true;
         }
         if (pending_mem_opr != Instruction::Operation::MAX)
@@ -50,7 +50,7 @@ class Trace
 
             pending_mem_opr = Instruction::Operation::MAX; // Re-initialize
             ++instruction_index;
-            // std::cout << "M\n";
+//            std::cout << "M\n";
             return true;
         }
 
@@ -102,7 +102,7 @@ class Trace
             pending_mem_vaddr = std::stoul(tokens[3]);
 
             // Return with an EXE instruction
-            // std::cout << "E\n";
+//            std::cout << "E\n";
             inst.opr = Instruction::Operation::EXE;
             --pending_exes;
         }
@@ -124,6 +124,7 @@ class Trace
                 exit(0);
             }
             inst.target_vaddr = std::stoull(tokens[2]);
+//            std::cout << "M\n";
         }
         ++instruction_index;
         return true;
