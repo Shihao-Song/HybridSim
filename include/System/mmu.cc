@@ -77,8 +77,8 @@ bool NearRegionAware::nextReAllocPage(PageLoc &cur_re_alloc_page, int incre_leve
             {
                 cur_re_alloc_page.rank_id = 0;
                 near_region_full = true;
-		std::cerr << "Abnormal. \n";
-                exit(0);
+//                std::cerr << "Abnormal. \n";
+//                exit(0);
                 return true; // Overflow detected.
             }
             else
@@ -93,7 +93,7 @@ void MFUPageToNearRows::va2pa(Request &req)
 {
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
-/*
+
     // Hardware-guided Profiling
     if (profiling_stage)
     {
@@ -104,7 +104,6 @@ void MFUPageToNearRows::va2pa(Request &req)
     {
         inference(req);
     }
-*/
 }
 
 void MFUPageToNearRows::profiling_new(Request& req)
@@ -351,6 +350,12 @@ void MFUPageToNearRows::inference(Request &req)
         req.addr = new_pa; // Replace with the new PA
 
         re_alloc_pages.insert({page_id, new_page_id});
+
+//        std::cout << dec_addr[int(Config::Decoding::Rank)] << " : "
+//                  << dec_addr[int(Config::Decoding::Partition)] << " : "
+//                  << dec_addr[int(Config::Decoding::Tile)] << " : "
+//                  << dec_addr[int(Config::Decoding::Row)] << " : "
+//                  << dec_addr[int(Config::Decoding::Col)] << "\n";
     }
 }
 }

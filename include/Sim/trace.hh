@@ -54,7 +54,7 @@ class Trace
             return true;
         }
 
-        if (profiling_stage && instruction_index == profiling_limit)
+        if (profiling_stage && instruction_index >= profiling_limit)
         {
             profiling_stage = false;
 //                trace_file_expr.clear();

@@ -94,7 +94,7 @@ class NearRegionAware : public TrainedMMU
     const unsigned num_of_tiles;
     const unsigned num_of_partitions;
     const unsigned num_of_ranks;
-    const unsigned num_of_near_rows;
+    const unsigned num_of_near_rows = 512;
 
     // mem_addr_decoding_bits is used to determine the physical location of the page.
     const std::vector<int> mem_addr_decoding_bits;
@@ -106,31 +106,17 @@ class NearRegionAware : public TrainedMMU
           num_of_tiles(cfg.num_of_tiles),
           num_of_partitions(cfg.num_of_parts),
           num_of_ranks(cfg.num_of_ranks),
-          num_of_near_rows(cfg.num_of_word_lines_per_tile /cfg.num_stages),
+//          num_of_near_rows(cfg.num_of_word_lines_per_tile /cfg.num_stages),
           mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
     {
-        re_alloc_tracker.resize(num_of_ranks);
-        near_region_status.resize(num_of_ranks);
-
-        for (int i = 0; i < num_of_ranks; i++)
-        {
-            re_alloc_tracker[i].resize(num_of_partitions);
-            near_region_status[i].resize(num_of_partitions);
-
-            for (int j = 0; j < num_of_partitions; j++)
-            {
-                re_alloc_tracker[i][j].resize(num_of_tiles);
-                near_region_status[i][j].resize(num_of_tiles);
-
-                for (int k = 0; k < num_of_tiles; k++)
-                {
-                    re_alloc_tracker[i][j][k].row_id = 0;
-                    re_alloc_tracker[i][j][k].col_id = 0;
-
-                    near_region_status[i][j][k] = false;
-                }
-            }
-        }
+/*
+        std::cout << "num_of_cache_lines_per_row: " << num_of_cache_lines_per_row << "\n";
+        std::cout << "num_of_tiles: " << num_of_tiles << "\n";
+        std::cout << "num_of_partitions: " << num_of_partitions << "\n";
+        std::cout << "num_of_ranks: " << num_of_ranks << "\n";
+        std::cout << "num_of_near_rows: " << num_of_near_rows << "\n";
+        exit(0);
+*/
     }
 
   // Define data structures
@@ -187,11 +173,6 @@ class NearRegionAware : public TrainedMMU
         COL,ROW,TILE,PARTITION,RANK
     };
     virtual bool nextReAllocPage(PageLoc&, int);
-
-    // Another idea
-    // Keep rank, part, tile same, only change row id and col id
-    std::vector<std::vector<std::vector<PageLoc>>> re_alloc_tracker;
-    std::vector<std::vector<std::vector<bool>>> near_region_status;
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -286,8 +267,12 @@ class MFUPageToNearRows : public NearRegionAware
     {
         inference_stage = true; 
         profiling_stage = false;
-    
+//        std::cout << first_touch_instructions.size() << "\n";
+//        std::cout << pages.size() << "\n";
+        // TMP modifications, capture all the FTIs and re-Alloc MFU pages.
+
         // Locate the top num_profiling_entries first-touch instructions
+        /*
         std::vector<First_Touch_Instr_Info> ordered_by_ref;
         for (auto [key, value] : first_touch_instructions)
         {
@@ -306,6 +291,7 @@ class MFUPageToNearRows : public NearRegionAware
         {
             first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
         }
+        */
 
         // Locate the top num_profiling_entries touched pages
         std::vector<Page_Info> MFU_pages_profiling;
@@ -340,26 +326,20 @@ class MFUPageToNearRows : public NearRegionAware
             dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
             
             nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
-/*
-            unsigned rank_id = dec_addr[int(Config::Decoding::Rank)];
-            unsigned part_id = dec_addr[int(Config::Decoding::Partition)];
-            unsigned tile_id = dec_addr[int(Config::Decoding::Tile)];
 
-            unsigned new_row_id = re_alloc_tracker[rank_id][part_id][part_id].row_id;
-            unsigned new_col_id = re_alloc_tracker[rank_id][part_id][part_id].col_id;
-
-            near_region_status[rank_id][part_id][part_id] = 
-                nextReAllocPage(re_alloc_tracker[rank_id][part_id][part_id],
-                                int(INCREMENT_LEVEL::ROW));
-
-            dec_addr[int(Config::Decoding::Row)] = new_row_id;
-            dec_addr[int(Config::Decoding::Col)] = new_col_id;
-*/
-            Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
+	    Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
                                >> Mapper::va_page_shift;
-
+//            std::cout << dec_addr[int(Config::Decoding::Rank)] << " : "
+//                      << dec_addr[int(Config::Decoding::Partition)] << " : "
+//                      << dec_addr[int(Config::Decoding::Tile)] << " : "
+//                      << dec_addr[int(Config::Decoding::Row)] << " : "
+//                      << dec_addr[int(Config::Decoding::Col)] << "\n";
             re_alloc_pages.insert({page_id, new_page_id});
         }
+
+//        std::cout << first_touch_instructions.size() << "\n";
+//        std::cout << re_alloc_pages.size() << "\n";
+//        exit(0);
     }
 
   protected:

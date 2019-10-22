@@ -85,7 +85,7 @@ void FullSystemSimulation(Config &cfg,
     // simulator.
     std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfg));
     mmu->setSizes(trained_mmu_required_sizes);
-    
+
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
     processor->setMMU(mmu.get());
@@ -100,7 +100,9 @@ void FullSystemSimulation(Config &cfg,
         processor->profiling(profiling_limits);
         mmu->setProfilingStage();
 
-        std::cout << "\nProfiling Stage...\n\n";
+        std::cout << "\nProfiling Stage...\n";
+        std::cout << "Profiling Limit: " << profiling_limits[0] << "\n";
+        std::cout << "Num Profiling Entries: " << trained_mmu_required_sizes[0] << "\n\n"; 
         runCPUTrace(processor.get());
 
         // Re-initialize all the states.
