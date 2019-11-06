@@ -113,20 +113,16 @@ class PCMSimMemorySystem : public Simulator::MemObject
         if constexpr (std::is_same<CPAwareController, T>::value)
         {
             unsigned num_stages = controllers[0]->numStages();
-            for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+            for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
             {
                 std::string target = "READ";
-                if (i == int(Config::Charge_Pump_Opr::READ))
+                if (i == int(CPAwareController::Req_Type::READ))
                 {
                     target = "READ";
                 }
-                if (i == int(Config::Charge_Pump_Opr::SET))
+                if (i == int(CPAwareController::Req_Type::WRITE))
                 {
-                    target = "SET";
-                }
-                if (i == int(Config::Charge_Pump_Opr::RESET))
-                {
-                    target = "RESET";
+                    target = "WRITE";
                 }
                 
                 for (int j = 0; j < num_stages; j++)
@@ -134,6 +130,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
                     int64_t stage_accesses = 0;
                     for (auto &controller : controllers)
                     {
+                        // i - request type; j - stage ID.
                         stage_accesses += controller->stageAccess(i, j);
                     }
                     std::string stage_access_prin =

@@ -65,7 +65,7 @@ class TrainedMMU : public MMU
     virtual void setProfilingStage() { profiling_stage = true; inference_stage = false; }
     virtual void setInferenceStage() { inference_stage = true; profiling_stage = false; }
 
-
+    virtual void phaseDone() {}
     virtual void setSizes(std::vector<int> sizes) {}
 
   protected:
@@ -185,11 +185,15 @@ class MFUPageToNearRows : public NearRegionAware
 
     void va2pa(Request &req) override;
 
+    void phaseDone() override;
+    /*
     void setSizes(std::vector<int> sizes) override
     {
         num_profiling_entries = sizes[0];
     }
+    */
 
+    /*
     void printProfiling() override
     {
         std::vector<Page_Info> MFU_pages_profiling;
@@ -261,18 +265,22 @@ class MFUPageToNearRows : public NearRegionAware
 	}
         profiling_output.close();
 	inference_output.close();
-    }
 
+    }
+*/
+
+/*
     void setInferenceStage() override 
     {
         inference_stage = true; 
         profiling_stage = false;
+
 //        std::cout << first_touch_instructions.size() << "\n";
 //        std::cout << pages.size() << "\n";
         // TMP modifications, capture all the FTIs and re-Alloc MFU pages.
 
         // Locate the top num_profiling_entries first-touch instructions
-        /*
+
         std::vector<First_Touch_Instr_Info> ordered_by_ref;
         for (auto [key, value] : first_touch_instructions)
         {
@@ -291,7 +299,6 @@ class MFUPageToNearRows : public NearRegionAware
         {
             first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
         }
-        */
 
         // Locate the top num_profiling_entries touched pages
         std::vector<Page_Info> MFU_pages_profiling;
@@ -341,18 +348,24 @@ class MFUPageToNearRows : public NearRegionAware
 //        std::cout << re_alloc_pages.size() << "\n";
 //        exit(0);
     }
+*/
 
   protected:
-    void profiling_new(Request&);
+    void runtimeProfiling(Request&);
+    void reAllocate(Request&);
+//    void profiling_new(Request&);
 
-    void inference(Request&);
-    void profiling(Request&);
+//    void inference(Request&);
+//    void profiling(Request&);
     
     struct Page_Info
     {
         Addr page_id;
         Addr first_touch_instruction; // The first-touch instruction that brings in this page
 
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+        /*
         bool allocated_in_profiling_stage = false;
 
         uint64_t reads_in_profiling_stage = 0;
@@ -360,9 +373,9 @@ class MFUPageToNearRows : public NearRegionAware
 
         uint64_t reads_in_inference_stage = 0;
         uint64_t writes_in_inference_stage = 0;
+        */
     };
-    std::unordered_map<Addr,Page_Info> pages; // All the touched (allocated) pages, used in
-                                         // profiling stage.
+    std::unordered_map<Addr,Page_Info> pages; // All the touched (allocated) pages
 
     std::unordered_map<Addr,Addr> re_alloc_pages; // All the re-allocated MFU pages, used in
                                                   // inference stage.
@@ -371,6 +384,9 @@ class MFUPageToNearRows : public NearRegionAware
     {
         Addr eip;
 
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+        /*
         // Is this instruction captured in profiling stage
         bool captured_in_profiling_stage = false;
 
@@ -389,10 +405,12 @@ class MFUPageToNearRows : public NearRegionAware
 
         // Number of pages in inference stage
         uint64_t touched_pages_inference_stage = 0;
+        */
     };
     std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
+    std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
 
-    int num_profiling_entries = -1;
+    int num_ftis_per_phase = 8;
 };
 
 class TrainedMMUFactory

@@ -3,106 +3,67 @@
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 
+// TODO, the entire class has to be re-written. It should not be called CPAwareController
+// anymore.
 namespace PCMSim
 {
 class CPAwareController : public FRFCFSController
 {
+  public:
+    enum class Req_Type : int {READ,WRITE,MAX};
+
   protected:
+    // Only consider near and far segments.
     const unsigned num_stages = 2;
     const unsigned num_rows_per_stage = 512;
 
-    const std::vector<Config::Charging_Stage> 
-          charging_lookaside_buffer[int(Config::Charge_Pump_Opr::MAX)];
-
   protected:
-    std::vector<uint64_t> stage_accesses[int(Config::Charge_Pump_Opr::MAX)];
-    std::vector<uint64_t> stage_total_charging_time[int(Config::Charge_Pump_Opr::MAX)];
+    std::vector<uint64_t> stage_accesses[int(Req_Type::MAX)];
 
-  // TODO, tmp modifications for CAL submission
   protected:
     // One for reading and one for writing
-    std::vector<unsigned> latency_lookaside_buffer[int(Config::Charge_Pump_Opr::MAX)];
-    const float clk_period = 0.4688; // For 2133MHz memory clock frequency
-    const float read_latencies_ns[8] = {37.6169351, 
-                                        37.9677406,
-                                        38.5524163,
-                                        39.3709623,
-                                        40.4233787,
-                                        41.7096653,
-                                        43.2298222,
-                                        44.9838494};
-
-    const float set_latencies_ns[8] = {120.129504,
-                                       120.518016,
-                                       121.165536,
-                                       122.072064,
-                                       123.2376,
-                                       124.662143,
-                                       126.345695,
-                                       128.288255};
-
-    const float reset_latencies_ns[8] = {30.1561587,
-                                         30.6246347,
-                                         31.405428,
-                                         32.4985386,
-                                         33.9039666,
-                                         35.6217119,
-                                         37.6517745,
-                                         39.9941545};
+    std::vector<unsigned> latency_lookaside_buffer[int(Req_Type::MAX)];
+    unsigned tRRD;
+    
+    const float clk_period = 1.0; // For 1GHz memory clock frequency
+    const float tRRD_ns = 15.0;
+    const float read_latencies_ns[2] = {41.25, 56.25};
+    const float write_latencies_ns[2] = {119.75, 161.55};
 
   public:
-    CPAwareController(int _id, Config &cfg)
-        : FRFCFSController(_id, cfg),
-          num_stages(cfg.num_stages),
-//          num_rows_per_stage(cfg.num_of_word_lines_per_tile / num_stages),
-          charging_lookaside_buffer(cfg.charging_lookaside_buffer)
+    CPAwareController(int _id, Config &cfg) : FRFCFSController(_id, cfg)
     {
-        assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)].size());
-        assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)].size());
-        assert(charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)].size());
+        tRRD = ceil(tRRD_ns / clk_period);
 
-        for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+        for (int i = 0; i < int(Req_Type::MAX); i++)
         {
             stage_accesses[i].resize(num_stages, 0);
-            stage_total_charging_time[i].resize(num_stages, 0);
+
+            latency_lookaside_buffer[i].resize(num_stages, 0);
         }
 
-        // TODO, tmp modification for CAL submission
-        latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)].resize(8);
-        latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)].resize(8);
-        latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)].resize(8);
-
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 2; i++)
         {
-            latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] = 
+            latency_lookaside_buffer[int(Req_Type::READ)][i] = 
                 ceil(read_latencies_ns[i] / clk_period);
 //            std::cout << "READ-Stage-" << i << ": " << 
-//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][i] << "\n";
+//                latency_lookaside_buffer[int(Req_Type::READ)][i] << "\n";
 
-            latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] = 
-                ceil(set_latencies_ns[i] / clk_period);
-//            std::cout << "SET-Stage-" << i << ": " <<
-//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][i] << "\n";
-            
-            latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] = 
-                ceil(reset_latencies_ns[i] / clk_period);
-//            std::cout << "RESET-Stage-" << i << ": " <<
-//                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][i] << "\n\n";
+            latency_lookaside_buffer[int(Req_Type::WRITE)][i] = 
+                ceil(write_latencies_ns[i] / clk_period);
+//            std::cout << "WRITE-Stage-" << i << ": " <<
+//                latency_lookaside_buffer[int(Req_Type::WRITE)][i] << "\n";
         }
-//        exit(0);
     }
 
     void reInitialize() override
     {
-        for (int i = 0; i < int(Config::Charge_Pump_Opr::MAX); i++)
+        for (int i = 0; i < int(Req_Type::MAX); i++)
         {
             stage_accesses[i].clear();
             stage_accesses[i].shrink_to_fit();
-            stage_total_charging_time[i].clear();
-            stage_total_charging_time[i].shrink_to_fit();
 
             stage_accesses[i].resize(num_stages, 0);
-            stage_total_charging_time[i].resize(num_stages, 0);
         }
 
         BaseController::reInitialize();
@@ -113,9 +74,9 @@ class CPAwareController : public FRFCFSController
         return num_stages;
     }
 
-    uint64_t stageAccess(int cp_opr, int stage)
+    uint64_t stageAccess(int req_type, int stage)
     {
-        return stage_accesses[cp_opr][stage];
+        return stage_accesses[req_type][stage];
     }
 
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
@@ -123,64 +84,33 @@ class CPAwareController : public FRFCFSController
         // Step one, to determine stage level.
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
 //        std::cout << "Row ID: " << row_id << "\n";
-        unsigned latency_id = (row_id / num_rows_per_stage >= num_stages - 1) 
-                              ? 7 : row_id / num_rows_per_stage;
-//        std::cout << "Latency ID: " << latency_id << "\n";
 
         unsigned stage_id = (row_id / num_rows_per_stage >= num_stages - 1)
                               ? num_stages - 1 : row_id / num_rows_per_stage;
-//        std::cout << "Stage ID: " << stage_id << "\n\n";
+//        std::cout << "Stage ID: " << stage_id << "\n";
 
         // Step two, to determine timings.
         scheduled_req->begin_exe = clk;
 
-        unsigned charging_latency = 0;
         unsigned req_latency = 0;
         unsigned bank_latency = 0;
-        unsigned channel_latency = 0;
+        unsigned channel_latency = tRRD;
 
         if (scheduled_req->req_type == Request::Request_Type::READ)
         {
-            ++stage_accesses[int(Config::Charge_Pump_Opr::READ)][stage_id];
+            ++stage_accesses[int(Req_Type::READ)][stage_id];
 
             req_latency = 
-                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][latency_id];
+                latency_lookaside_buffer[int(Req_Type::READ)][stage_id];
             bank_latency = req_latency;
-            channel_latency = dataTransferLatency;
-            /*
-	    charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)]
-                                                        [stage_id].nclks_charge_or_discharge;
-	    req_latency = charging_latency + singleReadLatency + charging_latency;
-            bank_latency = req_latency;
-            channel_latency = dataTransferLatency;
-            
-	    stage_total_charging_time[int(Config::Charge_Pump_Opr::READ)][stage_id] +=
-                                     singleReadLatency;
-            */
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
-            ++stage_accesses[int(Config::Charge_Pump_Opr::SET)][stage_id];
-            ++stage_accesses[int(Config::Charge_Pump_Opr::RESET)][stage_id];
+            ++stage_accesses[int(Req_Type::WRITE)][stage_id];
 
-            req_latency =
-                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::READ)][latency_id] +
-                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)][latency_id] +
-                latency_lookaside_buffer[int(Config::Charge_Pump_Opr::SET)][latency_id];
+            req_latency = 
+                latency_lookaside_buffer[int(Req_Type::WRITE)][stage_id];
             bank_latency = req_latency;
-            channel_latency = dataTransferLatency;
-            /*
-            charging_latency = charging_lookaside_buffer[int(Config::Charge_Pump_Opr::RESET)]
-                                                        [stage_id].nclks_charge_or_discharge;
-            req_latency = charging_latency + singleWriteLatency + charging_latency;
-            bank_latency = req_latency;
-            channel_latency = dataTransferLatency;
-
-            stage_total_charging_time[int(Config::Charge_Pump_Opr::SET)][stage_id] +=
-                                     singleWriteLatency;
-            stage_total_charging_time[int(Config::Charge_Pump_Opr::RESET)][stage_id] +=
-                                     singleWriteLatency;
-            */
         }
         else
         {
@@ -188,6 +118,8 @@ class CPAwareController : public FRFCFSController
             exit(0);
         }
 
+//        std::cout << "Req latency: " << req_latency << "\n";
+//        std::cout << "Channel latency: " << channel_latency << "\n\n";
         scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
 
         // Post access

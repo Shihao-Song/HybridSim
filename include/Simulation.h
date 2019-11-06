@@ -37,12 +37,10 @@ enum class Memories : int
 struct ParseArgsRet
 {
     std::string cfg_file;
-    std::string charge_pump_info;
     std::vector<std::string> trace_lists;
-    std::vector<uint64_t> profiling_limits;
-    int num_profiling_entries;
+    int64_t num_instrs_per_phase;
+    int num_ftis_per_phase;
     std::string stats_output_file;
-    std::string mmu_profiling_data_output_file;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -95,31 +93,24 @@ auto runCPUTrace(Processor *processor)
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
     std::string cfg_file;
-    std::string charge_pump_info_file;
     std::vector<std::string> cpu_traces;
-    std::vector<uint64_t> profiling_limits;
-    int num_profiling_entries = -1;
+    int64_t num_instrs_per_phase = -1;
+    int num_ftis_per_phase = -1;
     std::string stats_output;
-    std::string mmu_profiling_data_output_file = "N/A";
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
     desc.add_options() 
         ("help", "Print help messages")
         ("config", po::value<std::string>(&cfg_file)->required(), "Configuration file")
-        ("charge_pump_info", po::value<std::string>(&charge_pump_info_file)->required(),
-                             "Charge pump info file")
         ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
                       "CPU trace")
-        ("profiling_limit", po::value<std::vector<uint64_t>>(&profiling_limits),
-                   "Number of profiling instructions (Optional)")
-        ("num_profiling_entries", po::value<int>(&num_profiling_entries),
-                   "Number of entries recorded (Optional, default: 32)")
+        ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
+                   "Number of instructions per phase (Optional)")
+        ("num_ftis_per_phase", po::value<int>(&num_ftis_per_phase),
+                   "Number of FTIs recorded per stage (Optional w. Default: 8)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
-                        "Stats output file")
-        ("mmu_profiling_data_output_file",
-         po::value<std::string>(&mmu_profiling_data_output_file),
-         "Output MMU profiling data. (Optional)");
+                        "Stats output file");
  
     po::variables_map vm;
 
@@ -142,14 +133,12 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         std::cerr << desc << "\n"; 
         exit(0);
     }
-    
+
     return ParseArgsRet{cfg_file,
-                        charge_pump_info_file,
                         cpu_traces,
-                        profiling_limits,
-                        num_profiling_entries,
-                        stats_output,
-                        mmu_profiling_data_output_file};
+                        num_instrs_per_phase,
+                        num_ftis_per_phase,
+                        stats_output};
 }
 
 // Function to test cache behavior.

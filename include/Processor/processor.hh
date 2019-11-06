@@ -113,11 +113,13 @@ class Processor
         void setDCache(MemObject* _d_cache) {d_cache = _d_cache;}
         void setMMU(TrainedMMU *_mmu) {mmu = _mmu;}
 
+        /*
         // Are we in profiling stage?
         void profiling(uint64_t limit)
         {
             trace.profiling(limit);
         }
+        */
 
         // Re-initialize
         void reInitialize()
@@ -137,13 +139,23 @@ class Processor
             cycles++;
 
             d_cache->tick();
-            retired += window.retire();
+
+            int num_window_done = window.retire();
+            retired += num_window_done;
+            if (phase_enabled) { in_phase_tracking += num_window_done; };
+
             if (cycles % 1000000 == 0)
             {
                   std::cout << "Core: " << core_id 
                             << " has done " << retired << " instructions. \n";
 	    }
+            // (1) check if end of a trace
             if (!more_insts) { return; }
+            // (2) check if end of a phase
+            if (phase_enabled)
+            {
+                if (in_phase_tracking >= num_instrs_per_phase) { phase_end = true; return; }
+            }
 
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
@@ -210,6 +222,40 @@ class Processor
             }
         }
 
+        void numInstPerPhase(int64_t _num_instrs_per_phase)
+        {
+            if (_num_instrs_per_phase <= 0) { phase_enabled = false; return; }
+
+            // Enable phase-phase execution
+            phase_enabled = true;
+            // Initialize phase_end (end of a phase) to FALSE
+            phase_end = false;
+
+            // Set the number of instructions per phase (remain constant)
+            num_instrs_per_phase = _num_instrs_per_phase;
+            // Track how many instructions have been completed in one phase
+            in_phase_tracking = 0;
+        }
+
+        void recordPhase()
+        {
+            if (!phase_enabled) { return; }
+
+            // std::cout << "\nPhase " << num_phases << " is done. "
+            //           << "Number of retired instructions in the phase "
+            //           << in_phase_tracking << "\n";
+
+            num_phases++;
+            // re-Initialize all the trackings
+            phase_end = false;
+            in_phase_tracking = 0;
+
+            // Signal the MMU for an phase end.
+            mmu->phaseDone();
+        }
+
+        bool endOfPhase() { return phase_end; }
+
         bool done()
         {
             // return !more_insts && window.isEmpty();
@@ -243,6 +289,14 @@ class Processor
         bool more_insts;
         Instruction cur_inst;
         uint64_t retired = 0;
+
+        // Phase analysis
+        unsigned num_phases = 0;
+
+        uint64_t num_instrs_per_phase;
+        uint64_t in_phase_tracking = 0;
+        bool phase_enabled = false;
+        bool phase_end = false;
 
         MemObject *d_cache;
         MemObject *i_cache;
@@ -289,6 +343,16 @@ class Processor
         shared_m_obj->reInitialize();
     }
 
+    // Set number of instructions per execution phase, this helps us to better
+    // monitor program behavior.
+    void numInstPerPhase(int64_t num_instrs_per_phase)
+    {
+        for (auto &core : cores)
+        {
+            core->numInstPerPhase(num_instrs_per_phase);
+        }
+    }
+    /*
     // Are we in profiling stage?
     void profiling(std::vector<uint64_t> profiling_limits)
     {
@@ -298,6 +362,7 @@ class Processor
             cores[i]->profiling(profiling_limits[i]);
         }
     }
+    */
 
     void tick()
     {
@@ -310,6 +375,17 @@ class Processor
 
         // Tick the shared cache
         shared_m_obj->tick();
+
+        // Check if the end of an execution phase
+        for (auto &core : cores)
+        {
+            if (!core->endOfPhase()) { return; }
+        }
+        // All cores reach the end of a execution phase
+        for (auto &core : cores)
+	{
+            core->recordPhase();
+        }
     }
 
     bool done()

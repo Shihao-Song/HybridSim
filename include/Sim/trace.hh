@@ -54,13 +54,14 @@ class Trace
             return true;
         }
 
+        // if (instruction_index >= 10000000) { return false; }
+        /*
         if (profiling_stage && instruction_index >= profiling_limit)
         {
             profiling_stage = false;
-//                trace_file_expr.clear();
-//                trace_file_expr.seekg(0, std::ios::beg);
             return false;
         }
+        */
 
         std::string line;
         getline(trace_file_expr, line);

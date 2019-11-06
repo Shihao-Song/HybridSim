@@ -94,6 +94,9 @@ void MFUPageToNearRows::va2pa(Request &req)
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
 
+    runtimeProfiling(req);
+    reAllocate(req);
+/*
     // Hardware-guided Profiling
     if (profiling_stage)
     {
@@ -104,8 +107,210 @@ void MFUPageToNearRows::va2pa(Request &req)
     {
         inference(req);
     }
+*/
 }
 
+void MFUPageToNearRows::phaseDone()
+{
+//    std::cout << first_touch_instructions.size() << "\n";
+//    std::cout << fti_candidates.size() << "\n\n";
+
+    // Sort all the FTI candidates
+    std::vector<First_Touch_Instr_Info> ordered_by_ref;
+    for (auto [key, value] : fti_candidates)
+    {
+        ordered_by_ref.push_back(value);
+    }
+    std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
+                  [](const First_Touch_Instr_Info &a, const First_Touch_Instr_Info &b)
+                  {
+                      return (a.num_of_reads + a.num_of_writes) > 
+                             (b.num_of_reads + b.num_of_writes);
+                  });
+
+    // Capture the top FTIs
+    for (int i = 0; i < num_ftis_per_phase && i < ordered_by_ref.size(); i++)
+    {
+        first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
+    }
+
+    fti_candidates.clear();
+}
+
+void MFUPageToNearRows::runtimeProfiling(Request& req)
+{
+    // PC
+    Addr pc = req.eip;
+    // Get page ID
+    Addr page_id = req.addr >> Mapper::va_page_shift;
+
+    // Step One, check if it is a page fault
+    if (auto p_iter = pages.find(page_id);
+            p_iter == pages.end())
+    {
+        // Step two, is the first-touch instruction already cached?
+        if (auto f_instr = first_touch_instructions.find(pc);
+                f_instr != first_touch_instructions.end())
+        {
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+        // Step two (2), cached in fti_candidates?
+	else if (auto f_instr = fti_candidates.find(pc);
+                f_instr != fti_candidates.end())
+        {
+            // Yes, cached!
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+	else
+        {
+            uint64_t num_of_reads = 0;
+            uint64_t num_of_writes = 0;
+
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                num_of_reads = 1;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                num_of_writes = 1;
+            }
+
+            fti_candidates.insert({pc,
+                                  {pc,
+                                   num_of_reads,
+                                   num_of_writes
+                                   }});
+        }
+
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+        
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            num_of_reads = 1;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            num_of_writes = 1;
+        }
+        
+        pages.insert({page_id, {page_id,
+                                pc,
+                                num_of_reads,
+                                num_of_writes}});
+    }
+    else
+    {
+        // Not a page fault.
+        // (1) Record page access information
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            ++p_iter->second.num_of_reads;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            ++p_iter->second.num_of_writes;
+        }
+
+        // (2) Recored FTI information
+        if (auto f_instr = first_touch_instructions.find(pc);
+                f_instr != first_touch_instructions.end())
+        {
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+        // Step two (2), cached in fti_candidates?
+	else if (auto f_instr = fti_candidates.find(pc);
+                f_instr != fti_candidates.end())
+        {
+            // Yes, cached!
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+    }
+}
+
+void MFUPageToNearRows::reAllocate(Request &req)
+{
+    Addr pc = req.eip;
+    Addr pa = req.addr; // Already translated.
+    Addr page_id = pa >> Mapper::va_page_shift;
+
+    // Is the page one of the MFU pages?
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter != re_alloc_pages.end())
+    {
+        Addr new_page_id = iter->second;
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        return;
+    }
+    // Not found, should we allocate to near rows?
+    if (auto iter = first_touch_instructions.find(pc);
+             iter != first_touch_instructions.end())
+    {          	
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
+        dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
+        dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
+        dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
+        dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
+
+        nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
+
+	Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
+                           >> Mapper::va_page_shift;
+
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        re_alloc_pages.insert({page_id, new_page_id});
+
+//        std::cout << dec_addr[int(Config::Decoding::Rank)] << " : "
+//                  << dec_addr[int(Config::Decoding::Partition)] << " : "
+//                  << dec_addr[int(Config::Decoding::Tile)] << " : "
+//                  << dec_addr[int(Config::Decoding::Row)] << " : "
+//                  << dec_addr[int(Config::Decoding::Col)] << "\n";
+    }
+}
+
+/*
 void MFUPageToNearRows::profiling_new(Request& req)
 {
     // PC
@@ -290,72 +495,5 @@ void MFUPageToNearRows::profiling_new(Request& req)
         }
     }
 }
-
-void MFUPageToNearRows::inference(Request &req)
-{
-    Addr pc = req.eip;
-    Addr pa = req.addr; // Already translated.
-    Addr page_id = pa >> Mapper::va_page_shift;
-
-    // Is the page one of the MFU pages?
-    if (auto iter = re_alloc_pages.find(page_id);
-             iter != re_alloc_pages.end())
-    {
-        Addr new_page_id = iter->second;
-        Addr new_pa = new_page_id << Mapper::va_page_shift |
-                      pa & Mapper::va_page_mask;
-
-        req.addr = new_pa; // Replace with the new PA
-
-        return;
-    }
-    // Not found, should we allocate to near rows?
-    if (auto iter = first_touch_instructions.find(pc);
-             iter != first_touch_instructions.end())
-    {          	
-        std::vector<int> dec_addr;
-        dec_addr.resize(mem_addr_decoding_bits.size());
-        Decoder::decode(page_id << Mapper::va_page_shift,
-                        mem_addr_decoding_bits,
-                        dec_addr);
-
-        dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
-        dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
-        dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
-        dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
-        dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
-
-        nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
-/*
-        unsigned rank_id = dec_addr[int(Config::Decoding::Rank)];
-        unsigned part_id = dec_addr[int(Config::Decoding::Partition)];
-        unsigned tile_id = dec_addr[int(Config::Decoding::Tile)];
-
-        unsigned new_row_id = re_alloc_tracker[rank_id][part_id][part_id].row_id;
-        unsigned new_col_id = re_alloc_tracker[rank_id][part_id][part_id].col_id;
-
-        near_region_status[rank_id][part_id][part_id] =
-            nextReAllocPage(re_alloc_tracker[rank_id][part_id][part_id],
-                            int(INCREMENT_LEVEL::ROW));
-
-        dec_addr[int(Config::Decoding::Row)] = new_row_id;
-        dec_addr[int(Config::Decoding::Col)] = new_col_id;
 */
-        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
-                           >> Mapper::va_page_shift;
-
-        Addr new_pa = new_page_id << Mapper::va_page_shift |
-                      pa & Mapper::va_page_mask;
-
-        req.addr = new_pa; // Replace with the new PA
-
-        re_alloc_pages.insert({page_id, new_page_id});
-
-//        std::cout << dec_addr[int(Config::Decoding::Rank)] << " : "
-//                  << dec_addr[int(Config::Decoding::Partition)] << " : "
-//                  << dec_addr[int(Config::Decoding::Tile)] << " : "
-//                  << dec_addr[int(Config::Decoding::Row)] << " : "
-//                  << dec_addr[int(Config::Decoding::Col)] << "\n";
-    }
-}
 }
