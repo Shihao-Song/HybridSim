@@ -94,9 +94,10 @@ void MFUPageToNearRows::va2pa(Request &req)
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
 
-//    runtimeProfiling(req);
-//    reAllocate(req);
-/*
+    runtimeProfiling(req);
+    reAllocate(req);
+
+    /*
     // Hardware-guided Profiling
     if (profiling_stage)
     {

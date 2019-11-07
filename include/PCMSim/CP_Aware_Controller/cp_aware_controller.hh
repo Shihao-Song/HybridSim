@@ -27,8 +27,11 @@ class CPAwareController : public FRFCFSController
     
     const float clk_period = 1.0; // For 1GHz memory clock frequency
     const float tRRD_ns = 15.0;
-    const float read_latencies_ns[2] = {41.25, 56.25};
-    const float write_latencies_ns[2] = {119.75, 161.55};
+    // const float read_latencies_ns[2] = {41.25, 56.25};
+    // const float write_latencies_ns[2] = {119.75, 161.55};
+    
+    const float read_latencies_ns[2] = {27.8, 52.5};
+    const float write_latencies_ns[2] = {27.8, 52.5};
 
   public:
     CPAwareController(int _id, Config &cfg) : FRFCFSController(_id, cfg)
@@ -81,6 +84,18 @@ class CPAwareController : public FRFCFSController
 
     void channelAccess(std::list<Request>::iterator& scheduled_req) override
     {
+        /*
+        std::cout << scheduled_req->addr << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Rank)] << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Partition)] << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Tile)] << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Row)] << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Col)] << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Bank)] << "\n";
+        std::cout << scheduled_req->addr_vec[int(Config::Decoding::Channel)] << "\n";
+        exit(0);
+        */
+
         // Step one, to determine stage level.
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
 //        std::cout << "Row ID: " << row_id << "\n";
