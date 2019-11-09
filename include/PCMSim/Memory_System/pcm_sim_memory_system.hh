@@ -28,6 +28,10 @@ class PCMSimMemorySystem : public Simulator::MemObject
     std::vector<std::unique_ptr<T>> controllers;
     std::vector<int> memory_addr_decoding_bits;
 
+  private:
+    bool offline_req_analysis_mode = false;
+    std::ofstream offline_req_ana_output;
+
   public:
     typedef uint64_t Addr;
     typedef uint64_t Tick;
@@ -40,6 +44,14 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         // Initialize
         init(cfg);
+    }
+
+    ~PCMSimMemorySystem()
+    {
+        if (offline_req_analysis_mode)
+        {
+            offline_req_ana_output.close();
+        }
     }
 
     int pendingRequests() override
@@ -105,6 +117,17 @@ class PCMSimMemorySystem : public Simulator::MemObject
         for (auto &controller : controllers)
         {
             controller->reInitialize();
+        }
+    }
+
+    void offlineReqAnalysis(std::string &file) override
+    {
+        offline_req_analysis_mode = true;
+        offline_req_ana_output.open(file);
+
+        for (auto &controller : controllers)
+        {
+            controller->offlineReqAnalysis(&offline_req_ana_output);
         }
     }
 

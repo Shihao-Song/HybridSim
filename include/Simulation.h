@@ -41,6 +41,7 @@ struct ParseArgsRet
     int64_t num_instrs_per_phase;
     int num_ftis_per_phase;
     std::string stats_output_file;
+    std::string offline_request_analysis_file;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -97,6 +98,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     int64_t num_instrs_per_phase = -1;
     int num_ftis_per_phase = -1;
     std::string stats_output;
+    std::string offline_request_analysis_file;
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
@@ -110,8 +112,11 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         ("num_ftis_per_phase", po::value<int>(&num_ftis_per_phase),
                    "Number of FTIs recorded per stage (Optional w. Default: 8)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
-                        "Stats output file");
- 
+                        "Stats output file")
+        ("offline_request_analysis_file",
+            po::value<std::string>(&offline_request_analysis_file),
+            "Offline request analysis file");
+
     po::variables_map vm;
 
     try 
@@ -138,7 +143,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         cpu_traces,
                         num_instrs_per_phase,
                         num_ftis_per_phase,
-                        stats_output};
+                        stats_output,
+                        offline_request_analysis_file};
 }
 
 // Function to test cache behavior.

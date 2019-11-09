@@ -55,6 +55,8 @@ class MemObject
         mem_trace.open(file);
     }
 
+    virtual void offlineReqAnalysis(std::string &file) {}
+
   protected:
     MemObject *next_level;
 
