@@ -45,18 +45,18 @@ void FullSystemSimulation(Config &cfg,
     /* Memory System Creation */
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
-    PCM->offlineReqAnalysis(offline_request_analysis_file);
+//    PCM->offlineReqAnalysis(offline_request_analysis_file);
 
 //    exit(0);
     // Create eDRAM
-    std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM, isLLC));
-    eDRAM->setNextLevel(PCM.get());
+//    std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM, isLLC));
+//    eDRAM->setNextLevel(PCM.get());
    
     // Create L2
-    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isNonLLC));
-//    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));
-    L2->setNextLevel(eDRAM.get());
-//    L2->setNextLevel(PCM.get());
+//    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isNonLLC));
+    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));
+//    L2->setNextLevel(eDRAM.get());
+    L2->setNextLevel(PCM.get());
     L2->setArbitrator(num_of_cores);
 
     /* Create Processor */
@@ -97,7 +97,7 @@ void FullSystemSimulation(Config &cfg,
         L1_D->registerStats(stats);
     }
     L2->registerStats(stats);
-    eDRAM->registerStats(stats);
+//    eDRAM->registerStats(stats);
     PCM->registerStats(stats);
     stats.registerStats("Execution Time (cycles) = " + 
                         std::to_string(processor->exeTime()));

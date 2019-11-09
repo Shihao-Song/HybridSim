@@ -91,6 +91,7 @@ class NearRegionAware : public TrainedMMU
 {
   protected:
     const unsigned num_of_cache_lines_per_row;
+    const unsigned num_of_rows;
     const unsigned num_of_tiles;
     const unsigned num_of_partitions;
     const unsigned num_of_ranks;
@@ -103,12 +104,14 @@ class NearRegionAware : public TrainedMMU
     NearRegionAware(int num_of_cores, Config &cfg)
         : TrainedMMU(num_of_cores, cfg),
           num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size),
+          num_of_rows(cfg.num_of_word_lines_per_tile),
           num_of_tiles(cfg.num_of_tiles),
           num_of_partitions(cfg.num_of_parts),
           num_of_ranks(cfg.num_of_ranks),
 //          num_of_near_rows(cfg.num_of_word_lines_per_tile /cfg.num_stages),
           mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
     {
+        cur_re_alloc_page_far_seg.row_id = 512;
 /*
         std::cout << "num_of_cache_lines_per_row: " << num_of_cache_lines_per_row << "\n";
         std::cout << "num_of_tiles: " << num_of_tiles << "\n";
@@ -167,12 +170,14 @@ class NearRegionAware : public TrainedMMU
 
     bool near_region_full = false;
     PageLoc cur_re_alloc_page;
-    
+    PageLoc cur_re_alloc_page_far_seg;
+
     enum INCREMENT_LEVEL: int
     {
         COL,ROW,TILE,PARTITION,RANK
     };
     virtual bool nextReAllocPage(PageLoc&, int);
+    virtual bool nextReAllocPageFarSeg(PageLoc&, int);
 };
 
 // Strategy 1, bring MFU pages to the near rows.
@@ -181,7 +186,7 @@ class MFUPageToNearRows : public NearRegionAware
   public:
     MFUPageToNearRows(int num_of_cores, Config &cfg)
         : NearRegionAware(num_of_cores, cfg)
-    {}
+    { srand(time(0)); }
 
     void va2pa(Request &req) override;
 
@@ -353,6 +358,11 @@ class MFUPageToNearRows : public NearRegionAware
   protected:
     void runtimeProfiling(Request&);
     void reAllocate(Request&);
+    void randomMapping(Request&);
+
+    // TODO, tmp hack, delete it soon.
+    void halfWayMapping(Request&);
+
 //    void profiling_new(Request&);
 
 //    void inference(Request&);

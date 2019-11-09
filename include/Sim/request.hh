@@ -25,6 +25,9 @@ class Request
     typedef uint64_t Addr;
     typedef uint64_t Tick;
 
+    // TODO, tmp hack, delete it later
+    bool half_way = false;
+
     int core_id;
     Addr eip; // Advanced feature, the instruction that caused this memory request;
     MMUCommuPacket mmu_commu; // Advanced feature

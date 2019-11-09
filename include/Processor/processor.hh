@@ -169,7 +169,10 @@ class Processor
                 }
                 else
                 {
-                    Request req;                                        
+                    Request req; 
+                    if (retired > 50000000) { req.half_way = true; }
+                    // if (retired > 100000000) { req.half_way = true; }
+
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
                         req.req_type = Request::Request_Type::READ;
