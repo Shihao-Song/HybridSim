@@ -86,6 +86,15 @@ void FullSystemSimulation(Config &cfg,
         processor->setDCache(i, L1_D_all[i].get());
     }
 
+   
+    /* Run the program in profiling stage */
+/*    mmu->setProfilingStage();
+    runCPUTrace(processor.get());
+    processor->reStartTrace(); // Re-start traces
+    processor->reInitialize(); // Re-initialize all components
+    mmu->setInferenceStage(); // Re-allocate all MFU pages
+*/
+
     std::cout << "\nSimulation Stage...\n\n";
     runCPUTrace(processor.get());
 

@@ -54,14 +54,13 @@ class Trace
             return true;
         }
 
-        // if (instruction_index >= 100000000) { return false; }
-        /*
-        if (profiling_stage && instruction_index >= profiling_limit)
-        {
-            profiling_stage = false;
-            return false;
-        }
-        */
+        // if (instruction_index >= 10000000) { trace_file_expr.close(); return false; }
+        
+        // if (profiling_stage && instruction_index >= profiling_limit)
+        // {
+        //    profiling_stage = false;
+        //    return false;
+        // }
 
         std::string line;
         getline(trace_file_expr, line);
@@ -178,6 +177,17 @@ class Trace
     void disableProfiling()
     {
         profiling_stage = false;
+
+        // trace_file_expr.open(trace_fname);
+        // assert(trace_file_expr.good());
+    }
+
+    void reStartTrace()
+    {
+        instruction_index = 0;
+
+        trace_file_expr.open(trace_name);
+        assert(trace_file_expr.good());
     }
 
   private:

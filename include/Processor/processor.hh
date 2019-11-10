@@ -121,6 +121,8 @@ class Processor
         }
         */
 
+        void reStartTrace() { trace.reStartTrace(); }
+
         // Re-initialize
         void reInitialize()
         {
@@ -170,7 +172,7 @@ class Processor
                 else
                 {
                     Request req; 
-                    if (retired > 50000000) { req.half_way = true; }
+                    // if (retired > 50000000) { req.half_way = true; }
                     // if (retired > 100000000) { req.half_way = true; }
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -366,6 +368,14 @@ class Processor
         }
     }
     */
+
+    void reStartTrace()
+    {
+        for (auto &core : cores)
+        {
+            core->reStartTrace();
+        }
+    }
 
     void tick()
     {

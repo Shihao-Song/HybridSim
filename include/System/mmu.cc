@@ -181,7 +181,13 @@ void MFUPageToNearRows::va2pa(Request &req)
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
 
-    halfWayMapping(req);
+    // Re-test our method.
+    runtimeProfiling(req);
+    reAllocate(req);
+//    if (profiling_stage) { oraclePageProfiling(req); }
+//    if (inference_stage) { oraclePageInference(req); }
+
+//    halfWayMapping(req);
 //    randomMapping(req);
 //    runtimeProfiling(req);
 //    reAllocate(req);
@@ -202,6 +208,16 @@ void MFUPageToNearRows::va2pa(Request &req)
 
 void MFUPageToNearRows::phaseDone()
 {
+    /*
+    for (auto [key, value] : first_touch_instructions)
+    {
+        std::cout << value.eip << " : "
+                  << value.num_of_reads << " : "
+                  << value.num_of_writes << "\n";
+    }
+    std::cout << "\n";
+    */
+
 //    std::cout << first_touch_instructions.size() << "\n";
 //    std::cout << fti_candidates.size() << "\n\n";
 
@@ -316,8 +332,10 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
             ++p_iter->second.num_of_writes;
         }
 
+        Addr corres_fti = p_iter->second.first_touch_instruction;
+        // TODO, this is not correct. FIXME!!!
         // (2) Recored FTI information
-        if (auto f_instr = first_touch_instructions.find(pc);
+        if (auto f_instr = first_touch_instructions.find(corres_fti);
                 f_instr != first_touch_instructions.end())
         {
             if (req.req_type == Request::Request_Type::READ)
@@ -330,7 +348,7 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
             }
         }
         // Step two (2), cached in fti_candidates?
-	else if (auto f_instr = fti_candidates.find(pc);
+	else if (auto f_instr = fti_candidates.find(corres_fti);
                 f_instr != fti_candidates.end())
         {
             // Yes, cached!
@@ -342,6 +360,11 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
             {
                 ++f_instr->second.num_of_writes;
             }
+        }
+        else
+        {
+            std::cerr << "FTI is not captured correctly.\n";
+            exit(0);
         }
     }
 }
@@ -452,6 +475,68 @@ void MFUPageToNearRows::randomMapping(Request &req)
 //                  << dec_addr[int(Config::Decoding::Tile)] << " : "
 //                  << dec_addr[int(Config::Decoding::Row)] << " : "
 //                  << dec_addr[int(Config::Decoding::Col)] << "\n";
+    }
+}
+
+void MFUPageToNearRows::oraclePageProfiling(Request &req)
+{
+    // PC
+    Addr pc = req.eip;
+    // Get page ID
+    Addr page_id = req.addr >> Mapper::va_page_shift;
+
+    // Step One, check if it is a page fault
+    if (auto p_iter = pages.find(page_id);
+            p_iter == pages.end())
+    {
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+        
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            num_of_reads = 1;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            num_of_writes = 1;
+        }
+        
+        pages.insert({page_id, {page_id,
+                                pc,
+                                num_of_reads,
+                                num_of_writes}});
+    }
+    else
+    {
+        // Not a page fault.
+        // (1) Record page access information
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            ++p_iter->second.num_of_reads;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            ++p_iter->second.num_of_writes;
+        }
+    }
+}
+
+void MFUPageToNearRows::oraclePageInference(Request &req)
+{
+    Addr pa = req.addr;
+    Addr page_id = pa >> Mapper::va_page_shift;
+
+    // Is the page one of the MFU pages?
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter != re_alloc_pages.end())
+    {
+        Addr new_page_id = iter->second;
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        return;
     }
 }
 

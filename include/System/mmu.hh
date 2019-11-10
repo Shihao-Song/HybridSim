@@ -169,8 +169,8 @@ class NearRegionAware : public TrainedMMU
     typedef std::unordered_map<PageLoc, bool, PageLocHashKey> PageLocHash;
 
     bool near_region_full = false;
-    PageLoc cur_re_alloc_page;
-    PageLoc cur_re_alloc_page_far_seg;
+    PageLoc cur_re_alloc_page; // For pages to be allocated in the near segment
+    PageLoc cur_re_alloc_page_far_seg; // For pages to be allocated in the far segment
 
     enum INCREMENT_LEVEL: int
     {
@@ -355,6 +355,53 @@ class MFUPageToNearRows : public NearRegionAware
     }
 */
 
+    void setInferenceStage() override 
+    {
+        inference_stage = true; 
+        profiling_stage = false;
+
+        std::vector<Page_Info> MFU_pages_profiling;
+
+        for (auto [key, value] : pages)
+        {
+            MFU_pages_profiling.push_back(value);
+        }
+
+        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.num_of_reads + a.num_of_writes) >
+                             (b.num_of_reads + b.num_of_writes);
+                  });
+
+        for (int i = 0; i < MFU_pages_profiling.size() * 0.7; i++)
+        {
+            // Re-alloc the pages to the fast-access region
+            Addr page_id = MFU_pages_profiling[i].page_id;
+
+            std::vector<int> dec_addr;
+            dec_addr.resize(mem_addr_decoding_bits.size());
+            Decoder::decode(page_id << Mapper::va_page_shift, 
+                            mem_addr_decoding_bits,
+                            dec_addr);
+
+            dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
+            dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
+            dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
+            dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
+            dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
+            
+            nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
+
+	    Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
+                               >> Mapper::va_page_shift;
+
+            re_alloc_pages.insert({page_id, new_page_id});
+        }
+
+        pages.clear();
+    }
+
   protected:
     void runtimeProfiling(Request&);
     void reAllocate(Request&);
@@ -362,6 +409,8 @@ class MFUPageToNearRows : public NearRegionAware
 
     // TODO, tmp hack, delete it soon.
     void halfWayMapping(Request&);
+    void oraclePageProfiling(Request&);
+    void oraclePageInference(Request&);
 
 //    void profiling_new(Request&);
 
