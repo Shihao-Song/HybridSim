@@ -67,14 +67,14 @@ class Trace
         if (trace_file_expr.eof()) 
         {
             ++runs;
-            if (runs == REPEAT)
-            {
+//            if (runs == REPEAT)
+//            {
                 trace_file_expr.close();
                 return false;
-            }
-            trace_file_expr.clear();
-            trace_file_expr.seekg(0, std::ios::beg);
-            getline(trace_file_expr, line);
+//            }
+//            trace_file_expr.clear();
+//            trace_file_expr.seekg(0, std::ios::beg);
+//            getline(trace_file_expr, line);
         }
 
         std::stringstream line_stream(line);
@@ -136,14 +136,14 @@ class Trace
         getline(trace_file_expr, line);
         if (trace_file_expr.eof())
         {
-            ++runs;
-            if (runs == REPEAT)
-            {
+//            ++runs;
+//            if (runs == REPEAT)
+//            {
                 trace_file_expr.close();
                 return false;
-            }
-            trace_file_expr.clear();
-            trace_file_expr.seekg(0, std::ios::beg);
+//            }
+//            trace_file_expr.clear();
+//            trace_file_expr.seekg(0, std::ios::beg);
         }
 
         std::stringstream line_stream(line);

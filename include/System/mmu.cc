@@ -182,10 +182,10 @@ void MFUPageToNearRows::va2pa(Request &req)
     req.addr = pa;
 
     // Re-test our method.
-    runtimeProfiling(req);
-    reAllocate(req);
-//    if (profiling_stage) { oraclePageProfiling(req); }
-//    if (inference_stage) { oraclePageInference(req); }
+//    runtimeProfiling(req);
+//    reAllocate(req);
+    if (profiling_stage) { oraclePageProfiling(req); }
+    if (inference_stage) { oraclePageInference(req); }
 
 //    halfWayMapping(req);
 //    randomMapping(req);
