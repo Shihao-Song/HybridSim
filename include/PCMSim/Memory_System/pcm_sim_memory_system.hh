@@ -11,6 +11,7 @@
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller_plp.hh"
 #include "PCMSim/CP_Aware_Controller/las_pcm_controller.hh"
 #include "PCMSim/PLP_Controller/pcm_sim_plp_controller.hh"
+#include "PCMSim/DRAM_PCM_Controller/dram_pcm_controller.hh"
 
 #include <functional>
 #include <iostream>
@@ -44,6 +45,15 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         // Initialize
         init(cfg);
+    }
+
+    PCMSimMemorySystem(Config &dram_cfg, Config &pcm_cfg) : Simulator::MemObject()
+    {
+        for (int i = 0; i < dram_cfg.num_of_channels; i++)
+        {
+            controllers.push_back(std::move(std::make_unique<T>(i, dram_cfg, pcm_cfg)));
+        }
+        memory_addr_decoding_bits = dram_cfg.mem_addr_decoding_bits;
     }
 
     ~PCMSimMemorySystem()
@@ -176,7 +186,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
         }
         memory_addr_decoding_bits = cfg.mem_addr_decoding_bits;
     }
-
 };
 
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
@@ -185,6 +194,7 @@ typedef PCMSimMemorySystem<PLPController> PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<PLPCPAwareController> CP_Aware_PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<TLDRAMPCMController> HybridDRAMPCMSystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -229,6 +239,11 @@ class PCMSimMemorySystemFactory
                           };
     }
 
+    auto createHybridSystem(Config &dram_cfg, Config &pcm_cfg)
+    {
+        return std::make_unique<HybridDRAMPCMSystem>(dram_cfg, pcm_cfg);
+    }
+
     auto createPCMSimMemorySystem(Config &cfg)
     {
         std::string type = cfg.mem_controller_type;
@@ -250,5 +265,11 @@ static auto createPCMSimMemorySystem(Simulator::Config &cfg)
 {
     return PCMSimMemorySystemFactories.createPCMSimMemorySystem(cfg);
 }
+
+static auto createHybridSystem(Simulator::Config &dram_cfg, Simulator::Config &pcm_cfg)
+{
+    return PCMSimMemorySystemFactories.createHybridSystem(dram_cfg, pcm_cfg);
+}
+
 }
 #endif

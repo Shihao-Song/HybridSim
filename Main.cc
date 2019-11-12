@@ -3,7 +3,7 @@
 
 #include "Simulation.h"
 
-void FullSystemSimulation(Config &cfg,
+void FullSystemSimulation(std::vector<Config> &cfgs,
                           std::vector<std::string> &trace_lists,
                           int64_t num_instrs_per_phase,
                           int num_ftis_per_phase,
@@ -12,20 +12,32 @@ void FullSystemSimulation(Config &cfg,
 
 int main(int argc, const char *argv[])
 {
-    auto [cfg_file,
+    auto [cfg_files,
           trace_lists,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           num_ftis_per_phase, // Max. # FTIs recorded for each phase
           stats_output_file,
           offline_request_analysis_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
-    
-    std::cout << "\nConfiguration file: " << cfg_file << "\n";
-    std::cout << "Stats output file: " << stats_output_file << "\n";
 
-    Config cfg(cfg_file);
+    // TODO, limitation, if there are two config files, the first one should always be DRAM, and
+    // the second one should always be PCM.
+    std::cout << "\n";
+    auto i = 0;
+    for (auto &cfg_file : cfg_files)
+    {
+        std::cout << "Configuration file " << i << ": " << cfg_file << "\n";
+        ++i;
+    }
+    std::cout << "\nStats output file: " << stats_output_file << "\n\n";
 
-    FullSystemSimulation(cfg,
+    std::vector<Config> cfgs;
+    for (auto &cfg_file : cfg_files)
+    {
+        cfgs.emplace_back(cfg_file);
+    }
+
+    FullSystemSimulation(cfgs,
                          trace_lists,
                          num_instrs_per_phase,
                          num_ftis_per_phase,
@@ -33,7 +45,7 @@ int main(int argc, const char *argv[])
                          offline_request_analysis_file);
 }
 
-void FullSystemSimulation(Config &cfg,
+void FullSystemSimulation(std::vector<Config> &cfgs,
                           std::vector<std::string> &trace_lists,
                           int64_t num_instrs_per_phase,
                           int num_ftis_per_phase,
@@ -43,6 +55,10 @@ void FullSystemSimulation(Config &cfg,
     unsigned num_of_cores = trace_lists.size();
     
     /* Memory System Creation */
+    // Create a DRAM-PCM system
+    std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
+    Config &cfg = cfgs[0];
+
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
 //    PCM->offlineReqAnalysis(offline_request_analysis_file);
@@ -88,11 +104,13 @@ void FullSystemSimulation(Config &cfg,
 
    
     /* Run the program in profiling stage */
+    /*
     mmu->setProfilingStage();
     runCPUTrace(processor.get());
     processor->reStartTrace(); // Re-start traces
     processor->reInitialize(); // Re-initialize all components
     mmu->setInferenceStage(); // Re-allocate all MFU pages
+    */
 
     std::cout << "\nSimulation Stage...\n\n";
     runCPUTrace(processor.get());

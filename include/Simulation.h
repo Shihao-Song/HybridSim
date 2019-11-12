@@ -36,7 +36,7 @@ enum class Memories : int
 
 struct ParseArgsRet
 {
-    std::string cfg_file;
+    std::vector<std::string> cfg_files;
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     int num_ftis_per_phase;
@@ -48,6 +48,12 @@ ParseArgsRet parse_args(int argc, const char *argv[]);
 auto createTrainedMMU(int num_of_cores, Config &cfg)
 {
     return System::createTrainedMMU(num_of_cores, cfg);
+}
+
+auto createHybridSystem(Config &dram_cfg,
+                        Config &pcm_cfg)
+{
+    return PCMSim::createHybridSystem(dram_cfg, pcm_cfg);
 }
 
 auto createMemObject(Config &cfg,
@@ -93,7 +99,7 @@ auto runCPUTrace(Processor *processor)
 
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
-    std::string cfg_file;
+    std::vector<std::string> cfg_files;
     std::vector<std::string> cpu_traces;
     int64_t num_instrs_per_phase = -1;
     int num_ftis_per_phase = -1;
@@ -104,7 +110,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     po::options_description desc("Options"); 
     desc.add_options() 
         ("help", "Print help messages")
-        ("config", po::value<std::string>(&cfg_file)->required(), "Configuration file")
+        ("config", po::value<std::vector<std::string>>(&cfg_files)->required(), 
+                   "Configuration file")
         ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
                       "CPU trace")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
@@ -139,7 +146,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         exit(0);
     }
 
-    return ParseArgsRet{cfg_file,
+    return ParseArgsRet{cfg_files,
                         cpu_traces,
                         num_instrs_per_phase,
                         num_ftis_per_phase,
