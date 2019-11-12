@@ -9,14 +9,18 @@
 #include "Sim/config.hh"
 #include "Sim/decoder.hh"
 #include "Sim/mapper.hh"
+#include "Sim/mem_object.hh"
 #include "Sim/request.hh"
 #include "Sim/trace.hh"
+
 
 namespace System
 {
 class MMU
 {
   protected:
+    typedef Simulator::MemObject MemObject;
+
     typedef Simulator::Mapper Mapper;
     std::vector<Mapper> mappers;
 
@@ -42,6 +46,9 @@ class MMU
 
 class TrainedMMU : public MMU
 {
+  protected:
+    MemObject *mem_system;
+
   public:
     typedef Simulator::Config Config;
     typedef Simulator::Decoder Decoder;
@@ -68,6 +75,8 @@ class TrainedMMU : public MMU
     virtual void phaseDone() {}
     virtual void setSizes(std::vector<int> sizes) {}
 
+    void setMemSystem(MemObject *_sys) { mem_system = _sys; }
+
   protected:
     bool profiling_stage = false;
     bool inference_stage = false;
@@ -81,6 +90,143 @@ class TrainedMMU : public MMU
         mmu_profiling_data_output_file = file;
         //mmu_profiling_data_out.open(file);
         //assert(mmu_profiling_data_out.good());
+    }
+};
+
+// TODO, Limitations
+// (1) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank, 1 GB bank for each memory
+// (2) Decoding is fixed: Rank, Partition, Tile, Row, Col, Bank, Channel, Cache_Line
+// (3) DRAM and PCM share the same memory space. Implementation-wise, number of ranks
+// are doubled, ranks 0~3 are for PCM; ranks 4~7 are for DRAM.
+class Hybrid : public TrainedMMU
+{
+  protected:
+    unsigned base_rank_id_pcm;
+    unsigned base_rank_id_dram;
+
+    // mem_addr_decoding_bits is used to determine the physical location of the page.
+    const std::vector<int> mem_addr_decoding_bits;
+
+  protected:
+    struct Page_Info
+    {
+        Addr page_id;
+        Addr first_touch_instruction; // The first-touch instruction that brings in this page
+
+        bool in_dram = false; // Initially, all the pages are in PCM instead of DRAM.
+
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+    };
+    std::unordered_map<Addr,Page_Info> pages; // All the touched (allocated) pages
+
+    struct First_Touch_Instr_Info // Information of first-touch instruction
+    {
+        Addr eip;
+
+        bool in_dram = false;
+
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+    };
+    std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
+    std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
+
+    int num_ftis_per_phase = 8;
+
+  public: 
+    Hybrid(int num_of_cores, Config &cfg)
+        : TrainedMMU(num_of_cores, cfg)
+        , base_rank_id_pcm(0)
+        , base_rank_id_dram(cfg.num_of_ranks / 2)
+        , mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
+    {
+        // std::cout << base_rank_id_pcm << "\n";
+        // std::cout << base_rank_id_dram << "\n";
+    }
+
+    void va2pa(Request &req) override
+    {
+        Addr pa = mappers[req.core_id].va2pa(req.addr);
+        req.addr = pa;
+
+        Addr pc = req.eip;
+        Addr page_id = pa >> Mapper::va_page_shift;
+
+        // Step One, get the page_id.
+        // Initially, all the pages should be inside PCM
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        // TODO, this is not good for page-intensive applications, there can be 
+        // some conflicts.
+        if (dec_addr[int(Config::Decoding::Rank)] >= base_rank_id_dram)
+        {
+            dec_addr[int(Config::Decoding::Rank)] -= base_rank_id_dram;
+        }
+
+        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
+                           >> Mapper::va_page_shift;
+
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        // At this point, all the pages are inside PCM, we will record all the page accesses.
+        // new_page_id equals to (old) page_id if rank_id is below base_rank_id_dram
+        // Step two, track page access information
+        if (auto p_iter = pages.find(new_page_id);
+                p_iter == pages.end())
+        {
+            uint64_t num_of_reads = 0;
+            uint64_t num_of_writes = 0;
+
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                num_of_reads = 1;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                num_of_writes = 1;
+            }
+
+            pages.insert({new_page_id, {new_page_id,
+                                        pc,
+                                        false,
+                                        num_of_reads,
+                                        num_of_writes}});
+        }
+        else
+        {
+            // Not a page fault.
+            // (1) Record page access information
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++p_iter->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++p_iter->second.num_of_writes;
+            }
+
+            // Step three, is this page now in DRAM?
+            if (p_iter->second.in_dram)
+            {
+                dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+
+                Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
+                                   >> Mapper::va_page_shift;
+
+                Addr new_pa = new_page_id << Mapper::va_page_shift |
+                              pa & Mapper::va_page_mask;
+
+                req.addr = new_pa; // Replace with the new PA
+            }
+        }
     }
 };
 
@@ -191,169 +337,6 @@ class MFUPageToNearRows : public NearRegionAware
     void va2pa(Request &req) override;
 
     void phaseDone() override;
-    /*
-    void setSizes(std::vector<int> sizes) override
-    {
-        num_profiling_entries = sizes[0];
-    }
-    */
-
-    /*
-    void printProfiling() override
-    {
-        std::vector<Page_Info> MFU_pages_profiling;
-        std::vector<Page_Info> MFU_pages_inference;
-
-        for (auto [key, value] : pages)
-        {
-            MFU_pages_profiling.push_back(value);
-            MFU_pages_inference.push_back(value);
-        }
-
-        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
-                  [](const Page_Info &a, const Page_Info &b)
-                  {
-                      return (a.reads_in_profiling_stage + a.writes_in_profiling_stage) > 
-                             (b.reads_in_profiling_stage + b.writes_in_profiling_stage);
-                  });
-	
-        std::sort(MFU_pages_inference.begin(), MFU_pages_inference.end(),
-                  [](const Page_Info &a, const Page_Info &b)
-                  {
-                      return (a.reads_in_inference_stage + a.writes_in_inference_stage) > 
-                             (b.reads_in_inference_stage + b.writes_in_inference_stage);
-                  });
-
-        // TODO, change the naming convention.
-        std::string profiling_file = mmu_profiling_data_output_file + "_10M.csv";
-        std::ofstream profiling_output(profiling_file);
-        assert(profiling_output.good());
-
-        // TODO, change the naming convention.
-        std::string inference_file = mmu_profiling_data_output_file + "_100M.csv";
-        std::ofstream inference_output(inference_file);
-        assert(inference_output.good());
-
-        for (int i = 0; i < pages.size(); i++)
-        {
-            unsigned accesses = MFU_pages_profiling[i].reads_in_profiling_stage +
-                                MFU_pages_profiling[i].writes_in_profiling_stage;
-
-            if (MFU_pages_profiling[i].allocated_in_profiling_stage &&
-                accesses)
-            {
-
-                profiling_output << MFU_pages_profiling[i].page_id << ","
-                                 << MFU_pages_profiling[i].first_touch_instruction << ","
-                                 << accesses << "\n";
-            }
-	    else
-            {
-                break;
-            }
-        }
-
-        for (int i = 0; i < pages.size(); i++)
-        {
-            unsigned accesses = MFU_pages_inference[i].reads_in_inference_stage +
-                                MFU_pages_inference[i].writes_in_inference_stage;
-            if (accesses)
-            {
-	        inference_output << MFU_pages_inference[i].page_id << ","
-                                 << MFU_pages_inference[i].first_touch_instruction << ","
-                                 << accesses << "\n";
-            }
-	    else
-	    {
-                break;    
-            }
-	}
-        profiling_output.close();
-	inference_output.close();
-
-    }
-*/
-
-/*
-    void setInferenceStage() override 
-    {
-        inference_stage = true; 
-        profiling_stage = false;
-
-//        std::cout << first_touch_instructions.size() << "\n";
-//        std::cout << pages.size() << "\n";
-        // TMP modifications, capture all the FTIs and re-Alloc MFU pages.
-
-        // Locate the top num_profiling_entries first-touch instructions
-
-        std::vector<First_Touch_Instr_Info> ordered_by_ref;
-        for (auto [key, value] : first_touch_instructions)
-        {
-            ordered_by_ref.push_back(value);
-        }
-        std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
-                      [](const First_Touch_Instr_Info &a, const First_Touch_Instr_Info &b)
-                      {
-                          return (a.reads_profiling_stage + a.writes_profiling_stage) > 
-                                 (b.reads_profiling_stage + b.writes_profiling_stage);
-                      });
-
-        first_touch_instructions.clear();
-        assert(first_touch_instructions.size() == 0);
-        for (int i = 0; i < num_profiling_entries && i < ordered_by_ref.size(); i++)
-        {
-            first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
-        }
-
-        // Locate the top num_profiling_entries touched pages
-        std::vector<Page_Info> MFU_pages_profiling;
-
-        for (auto [key, value] : pages)
-        {
-            MFU_pages_profiling.push_back(value);
-        }
-
-        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
-                  [](const Page_Info &a, const Page_Info &b)
-                  {
-                      return (a.reads_in_profiling_stage + a.writes_in_profiling_stage) >
-                             (b.reads_in_profiling_stage + b.writes_in_profiling_stage);
-                  });
-
-        for (int i = 0; i < num_profiling_entries && i < MFU_pages_profiling.size(); i++)
-        {
-            // Re-alloc the pages to the fast-access region
-            Addr page_id = MFU_pages_profiling[i].page_id;
-
-            std::vector<int> dec_addr;
-            dec_addr.resize(mem_addr_decoding_bits.size());
-            Decoder::decode(page_id << Mapper::va_page_shift, 
-                            mem_addr_decoding_bits,
-                            dec_addr);
-
-            dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
-            dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
-            dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
-            dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
-            dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
-            
-            nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
-
-	    Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits) 
-                               >> Mapper::va_page_shift;
-//            std::cout << dec_addr[int(Config::Decoding::Rank)] << " : "
-//                      << dec_addr[int(Config::Decoding::Partition)] << " : "
-//                      << dec_addr[int(Config::Decoding::Tile)] << " : "
-//                      << dec_addr[int(Config::Decoding::Row)] << " : "
-//                      << dec_addr[int(Config::Decoding::Col)] << "\n";
-            re_alloc_pages.insert({page_id, new_page_id});
-        }
-
-//        std::cout << first_touch_instructions.size() << "\n";
-//        std::cout << re_alloc_pages.size() << "\n";
-//        exit(0);
-    }
-*/
 
     void setInferenceStage() override 
     {
@@ -424,15 +407,6 @@ class MFUPageToNearRows : public NearRegionAware
 
         uint64_t num_of_reads = 0;
         uint64_t num_of_writes = 0;
-        /*
-        bool allocated_in_profiling_stage = false;
-
-        uint64_t reads_in_profiling_stage = 0;
-        uint64_t writes_in_profiling_stage = 0;
-
-        uint64_t reads_in_inference_stage = 0;
-        uint64_t writes_in_inference_stage = 0;
-        */
     };
     std::unordered_map<Addr,Page_Info> pages; // All the touched (allocated) pages
 
@@ -445,32 +419,13 @@ class MFUPageToNearRows : public NearRegionAware
 
         uint64_t num_of_reads = 0;
         uint64_t num_of_writes = 0;
-        /*
-        // Is this instruction captured in profiling stage
-        bool captured_in_profiling_stage = false;
-
-        // I keep as many information as possible, so that different ordering can be
-        // applied.
-        // Number of accesses in profiling stage
-        uint64_t reads_profiling_stage = 0;
-        uint64_t writes_profiling_stage = 0;
-
-        // Number of accesses in inference stage
-        uint64_t reads_inference_stage = 0;
-        uint64_t writes_inference_stage = 0;
-
-        // Number of pages in profiling stage
-        uint64_t touched_pages_profiling_stage = 0;
-
-        // Number of pages in inference stage
-        uint64_t touched_pages_inference_stage = 0;
-        */
     };
     std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
     std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
 
     int num_ftis_per_phase = 8;
 };
+
 
 class TrainedMMUFactory
 {
@@ -486,6 +441,11 @@ class TrainedMMUFactory
         factories["MFUPageToNearRows"] = [](int num_of_cores, Config &cfg)
                  {
                      return std::make_unique<MFUPageToNearRows>(num_of_cores, cfg);
+                 };
+
+        factories["Hybrid"] = [](int num_of_cores, Config &cfg)
+                 {
+                     return std::make_unique<Hybrid>(num_of_cores, cfg);
                  };
     }
 

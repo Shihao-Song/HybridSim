@@ -15,11 +15,25 @@ class DRAMPCMController
     DCtrl DRAM_controller;
     PCtrl PCM_controller;
 
+    unsigned base_rank_id_pcm;
+    unsigned base_rank_id_dram;
+
   public:
     DRAMPCMController(int _id, Config &dram_cfg, Config &pcm_cfg)
         : DRAM_controller(_id, dram_cfg)
         , PCM_controller(_id, pcm_cfg)
+        , base_rank_id_pcm(0)
+        , base_rank_id_dram(dram_cfg.num_of_ranks / 2)
     {
+        assert(dram_cfg.mmu_type == "Hybrid");
+        assert(pcm_cfg.mmu_type == "Hybrid");
+        assert(dram_cfg.mem_controller_type == "Hybrid");
+        assert(pcm_cfg.mem_controller_type == "Hybrid");
+
+        // std::cout << dram_cfg.num_of_ranks << "\n";
+        // std::cout << base_rank_id_pcm << "\n";
+        // std::cout << base_rank_id_dram << "\n";
+        // exit(0);
     }
 
     void offlineReqAnalysis(std::ofstream *out)
@@ -34,23 +48,35 @@ class DRAMPCMController
 
     int pendingRequests()
     {
-        // TODO, get number of pending requests from both PCM controller and 
-        // DRAM controller.
-
-        int outstandings = 0;
+        int outstandings = DRAM_controller.pendingRequests() +
+                           PCM_controller.pendingRequests();
 
         return outstandings;
     }
 
     void tick()
     {
-        // TODO, tick both PCM and DRAM controller
+        DRAM_controller.tick();
+        PCM_controller.tick();
     }
 
     bool enqueue(Request& req)
     {
-        // TODO, should send to either PCM controller or DRAM controller
-    
+        int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
+        // std::cout << rank_id  << "\n";
+
+        if (rank_id >= base_rank_id_dram)
+        {
+            // std::cout << "DRAM\n";
+            req.addr_vec[int(Config::Decoding::Rank)] = req.addr_vec[int(Config::Decoding::Rank)] - 
+                                                        base_rank_id_dram;
+            return DRAM_controller.enqueue(req);
+        }
+        else
+        {
+            // std::cout << "PCM\n";
+            return PCM_controller.enqueue(req);
+        }
     }
 };
 

@@ -6,10 +6,18 @@ Config::Config(const std::string &cfg_file)
 {
     parse(cfg_file);
 
+    // TODO, limitation
+    // if the type of MMU and memory controller is Hybrid
+    if (mmu_type == "Hybrid")
+    {
+        assert(mem_controller_type == "Hybrid");
+        num_of_ranks *= 2;
+    }
+
     // Generate memory address decoding bits
     genMemAddrDecodingBits();
 
-//    std::cout << "PCM Size: " << sizeOfPCMInGB() << "GB\n";
+//    std::cout << "PCM Size: " << sizeOfPCMInGB() << "GB\n\n";
 }
 
 void Config::genMemAddrDecodingBits()

@@ -113,7 +113,7 @@ class BaseController
         }
 
         std::cout << req.begin_exe << ","
-                  << req.end_exe << "\n";
+                  << req.end_exe << "\n\n";
     }
 };
 
@@ -154,7 +154,7 @@ class FCFSController : public BaseController
             // Queue is full
             return false;
         }
- 
+
         req.queue_arrival = clk;	
         req.OrderID = r_w_q.size(); // To track back-logging.
 	r_w_q.push_back(req);

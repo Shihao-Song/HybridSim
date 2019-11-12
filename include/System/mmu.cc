@@ -180,9 +180,10 @@ void MFUPageToNearRows::va2pa(Request &req)
 {
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
-
-    runtimeProfiling(req);
-    reAllocate(req);
+ 
+    // TODO, consider a memory space which is shared by both PCM and DRAM.
+    // Limitation, I assume the number of ranks are doubled since RANK are the MSBs 
+    // used in decoding.
 
     // Re-test our method.
 //    runtimeProfiling(req);
