@@ -29,11 +29,11 @@ class CPAwareController : public FRFCFSController
     const float clk_period = 1.0; // For 1GHz memory clock frequency
     const float tRRD_ns = 15.0;
 
-    const float read_latencies_ns[2] = {41.25, 56.25};
-    const float write_latencies_ns[2] = {119.75, 161.55};
+    // const float read_latencies_ns[2] = {41.25, 56.25};
+    // const float write_latencies_ns[2] = {119.75, 161.55};
     
-    // const float read_latencies_ns[2] = {27.8, 52.5};
-    // const float write_latencies_ns[2] = {27.8, 52.5};
+    const float read_latencies_ns[2] = {27.8, 52.5};
+    const float write_latencies_ns[2] = {27.8, 52.5};
 
     bool tl_enable = true;
 
@@ -194,11 +194,11 @@ class TLDRAMController : public FRFCFSController
     const float clk_period = 1.0; // For 1GHz memory clock frequency
     const float tRRD_ns = 15.0;
 
-    // const float read_latencies_ns[2] = {41.25, 56.25};
-    // const float write_latencies_ns[2] = {119.75, 161.55};
+    const float read_latencies_ns[2] = {41.25, 56.25};
+    const float write_latencies_ns[2] = {119.75, 161.55};
     
-    const float read_latencies_ns[2] = {27.8, 52.5};
-    const float write_latencies_ns[2] = {27.8, 52.5};
+    // const float read_latencies_ns[2] = {27.8, 52.5};
+    // const float write_latencies_ns[2] = {27.8, 52.5};
 
     bool tl_enable = true;
 

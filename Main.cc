@@ -56,7 +56,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     
     /* Memory System Creation */
     // Create a DRAM-PCM system
-    std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
+//    std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
     Config &cfg = cfgs[0];
 
     // Create (PCM) main memory
@@ -102,7 +102,6 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
         processor->setDCache(i, L1_D_all[i].get());
     }
 
-   
     /* Run the program in profiling stage */
     /*
     mmu->setProfilingStage();

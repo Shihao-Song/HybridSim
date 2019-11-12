@@ -181,6 +181,9 @@ void MFUPageToNearRows::va2pa(Request &req)
     Addr pa = mappers[req.core_id].va2pa(req.addr);
     req.addr = pa;
 
+    runtimeProfiling(req);
+    reAllocate(req);
+
     // Re-test our method.
 //    runtimeProfiling(req);
 //    reAllocate(req);
@@ -362,11 +365,11 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
                 ++f_instr->second.num_of_writes;
             }
         }
-        else
-        {
-            std::cerr << "FTI is not captured correctly.\n";
-            exit(0);
-        }
+        // else
+        // {
+        //     std::cerr << "FTI is not captured correctly.\n";
+        //     exit(0);
+        // }
     }
 }
 
