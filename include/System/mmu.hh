@@ -220,7 +220,7 @@ class Hybrid : public TrainedMMU
         Addr new_pa = (new_page_id << Mapper::va_page_shift) |
                       (pa & Mapper::va_page_mask);
         req.addr = new_pa; // Replace with the new PA
-        /*
+
         // At this point, all the pages are inside PCM, we will record all the page accesses.
         // new_page_id equals to (old) page_id if rank_id is below base_rank_id_dram
         // Step two, track page access information
@@ -283,7 +283,6 @@ class Hybrid : public TrainedMMU
                 req.addr = new_pa; // Replace with the new PA
             }
         }
-	*/
     }
 
     virtual bool pageMig()
@@ -428,7 +427,7 @@ class Hybrid : public TrainedMMU
             cur_accesses += MFU_pages_profiling[i].num_of_reads;
             cur_accesses += MFU_pages_profiling[i].num_of_writes;
 
-            if (cur_accesses >= total_accesses * 0.9) { break; }
+            if (cur_accesses >= total_accesses * 0.6) { break; }
         }
         mig_ready = true;
     }
