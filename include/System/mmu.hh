@@ -67,6 +67,8 @@ class TrainedMMU : public MMU
         }
     }
 
+    virtual void pageMig() {}
+
     virtual void printProfiling() {}
 
     virtual void setProfilingStage() { profiling_stage = true; inference_stage = false; }
@@ -133,6 +135,15 @@ class Hybrid : public TrainedMMU
     std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
 
     int num_ftis_per_phase = 8;
+
+    struct Mig_Page
+    {
+        Addr page_id;
+
+        unsigned num_reads_left; // Number of reads from PCM
+        unsigned num_writes_left; // Number of writes to DRAM
+    };
+    std::vector<Mig_Page> pages_to_migrate;
 
   public: 
     Hybrid(int num_of_cores, Config &cfg)
@@ -227,6 +238,30 @@ class Hybrid : public TrainedMMU
                 req.addr = new_pa; // Replace with the new PA
             }
         }
+    }
+
+    void pageMig() override
+    {
+        std::vector<Page_Info> MFU_pages_profiling;
+
+        for (auto [key, value] : pages)
+        {
+            if (!value.in_dram)
+            {
+                MFU_pages_profiling.push_back(value);
+            }
+        }
+
+        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.num_of_reads + a.num_of_writes) >
+                             (b.num_of_reads + b.num_of_writes);
+                  });
+
+        // TODO, currently, we only migrate the top 8 MFU pages
+        // for (int i = 0; i < 8; i++)
+		
     }
 };
 

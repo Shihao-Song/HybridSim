@@ -327,6 +327,8 @@ class Processor
 
     void setMMU(TrainedMMU *_mmu)
     {
+        mmu = _mmu;
+
         for (auto &core : cores)
         {
             core->setMMU(_mmu);
@@ -394,6 +396,11 @@ class Processor
         {
             if (!core->endOfPhase()) { return; }
         }
+
+        // TODO, when page migration is enabled. 
+        // static bool migrated = false;
+        // if (!migrated) { mmu->pageMig(); }
+
         // All cores reach the end of a execution phase
         for (auto &core : cores)
 	{
@@ -445,6 +452,7 @@ class Processor
   private:
     Tick cycles;
 
+    TrainedMMU *mmu;
     std::vector<std::unique_ptr<Core>> cores;
     MemObject *shared_m_obj;
 };
