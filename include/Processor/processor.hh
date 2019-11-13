@@ -397,9 +397,8 @@ class Processor
             if (!core->endOfPhase()) { return; }
         }
 
-        // TODO, when page migration is enabled. 
-        // static bool migrated = false;
-        // if (!migrated) { mmu->pageMig(); }
+        if (!mmu->pageMig()) { return; } // Only proceed when the 
+                                         // page migration is done.
 
         // All cores reach the end of a execution phase
         for (auto &core : cores)

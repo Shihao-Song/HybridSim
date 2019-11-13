@@ -67,7 +67,7 @@ class TrainedMMU : public MMU
         }
     }
 
-    virtual void pageMig() {}
+    virtual bool pageMig() {}
 
     virtual void printProfiling() {}
 
@@ -139,6 +139,8 @@ class Hybrid : public TrainedMMU
     struct Mig_Page
     {
         Addr page_id;
+
+        bool done = false;
 
         unsigned num_reads_left; // Number of reads from PCM
         unsigned num_writes_left; // Number of writes to DRAM
@@ -227,6 +229,7 @@ class Hybrid : public TrainedMMU
             // Step three, is this page now in DRAM?
             if (p_iter->second.in_dram)
             {
+                // It has been migrated to DRAM.
                 dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
 
                 Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
@@ -240,8 +243,77 @@ class Hybrid : public TrainedMMU
         }
     }
 
-    void pageMig() override
+    virtual bool pageMig()
     {
+        if (!mig_ready) { prepMig(); return false; }
+
+        for (int i = 0; i < pages_to_migrate.size(); i++)
+        {
+            if (!pages_to_migrate[i].done)
+            {
+                if (pages_to_migrate[i].num_reads_left > 0)
+                {
+                    // One cache-line at one time
+                    uint64_t granuality = 64;
+                    uint64_t offset = granuality * uint64_t(pages_to_migrate[i].num_reads_left - 1);
+
+                    Addr target_addr = pages_to_migrate[i].page_id << Mapper::va_page_shift + offset;
+                    Request req(target_addr, Request::Request_Type::READ);
+                    if (mem_system->send(req))
+                    {
+                        --pages_to_migrate[i].num_reads_left;
+                        ++mig_num_pcm_reads;
+                    }
+
+                    return false;
+                }
+                
+                if (pages_to_migrate[i].num_writes_left > 0)
+                {
+                    // One cache-line at one time
+                    uint64_t granuality = 64;
+                    uint64_t offset = granuality * uint64_t(pages_to_migrate[i].num_reads_left - 1);
+
+                    Addr tmp = pages_to_migrate[i].page_id << Mapper::va_page_shift + offset;
+                    std::vector<int> dec_addr;
+                    dec_addr.resize(mem_addr_decoding_bits.size());
+                    Decoder::decode(tmp,
+                                    mem_addr_decoding_bits,
+                                    dec_addr);
+
+                    dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+                    Addr target_addr = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+                    Request req(target_addr, Request::Request_Type::WRITE);
+                    if (mem_system->send(req))
+                    {
+                        --pages_to_migrate[i].num_writes_left;
+                        ++mig_num_dram_writes;
+                    }
+
+                    return false;
+                }
+
+                pages_to_migrate[i].done = true;
+            }
+        }
+
+        // TODO, (1) reset mig_ready to false; (2) clear pages_to_migrate
+        mig_ready = false;
+        pages_to_migrate.clear();
+
+        return true;
+    }
+
+  protected:
+    bool mig_ready = false;
+
+    uint64_t mig_num_pcm_reads = 0;
+    uint64_t mig_num_dram_writes = 0;
+
+    void prepMig()
+    {
+        assert(pages_to_migrate.size() == 0);
+
         std::vector<Page_Info> MFU_pages_profiling;
 
         for (auto [key, value] : pages)
@@ -260,8 +332,19 @@ class Hybrid : public TrainedMMU
                   });
 
         // TODO, currently, we only migrate the top 8 MFU pages
-        // for (int i = 0; i < 8; i++)
-		
+        for (int i = 0; i < 8 && i < MFU_pages_profiling.size(); i++)
+        {
+            // Update pages information.
+            pages.find(MFU_pages_profiling[i].page_id)->second.in_dram = true;
+
+            // Push to pages_to_migrate to wait for migration.
+            unsigned num_cache_lines_per_page = 4096 / 64;
+            pages_to_migrate.push_back({MFU_pages_profiling[i].page_id,
+                                        false, 
+                                        num_cache_lines_per_page,
+                                        num_cache_lines_per_page});
+        }
+        mig_ready = true;
     }
 };
 
