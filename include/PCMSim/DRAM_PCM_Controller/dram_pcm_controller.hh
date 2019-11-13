@@ -1,6 +1,7 @@
 #ifndef __DRAM_PCM_CONTROLLER_HH__
 #define __DRAM_PCM_CONTROLLER_HH__
 
+#include "Sim/decoder.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
 
 namespace PCMSim
@@ -10,10 +11,13 @@ template<typename DCtrl, typename PCtrl>
 class DRAMPCMController
 {
     typedef Simulator::Config Config;
+    typedef Simulator::Decoder Decoder;
 
   protected:
     DCtrl DRAM_controller;
     PCtrl PCM_controller;
+
+    std::vector<int> memory_addr_decoding_bits_dram;
 
     unsigned base_rank_id_pcm;
     unsigned base_rank_id_dram;
@@ -30,10 +34,13 @@ class DRAMPCMController
         assert(dram_cfg.mem_controller_type == "Hybrid");
         assert(pcm_cfg.mem_controller_type == "Hybrid");
 
+        DRAM_controller.disableTL();
+        PCM_controller.disableTL();
         // std::cout << dram_cfg.num_of_ranks << "\n";
         // std::cout << base_rank_id_pcm << "\n";
         // std::cout << base_rank_id_dram << "\n";
         // exit(0);
+        memory_addr_decoding_bits_dram = dram_cfg.mem_addr_decoding_bits;
     }
 
     void offlineReqAnalysis(std::ofstream *out)
@@ -44,6 +51,14 @@ class DRAMPCMController
     void reInitialize()
     {
         // TODO, reInitialize both PCM controller and DRAM controller.
+    }
+
+    unsigned numStages() { return DRAM_controller.numStages(); }
+
+    uint64_t stageAccess(int i, int j, int k)
+    {
+        if (k == 0) { return DRAM_controller.stageAccess(i, j); }
+        else { return PCM_controller.stageAccess(i, j); }
     }
 
     int pendingRequests()
@@ -67,14 +82,16 @@ class DRAMPCMController
 
         if (rank_id >= base_rank_id_dram)
         {
-            // std::cout << "DRAM\n";
+            if (req.display) { std::cout << "\nDRAM\n"; }
+            // Need to be re-decoded using DRAM decoding bits.
+            Decoder::decode(req.addr, memory_addr_decoding_bits_dram, req.addr_vec);
             req.addr_vec[int(Config::Decoding::Rank)] = req.addr_vec[int(Config::Decoding::Rank)] - 
                                                         base_rank_id_dram;
             return DRAM_controller.enqueue(req);
         }
         else
         {
-            // std::cout << "PCM\n";
+            if (req.display) { std::cout << "\nPCM\n"; }
             return PCM_controller.enqueue(req);
         }
     }

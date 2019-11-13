@@ -57,7 +57,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     /* Memory System Creation */
     // Create a DRAM-PCM system
     std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
-    Config &cfg = cfgs[0];
+    // Config &cfg = cfgs[0];
 //    std::cout << cfgs[0].mmu_type << "\n";
 //    std::cout << cfgs[0].mem_controller_type << "\n";
 //    std::cout << cfgs[1].mmu_type << "\n";
@@ -74,7 +74,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
    
     // Create L2
 //    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isNonLLC));
-    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isLLC));
+    std::unique_ptr<MemObject> L2(createMemObject(cfgs[1], Memories::L2_CACHE, isLLC));
 //    L2->setNextLevel(eDRAM.get());
 //    L2->setNextLevel(PCM.get());
     L2->setNextLevel(DRAM_PCM.get());
@@ -85,7 +85,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     for (int i = 0; i < num_of_cores; i++)
     {
         // Create L1-D
-        std::unique_ptr<MemObject> L1_D(createMemObject(cfg, Memories::L1_D_CACHE, isNonLLC));
+        std::unique_ptr<MemObject> L1_D(createMemObject(cfgs[1], Memories::L1_D_CACHE, isNonLLC));
         L1_D->setId(i);
         L1_D->setBoundaryMemObject();
         L1_D->setNextLevel(L2.get());
@@ -95,7 +95,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
-    std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfg));
+    std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfgs[1]));
     mmu->setMemSystem(DRAM_PCM.get());
     // mmu->setSizes(trained_mmu_required_sizes); // TODO, re-write this function!
 
@@ -131,6 +131,8 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     L2->registerStats(stats);
     // eDRAM->registerStats(stats);
     // PCM->registerStats(stats);
+    mmu->registerStats(stats);
+    DRAM_PCM->registerStats(stats);
     stats.registerStats("Execution Time (cycles) = " + 
                         std::to_string(processor->exeTime()));
     stats.outputStats(stats_output_file);

@@ -42,7 +42,7 @@ class Decoder
         tmp.resize(vec.size());
         for (int i = 0; i < vec.size(); i++)
         {
-            tmp[i] = vec[i];
+            tmp[i] = (uint64_t)vec[i];
             for (int j = vec.size() - 1; j > i; j--)
             {
                 tmp[i] <<= decoding_bits[j];

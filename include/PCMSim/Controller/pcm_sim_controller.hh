@@ -101,23 +101,25 @@ class BaseController
 
     auto displayReqInfo(auto &req)
     {
-        std::cout << "C:" << req.addr_vec[int(Config::Decoding::Channel)] << ","
-                  << "R:" << req.addr_vec[int(Config::Decoding::Rank)] << ","
-                  << "B:" << req.addr_vec[int(Config::Decoding::Bank)] << ","
-                  << "P:" << req.addr_vec[int(Config::Decoding::Partition)] << ","
-                  << "R:" << req.addr_vec[int(Config::Decoding::Row)] << ",";
+        std::cout << "Channel:" << req.addr_vec[int(Config::Decoding::Channel)] << ","
+                  << "Rank:" << req.addr_vec[int(Config::Decoding::Rank)] << ","
+                  << "Bank:" << req.addr_vec[int(Config::Decoding::Bank)] << ","
+                  << "Part:" << req.addr_vec[int(Config::Decoding::Partition)] << ","
+                  << "Tile:" << req.addr_vec[int(Config::Decoding::Tile)] << ","
+                  << "Row:" << req.addr_vec[int(Config::Decoding::Row)] << ","
+                  << "Col:" << req.addr_vec[int(Config::Decoding::Col)] << ",";
 
         if (req.req_type == Request::Request_Type::READ)
         {
-            std::cout << "R,";
+            std::cout << "READ\n";
         }
         else
         {
-            std::cout << "W,";
+            std::cout << "WRITE\n";
         }
 
-        std::cout << req.begin_exe << ","
-                  << req.end_exe << "\n\n";
+        // std::cout << req.begin_exe << ","
+        //           << req.end_exe << "\n\n";
     }
 };
 
@@ -158,7 +160,8 @@ class FCFSController : public BaseController
             // Queue is full
             return false;
         }
-
+        
+        if (req.display) { displayReqInfo(req); }
         req.queue_arrival = clk;	
         req.OrderID = r_w_q.size(); // To track back-logging.
 	r_w_q.push_back(req);

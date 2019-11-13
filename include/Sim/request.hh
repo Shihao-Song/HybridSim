@@ -25,8 +25,19 @@ class Request
     typedef uint64_t Addr;
     typedef uint64_t Tick;
 
+    /*
+    // For hybrid memory, a request can be sent to either DRAM or PCM.
+    enum class Target_Memory : int
+    {
+        DRAM,
+        PCM,
+        MAX
+    }target_mem = Target_Memory::MAX;
+    */
+
     // TODO, tmp hack, delete it later
     bool half_way = false;
+    bool display = false;
 
     int core_id;
     Addr eip; // Advanced feature, the instruction that caused this memory request;

@@ -53,7 +53,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
         {
             controllers.push_back(std::move(std::make_unique<T>(i, dram_cfg, pcm_cfg)));
         }
-        memory_addr_decoding_bits = dram_cfg.mem_addr_decoding_bits;
+        memory_addr_decoding_bits = pcm_cfg.mem_addr_decoding_bits;
     }
 
     ~PCMSimMemorySystem()
@@ -143,6 +143,44 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     void registerStats(Simulator::Stats &stats) override
     {
+        if constexpr (std::is_same<TLDRAMPCMController, T>::value)
+        {
+            unsigned num_stages = controllers[0]->numStages();
+            for (int k = 0; k < 2; k++)
+            {
+            for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
+            {
+                std::string target = "READ";
+                if (i == int(CPAwareController::Req_Type::READ))
+                {
+                    target = "READ";
+                }
+                if (i == int(CPAwareController::Req_Type::WRITE))
+                {
+                    target = "WRITE";
+                }
+                
+                for (int j = 0; j < num_stages; j++)
+                {
+                    int64_t stage_accesses = 0;
+                    for (auto &controller : controllers)
+                    {
+                        // i - request type; j - stage ID.
+                        stage_accesses += controller->stageAccess(i, j, k);
+                    }
+                    std::string stage_access_prin =
+                                                "Stage-" + std::to_string(j) + "-"
+                                                + target + "-Access"
+                                                + " = "
+                                                + std::to_string(stage_accesses);
+                    if (k == 0) { stage_access_prin = "DRAM-" + stage_access_prin; }
+                    else { stage_access_prin = "PCM-" + stage_access_prin;  }
+                    stats.registerStats(stage_access_prin);
+                }
+            }
+            }
+        }
+
         if constexpr (std::is_same<CPAwareController, T>::value)
         {
             uint64_t total_reqs = 0;

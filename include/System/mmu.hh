@@ -11,6 +11,7 @@
 #include "Sim/mapper.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
+#include "Sim/stats.hh"
 #include "Sim/trace.hh"
 
 
@@ -78,6 +79,8 @@ class TrainedMMU : public MMU
     virtual void setSizes(std::vector<int> sizes) {}
 
     void setMemSystem(MemObject *_sys) { mem_system = _sys; }
+
+    virtual void registerStats(Simulator::Stats &stats) {}
 
   protected:
     bool profiling_stage = false;
@@ -158,18 +161,29 @@ class Hybrid : public TrainedMMU
         // std::cout << base_rank_id_dram << "\n";
     }
 
+    void registerStats(Simulator::Stats &stats) override
+    {
+        std::string mig_reads = "Total_Mig_Reads = " +
+                                 std::to_string(mig_num_pcm_reads);
+        std::string mig_writes = "Total_Mig_Writes = " +
+                                 std::to_string(mig_num_dram_writes);
+        stats.registerStats(mig_reads);
+        stats.registerStats(mig_writes);
+    }
+
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
         req.addr = pa;
 
         Addr pc = req.eip;
-        Addr page_id = pa >> Mapper::va_page_shift;
+	Addr page_id = pa >> Mapper::va_page_shift;
 
         // Step One, get the page_id.
         // Initially, all the pages should be inside PCM
         std::vector<int> dec_addr;
         dec_addr.resize(mem_addr_decoding_bits.size());
+        // std::cout << "Page ID: " << page_id << "\n";
         Decoder::decode(page_id << Mapper::va_page_shift,
                         mem_addr_decoding_bits,
                         dec_addr);
@@ -181,12 +195,22 @@ class Hybrid : public TrainedMMU
             dec_addr[int(Config::Decoding::Rank)] -= base_rank_id_dram;
         }
 
-        Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
-                           >> Mapper::va_page_shift;
+        Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        Addr tmp = pa;
+	for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp >> mem_addr_decoding_bits[i];
+        }
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp << mem_addr_decoding_bits[i];
+        }
+        Addr new_page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
+        // std::cout << "New Page ID: " << new_page_id << "\n";
+        // exit(0);
 
-        Addr new_pa = new_page_id << Mapper::va_page_shift |
-                      pa & Mapper::va_page_mask;
-
+        Addr new_pa = (new_page_id << Mapper::va_page_shift) |
+                      (pa & Mapper::va_page_mask);
         req.addr = new_pa; // Replace with the new PA
 
         // At this point, all the pages are inside PCM, we will record all the page accesses.
@@ -229,11 +253,21 @@ class Hybrid : public TrainedMMU
             // Step three, is this page now in DRAM?
             if (p_iter->second.in_dram)
             {
+                // exit(0);
                 // It has been migrated to DRAM.
                 dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
 
-                Addr new_page_id = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits)
-                                   >> Mapper::va_page_shift;
+                Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+                Addr tmp = pa;
+                for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+                {
+                    tmp = tmp >> mem_addr_decoding_bits[i];
+                }
+                for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+                {
+                    tmp = tmp << mem_addr_decoding_bits[i];
+                }
+                Addr new_page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
 
                 Addr new_pa = new_page_id << Mapper::va_page_shift |
                               pa & Mapper::va_page_mask;
@@ -257,8 +291,11 @@ class Hybrid : public TrainedMMU
                     uint64_t granuality = 64;
                     uint64_t offset = granuality * uint64_t(pages_to_migrate[i].num_reads_left - 1);
 
-                    Addr target_addr = pages_to_migrate[i].page_id << Mapper::va_page_shift + offset;
+                    Addr target_addr = (pages_to_migrate[i].page_id << Mapper::va_page_shift) + offset;
+                    
                     Request req(target_addr, Request::Request_Type::READ);
+                    // std::cout << pages_to_migrate[i].page_id << "\n";
+                    // req.display = true;
                     if (mem_system->send(req))
                     {
                         --pages_to_migrate[i].num_reads_left;
@@ -267,23 +304,36 @@ class Hybrid : public TrainedMMU
 
                     return false;
                 }
-                
+
                 if (pages_to_migrate[i].num_writes_left > 0)
                 {
                     // One cache-line at one time
                     uint64_t granuality = 64;
-                    uint64_t offset = granuality * uint64_t(pages_to_migrate[i].num_reads_left - 1);
+                    uint64_t offset = granuality * uint64_t(pages_to_migrate[i].num_writes_left - 1);
 
-                    Addr tmp = pages_to_migrate[i].page_id << Mapper::va_page_shift + offset;
+                    Addr old_addr = pages_to_migrate[i].page_id << Mapper::va_page_shift; // Base
                     std::vector<int> dec_addr;
                     dec_addr.resize(mem_addr_decoding_bits.size());
-                    Decoder::decode(tmp,
+                    Decoder::decode(old_addr,
                                     mem_addr_decoding_bits,
                                     dec_addr);
 
                     dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
-                    Addr target_addr = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+                    Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+                    Addr tmp = old_addr;
+                    for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+                    {
+                        tmp = tmp >> mem_addr_decoding_bits[i];
+                    }
+                    for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+                    {
+                        tmp = tmp << mem_addr_decoding_bits[i];
+                    }
+                    Addr target_addr = (page_recon | tmp) + offset;
+
+                    // std::cout << target_addr << "\n";
                     Request req(target_addr, Request::Request_Type::WRITE);
+                    // req.display = true;
                     if (mem_system->send(req))
                     {
                         --pages_to_migrate[i].num_writes_left;
@@ -292,7 +342,8 @@ class Hybrid : public TrainedMMU
 
                     return false;
                 }
-
+                
+                // exit(0);
                 pages_to_migrate[i].done = true;
             }
         }
@@ -334,6 +385,10 @@ class Hybrid : public TrainedMMU
         // TODO, currently, we only migrate the top 8 MFU pages
         for (int i = 0; i < 8 && i < MFU_pages_profiling.size(); i++)
         {
+            // std::cout << MFU_pages_profiling[i].page_id << " : "
+            //           << (MFU_pages_profiling[i].num_of_reads + 
+            //               MFU_pages_profiling[i].num_of_writes) << "\n";
+
             // Update pages information.
             pages.find(MFU_pages_profiling[i].page_id)->second.in_dram = true;
 
