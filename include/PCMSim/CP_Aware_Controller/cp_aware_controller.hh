@@ -14,8 +14,8 @@ class CPAwareController : public FRFCFSController
 
   protected:
     // Only consider near and far segments.
-    unsigned num_stages = 2;
-//    const unsigned num_stages = 1;
+//    unsigned num_stages = 2;
+    unsigned num_stages = 1;
     const unsigned num_rows_per_stage = 512;
 
   protected:
@@ -35,7 +35,7 @@ class CPAwareController : public FRFCFSController
     // const float read_latencies_ns[2] = {27.8, 52.5};
     // const float write_latencies_ns[2] = {27.8, 52.5};
 
-    bool tl_enable = true;
+    bool tl_enable = false;
 
   public:
     CPAwareController(int _id, Config &cfg) : FRFCFSController(_id, cfg)

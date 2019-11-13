@@ -145,6 +145,25 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         if constexpr (std::is_same<CPAwareController, T>::value)
         {
+            uint64_t total_reqs = 0;
+            uint64_t total_waiting_time = 0;
+            for (auto &controller : controllers)
+            {
+                total_reqs += controller->finished_requests;
+                total_waiting_time += controller->total_waiting_time;
+            }
+
+            std::string req_info = "Total_Number_Requests = " + 
+                                   std::to_string(total_reqs);
+            std::string waiting_info = "Total_Waiting_Time = " + 
+                                   std::to_string(total_waiting_time);
+            std::string access_latency = "Access_Latency = " + 
+                                   std::to_string(double(total_waiting_time) / 
+                                                  double(total_reqs));
+            stats.registerStats(req_info);
+            stats.registerStats(waiting_info);
+            stats.registerStats(access_latency);
+
             unsigned num_stages = controllers[0]->numStages();
             for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
             {

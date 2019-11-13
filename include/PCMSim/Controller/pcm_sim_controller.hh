@@ -32,6 +32,10 @@ class BaseController
   protected:
     Tick clk;
 
+  public:
+    uint64_t total_waiting_time = 0;
+    uint64_t finished_requests = 0;
+
   protected:
     bool offline_req_analysis_mode = false;
     std::ofstream *offline_req_ana_output;
@@ -197,6 +201,10 @@ class FCFSController : public BaseController
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
+            uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
+            total_waiting_time += waiting_time;
+            ++finished_requests;
+
             if (offline_req_analysis_mode)
             {
                 if (req.req_type == Request::Request_Type::READ)
