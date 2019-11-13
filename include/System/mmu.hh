@@ -163,12 +163,20 @@ class Hybrid : public TrainedMMU
 
     void registerStats(Simulator::Stats &stats) override
     {
+        for (int i = 0; i < num_of_mig_pages.size(); i++)
+        {
+            std::string mig = "Total_Mig_Pages_" + std::to_string(i) + " = " + 
+                              std::to_string(num_of_mig_pages[i]);
+            stats.registerStats(mig);
+        }
+        /*
         std::string mig_reads = "Total_Mig_Reads = " +
                                  std::to_string(mig_num_pcm_reads);
         std::string mig_writes = "Total_Mig_Writes = " +
                                  std::to_string(mig_num_dram_writes);
         stats.registerStats(mig_reads);
         stats.registerStats(mig_writes);
+        */
     }
 
     void va2pa(Request &req) override
@@ -212,7 +220,7 @@ class Hybrid : public TrainedMMU
         Addr new_pa = (new_page_id << Mapper::va_page_shift) |
                       (pa & Mapper::va_page_mask);
         req.addr = new_pa; // Replace with the new PA
-
+        /*
         // At this point, all the pages are inside PCM, we will record all the page accesses.
         // new_page_id equals to (old) page_id if rank_id is below base_rank_id_dram
         // Step two, track page access information
@@ -275,6 +283,7 @@ class Hybrid : public TrainedMMU
                 req.addr = new_pa; // Replace with the new PA
             }
         }
+	*/
     }
 
     virtual bool pageMig()
@@ -299,7 +308,7 @@ class Hybrid : public TrainedMMU
                     if (mem_system->send(req))
                     {
                         --pages_to_migrate[i].num_reads_left;
-                        ++mig_num_pcm_reads;
+                        // ++mig_num_pcm_reads;
                     }
 
                     return false;
@@ -337,7 +346,7 @@ class Hybrid : public TrainedMMU
                     if (mem_system->send(req))
                     {
                         --pages_to_migrate[i].num_writes_left;
-                        ++mig_num_dram_writes;
+                        // ++mig_num_dram_writes;
                     }
 
                     return false;
@@ -348,9 +357,16 @@ class Hybrid : public TrainedMMU
             }
         }
 
+        num_of_mig_pages.push_back(pages_to_migrate.size());
         // TODO, (1) reset mig_ready to false; (2) clear pages_to_migrate
         mig_ready = false;
         pages_to_migrate.clear();
+
+        for (auto iter = pages.begin(); iter != pages.end(); iter++)
+        {
+            (iter->second).num_of_reads = 0;
+            (iter->second).num_of_writes = 0;
+        }
 
         return true;
     }
@@ -358,13 +374,15 @@ class Hybrid : public TrainedMMU
   protected:
     bool mig_ready = false;
 
-    uint64_t mig_num_pcm_reads = 0;
-    uint64_t mig_num_dram_writes = 0;
+    // uint64_t mig_num_pcm_reads = 0;
+    // uint64_t mig_num_dram_writes = 0;
+    std::vector<unsigned> num_of_mig_pages;
 
     void prepMig()
     {
         assert(pages_to_migrate.size() == 0);
 
+        uint64_t total_accesses = 0;
         std::vector<Page_Info> MFU_pages_profiling;
 
         for (auto [key, value] : pages)
@@ -372,8 +390,16 @@ class Hybrid : public TrainedMMU
             if (!value.in_dram)
             {
                 MFU_pages_profiling.push_back(value);
+                total_accesses += value.num_of_reads;
+                total_accesses += value.num_of_writes;
             }
+	    // else
+	    // {
+	    //     std::cout << value.page_id << " : "
+            //               << (value.num_of_reads + value.num_of_writes) << "\n";
+	    // }
         }
+        // std::cout << "\n";
 
         std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
                   [](const Page_Info &a, const Page_Info &b)
@@ -382,8 +408,8 @@ class Hybrid : public TrainedMMU
                              (b.num_of_reads + b.num_of_writes);
                   });
 
-        // TODO, currently, we only migrate the top 8 MFU pages
-        for (int i = 0; i < 8 && i < MFU_pages_profiling.size(); i++)
+        uint64_t cur_accesses = 0;
+        for (int i = 0; i < MFU_pages_profiling.size(); i++)
         {
             // std::cout << MFU_pages_profiling[i].page_id << " : "
             //           << (MFU_pages_profiling[i].num_of_reads + 
@@ -398,6 +424,11 @@ class Hybrid : public TrainedMMU
                                         false, 
                                         num_cache_lines_per_page,
                                         num_cache_lines_per_page});
+
+            cur_accesses += MFU_pages_profiling[i].num_of_reads;
+            cur_accesses += MFU_pages_profiling[i].num_of_writes;
+
+            if (cur_accesses >= total_accesses * 0.9) { break; }
         }
         mig_ready = true;
     }
