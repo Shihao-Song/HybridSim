@@ -124,6 +124,7 @@ class Hybrid : public TrainedMMU
         uint64_t num_of_writes = 0;
     };
     std::unordered_map<Addr,Page_Info> pages; // All the touched (allocated) pages
+    std::unordered_map<Addr,Addr> re_alloc_pages;
 
     struct First_Touch_Instr_Info // Information of first-touch instruction
     {
@@ -134,6 +135,8 @@ class Hybrid : public TrainedMMU
         uint64_t num_of_reads = 0;
         uint64_t num_of_writes = 0;
     };
+    // For every FTI in first_touch_instructions, if in_dram is true, allocate the page into DRAM,
+    // if not true, allocate to the fast region of PCM.
     std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
     std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
 
@@ -179,6 +182,7 @@ class Hybrid : public TrainedMMU
         */
     }
 
+    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -284,6 +288,7 @@ class Hybrid : public TrainedMMU
             }
         }
     }
+    */
 
     virtual bool pageMig()
     {
@@ -368,6 +373,246 @@ class Hybrid : public TrainedMMU
         }
 
         return true;
+    }
+
+    /* FTI Section */
+    void va2pa(Request &req) override
+    {
+        Addr pa = mappers[req.core_id].va2pa(req.addr);
+
+        Addr old_page_id = pa >> Mapper::va_page_shift;
+        // Initially, all the pages should be inside PCM
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        // std::cout << "Page ID: " << page_id << "\n";
+        Decoder::decode(old_page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        // TODO, this is not good for page-intensive applications, there can be 
+        // some conflicts.
+        if (dec_addr[int(Config::Decoding::Rank)] >= base_rank_id_dram)
+        {
+            dec_addr[int(Config::Decoding::Rank)] -= base_rank_id_dram;
+        }
+
+        Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        Addr tmp = old_page_id;
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp >> mem_addr_decoding_bits[i];
+        }
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp << mem_addr_decoding_bits[i];
+        }
+        Addr page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
+        // std::cout << "New Page ID: " << new_page_id << "\n";
+        // exit(0);
+        Addr new_pa = (page_id << Mapper::va_page_shift) |
+                      (pa & Mapper::va_page_mask);
+        req.addr = new_pa; // Replace with the new PA
+
+        // Run-time profiling
+        runtimeProfiling(req);
+
+        // Run-time reallocation
+        runtimeReAlloc(req);
+    }
+
+    void runtimeProfiling(Request& req)
+    {
+    // PC
+    Addr pc = req.eip;
+    // Get page ID
+    Addr page_id = req.addr >> Mapper::va_page_shift;
+
+    // Step One, check if it is a page fault
+    if (auto p_iter = pages.find(page_id);
+            p_iter == pages.end())
+    {
+        // Step two, is the first-touch instruction already cached?
+        if (auto f_instr = first_touch_instructions.find(pc);
+                f_instr != first_touch_instructions.end())
+        {
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+        // Step two (2), cached in fti_candidates?
+        else if (auto f_instr = fti_candidates.find(pc);
+                f_instr != fti_candidates.end())
+        {
+            // Yes, cached!
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+        else
+        {
+            uint64_t num_of_reads = 0;
+            uint64_t num_of_writes = 0;
+
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                num_of_reads = 1;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                num_of_writes = 1;
+            }
+
+            fti_candidates.insert({pc,
+                                  {pc,
+                                   false,
+                                   num_of_reads,
+                                   num_of_writes
+                                   }});
+        }
+        uint64_t num_of_reads = 0;
+        uint64_t num_of_writes = 0;
+
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            num_of_reads = 1;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            num_of_writes = 1;
+        }
+
+        pages.insert({page_id, {page_id,
+                                pc,
+                                false,
+                                num_of_reads,
+                                num_of_writes}});
+    }
+    else
+    {
+        // Not a page fault.
+        // (1) Record page access information
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            ++p_iter->second.num_of_reads;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            ++p_iter->second.num_of_writes;
+        }
+
+        Addr corres_fti = p_iter->second.first_touch_instruction;
+        if (auto f_instr = first_touch_instructions.find(corres_fti);
+                f_instr != first_touch_instructions.end())
+        {
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+        // Step two (2), cached in fti_candidates?
+        else if (auto f_instr = fti_candidates.find(corres_fti);
+                f_instr != fti_candidates.end())
+        {
+            // Yes, cached!
+            if (req.req_type == Request::Request_Type::READ)
+            {
+                ++f_instr->second.num_of_reads;
+            }
+            else if (req.req_type == Request::Request_Type::WRITE)
+            {
+                ++f_instr->second.num_of_writes;
+            }
+        }
+    }
+    }
+
+    void runtimeReAlloc(Request& req)
+    {
+    Addr pc = req.eip;
+    Addr pa = req.addr; // Already translated.
+    Addr page_id = pa >> Mapper::va_page_shift;
+
+    // Is the page one of the MFU pages?
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter != re_alloc_pages.end())
+    {
+        Addr new_page_id = iter->second;
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        return;
+    }
+
+    // Should we allocate in DRAM?
+    if (auto iter = first_touch_instructions.find(pc);
+             iter != first_touch_instructions.end())
+    {
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+
+        Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        Addr tmp = pa;
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp >> mem_addr_decoding_bits[i];
+        }
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp << mem_addr_decoding_bits[i];
+        }
+        Addr new_page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
+
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        re_alloc_pages.insert({page_id, new_page_id});
+    }
+    }
+
+    void phaseDone()
+    {
+    std::vector<First_Touch_Instr_Info> ordered_by_ref;
+    for (auto [key, value] : fti_candidates)
+    {
+        ordered_by_ref.push_back(value);
+    }
+    std::sort(ordered_by_ref.begin(), ordered_by_ref.end(),
+                  [](const First_Touch_Instr_Info &a, const First_Touch_Instr_Info &b)
+                  {
+                      return (a.num_of_reads + a.num_of_writes) >
+                             (b.num_of_reads + b.num_of_writes);
+                  });
+
+    // Capture the top FTIs
+    for (int i = 0; i < num_ftis_per_phase && i < ordered_by_ref.size(); i++)
+    {
+        first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
+    }
+
+    fti_candidates.clear();
     }
 
   protected:
