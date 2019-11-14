@@ -123,8 +123,8 @@ class CPAwareController : public FRFCFSController
 
             if (tl_enable)
             {
-                std::cerr << "Testing... \n";
-                exit(0);
+                // std::cerr << "Testing... \n";
+                // exit(0);
 
                 req_latency = 
                     latency_lookaside_buffer[int(Req_Type::READ)][stage_id];
@@ -143,8 +143,8 @@ class CPAwareController : public FRFCFSController
 
             if (tl_enable)
             {
-                std::cerr << "Testing... \n";
-                exit(0);
+                // std::cerr << "Testing... \n";
+                // exit(0);
 
                 req_latency = 
                     latency_lookaside_buffer[int(Req_Type::WRITE)][stage_id];
@@ -294,8 +294,8 @@ class TLDRAMController : public FRFCFSController
 
             if (tl_enable)
             {
-                std::cerr << "Testing... \n";
-                exit(0);
+                // std::cerr << "Testing... \n";
+                // exit(0);
 
                 req_latency = 
                     latency_lookaside_buffer[int(Req_Type::READ)][stage_id];
@@ -314,8 +314,8 @@ class TLDRAMController : public FRFCFSController
 
             if (tl_enable)
             {
-                std::cerr << "Testing... \n";
-                exit(0);
+                // std::cerr << "Testing... \n";
+                // exit(0);
 
                 req_latency = 
                     latency_lookaside_buffer[int(Req_Type::WRITE)][stage_id];

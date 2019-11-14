@@ -159,6 +159,11 @@ class Hybrid : public TrainedMMU
         , base_rank_id_pcm(0)
         , base_rank_id_dram(cfg.num_of_ranks / 2)
         , mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
+        , num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size)
+        , num_of_rows(cfg.num_of_word_lines_per_tile)
+        , num_of_tiles(cfg.num_of_tiles)
+        , num_of_partitions(cfg.num_of_parts)
+        , num_of_ranks(cfg.num_of_ranks)
     {
         // std::cout << base_rank_id_pcm << "\n";
         // std::cout << base_rank_id_dram << "\n";
@@ -379,7 +384,7 @@ class Hybrid : public TrainedMMU
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
-
+        // std::cout << pa << "\n";
         Addr old_page_id = pa >> Mapper::va_page_shift;
         // Initially, all the pages should be inside PCM
         std::vector<int> dec_addr;
@@ -397,7 +402,7 @@ class Hybrid : public TrainedMMU
         }
 
         Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
-        Addr tmp = old_page_id;
+        Addr tmp = pa;
         for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
         {
             tmp = tmp >> mem_addr_decoding_bits[i];
@@ -412,6 +417,8 @@ class Hybrid : public TrainedMMU
         Addr new_pa = (page_id << Mapper::va_page_shift) |
                       (pa & Mapper::va_page_mask);
         req.addr = new_pa; // Replace with the new PA
+        // std::cout << req.addr << "\n";
+        // exit(0);
 
         // Run-time profiling
         runtimeProfiling(req);
@@ -569,7 +576,21 @@ class Hybrid : public TrainedMMU
                         mem_addr_decoding_bits,
                         dec_addr);
 
-        dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+        // For FTI in DRAM, do this
+        if (iter->second.in_dram)
+	{
+            dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+        }
+        // For FTI in PCM, do this
+        else
+        {
+            dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
+            dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
+            dec_addr[int(Config::Decoding::Tile)] = cur_re_alloc_page.tile_id;
+            dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
+            dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
+            nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
+        }
 
         Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
         Addr tmp = pa;
@@ -609,10 +630,31 @@ class Hybrid : public TrainedMMU
     // Capture the top FTIs
     for (int i = 0; i < num_ftis_per_phase && i < ordered_by_ref.size(); i++)
     {
+        // TODO, should have a threshold to determine to whether it is a write-intensive 
+        // page or not. Urgent! 
+        if (ordered_by_ref[i].num_of_writes >= 0)
+        {
+            ordered_by_ref[i].in_dram = true;
+        }
+        else
+        {
+            ordered_by_ref[i].in_dram = false;
+        }
         first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
     }
 
     fti_candidates.clear();
+
+    /*
+    for (auto [key, value] : first_touch_instructions)
+    {
+        std::cout << value.eip << " : "
+                  << value.num_of_reads << " : "
+                  << value.num_of_writes << "\n";
+    }
+    std::cout << "\n";
+    */
+
     }
 
   protected:
@@ -675,6 +717,131 @@ class Hybrid : public TrainedMMU
             if (cur_accesses >= total_accesses * 0.6) { break; }
         }
         mig_ready = true;
+    }
+
+    // Our technique
+    const unsigned num_of_cache_lines_per_row;
+    const unsigned num_of_rows;
+    const unsigned num_of_tiles;
+    const unsigned num_of_partitions;
+    const unsigned num_of_ranks;
+    const unsigned num_of_near_rows = 512;
+
+    struct PageLoc // Physical location
+    {
+        unsigned rank_id = 0;
+        unsigned part_id = 0;
+        unsigned tile_id = 0;
+        unsigned row_id = 0;
+        unsigned col_id = 0;
+
+        PageLoc& operator=(PageLoc other)
+        {
+            rank_id = other.rank_id;
+            part_id = other.part_id;
+            tile_id = other.tile_id;
+            row_id = other.row_id;
+            col_id = other.col_id;
+            return *this;
+        }
+
+        bool operator==(const PageLoc &other) const
+        {
+            return rank_id == other.rank_id &&
+                   part_id == other.part_id &&
+                   tile_id == other.tile_id &&
+                   row_id == other.row_id &&
+                   col_id == other.col_id;
+        }
+    };
+    bool near_region_full = false;
+    PageLoc cur_re_alloc_page; // For pages to be allocated in the near segment (PCM)
+
+    enum INCREMENT_LEVEL: int
+    {
+        COL,ROW,TILE,PARTITION,RANK
+    };
+    bool nextReAllocPage(PageLoc &cur_re_alloc_page, int incre_level)
+    {
+    if (incre_level == int(INCREMENT_LEVEL::COL))
+    {
+        // TODO, hard-coded.
+        if (cur_re_alloc_page.col_id += 2;
+            cur_re_alloc_page.col_id == num_of_cache_lines_per_row)
+        {
+            cur_re_alloc_page.col_id = 0;
+            return true; // Overflow detected.
+        }
+        else
+        {
+            return false; // No overflow.
+        }
+    }
+    if (bool overflow = nextReAllocPage(cur_re_alloc_page, incre_level - 1);
+        !overflow)
+    {
+        return false;
+    }
+    else
+    {
+        if (incre_level == int(INCREMENT_LEVEL::ROW))
+        {
+            if (cur_re_alloc_page.row_id += 1;
+                cur_re_alloc_page.row_id == num_of_near_rows)
+            {
+//                std::cerr << "Abnormal. \n";
+//                exit(0);
+                cur_re_alloc_page.row_id = 0;
+                return true; // Overflow detected.
+            }
+            else
+            {
+                return false; // No overflow.
+            }
+        }
+        if (incre_level == int(INCREMENT_LEVEL::TILE))
+        {
+            if (cur_re_alloc_page.tile_id += 1;
+                cur_re_alloc_page.tile_id == num_of_tiles)
+            {
+                cur_re_alloc_page.tile_id = 0;
+                return true; // Overflow detected.
+            }
+            else
+            {
+                return false; // No overflow.
+            }
+        }
+        if (incre_level == int(INCREMENT_LEVEL::PARTITION))
+        {
+            if (cur_re_alloc_page.part_id += 1;
+                cur_re_alloc_page.part_id == num_of_partitions)
+            {
+                cur_re_alloc_page.part_id = 0;
+                return true; // Overflow detected.
+            }
+            else
+            {
+                return false; // No overflow.
+            }
+        }
+        if (incre_level == int(INCREMENT_LEVEL::RANK))
+        {
+            if (cur_re_alloc_page.rank_id += 1;
+                cur_re_alloc_page.rank_id == base_rank_id_dram)
+            {
+                cur_re_alloc_page.rank_id = 0;
+                near_region_full = true;
+//                std::cerr << "Abnormal. \n";
+//                exit(0);
+                return true; // Overflow detected.
+            }
+            else
+            {
+                return false; // No overflow.
+            }
+        }
+    }
     }
 };
 

@@ -145,7 +145,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         if constexpr (std::is_same<TLDRAMPCMController, T>::value)
         {
-            unsigned num_stages = controllers[0]->numStages();
             for (int k = 0; k < 2; k++)
             {
             for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
@@ -160,6 +159,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
                     target = "WRITE";
                 }
                 
+                unsigned num_stages = controllers[0]->numStages(k);
                 for (int j = 0; j < num_stages; j++)
                 {
                     int64_t stage_accesses = 0;
