@@ -256,7 +256,8 @@ class Processor
             in_phase_tracking = 0;
 
             // Signal the MMU for an phase end.
-            mmu->phaseDone();
+            // Only let core 0 to signal is enough.
+            if (core_id == 0) { mmu->phaseDone(); }
         }
 
         bool endOfPhase() { return phase_end; }
@@ -398,7 +399,7 @@ class Processor
         }
 
         // if (!mmu->pageMig()) { return; } // Only proceed when the 
-                                         // page migration is done.
+                                            // page migration is done.
 
         // All cores reach the end of a execution phase
         for (auto &core : cores)

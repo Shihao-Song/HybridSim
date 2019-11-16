@@ -513,6 +513,13 @@ class Cache : public Simulator::MemObject
         stats.registerStats(registeree_name +
                             ": Number of Evictions = " + std::to_string(num_evicts));
     }
+
+    /*
+    bool writeback(uint64_t page_id) override
+    {
+        return tags->writeback(page_id);
+    }
+    */
 };
 
 typedef Cache<LRUFATags,NormalMode,OnChipToOffChip> FA_LRU_LLC;

@@ -97,6 +97,14 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     // simulator.
     std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfgs[1]));
     mmu->setMemSystem(DRAM_PCM.get());
+    /*
+    for (int i = 0; i < num_of_cores; i++)
+    {
+        (mmu->L1).push_back(L1_D_all[i].get());
+    }
+    (mmu->L2) = L2.get();
+    */
+
     // mmu->setSizes(trained_mmu_required_sizes); // TODO, re-write this function!
 
     // Create Processor 

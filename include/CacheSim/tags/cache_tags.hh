@@ -57,6 +57,8 @@ class Tags
 
     virtual void printTagInfo() {}
 
+    // virtual bool writeback(uint64_t page_id) = 0;
+
   protected:
 
     // Initialize tag

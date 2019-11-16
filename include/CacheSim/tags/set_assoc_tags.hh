@@ -146,6 +146,13 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         std::cout << "Number of sets: " << num_sets << "\n";
     }
 
+    /*
+    bool writeback(uint64_t page_id) override
+    {
+        return false;
+    }
+    */
+
   protected:
     void tagsInit() override
     {

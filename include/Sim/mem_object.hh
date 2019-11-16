@@ -57,6 +57,9 @@ class MemObject
 
     virtual void offlineReqAnalysis(std::string &file) {}
 
+    // Write-back all the physical address belong to the given page_id.
+    // virtual bool writeback(uint64_t page_id) = 0;
+
   protected:
     MemObject *next_level;
 
