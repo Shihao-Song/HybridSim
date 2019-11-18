@@ -229,19 +229,23 @@ class FCFSController : public BaseController
             {
                 if (req.callback(req.addr))
                 {
+                    if (!req.mig)
+                    {
                     uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
                     total_waiting_time += waiting_time;
                     ++finished_requests;
-
+                    }
                     r_w_pending_queue.pop_front();
                 }
             }
             else
             {
+                if (!req.mig)
+		{
                 uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
                 total_waiting_time += waiting_time;
                 ++finished_requests;
-
+                }
                 r_w_pending_queue.pop_front();
             }
         }

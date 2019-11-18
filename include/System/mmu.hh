@@ -871,7 +871,7 @@ class Hybrid : public TrainedMMU
             cur_accesses += MFU_pages_profiling[i].num_of_reads;
             cur_accesses += MFU_pages_profiling[i].num_of_writes;
 
-            if (cur_accesses >= total_accesses * 0.6) { break; }
+            if (cur_accesses >= total_accesses * 0.9) { break; }
         }
         mig_ready = true;
     }
