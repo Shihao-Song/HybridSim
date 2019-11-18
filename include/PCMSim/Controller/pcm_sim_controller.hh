@@ -204,11 +204,7 @@ class FCFSController : public BaseController
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
-            uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
-            total_waiting_time += waiting_time;
-            ++finished_requests;
-
-            if (offline_req_analysis_mode)
+                        if (offline_req_analysis_mode)
             {
                 if (req.req_type == Request::Request_Type::READ)
                 {
@@ -233,11 +229,19 @@ class FCFSController : public BaseController
             {
                 if (req.callback(req.addr))
                 {
+                    uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
+                    total_waiting_time += waiting_time;
+                    ++finished_requests;
+
                     r_w_pending_queue.pop_front();
                 }
             }
             else
             {
+                uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
+                total_waiting_time += waiting_time;
+                ++finished_requests;
+
                 r_w_pending_queue.pop_front();
             }
         }

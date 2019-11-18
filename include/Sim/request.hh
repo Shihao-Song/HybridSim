@@ -38,6 +38,7 @@ class Request
     // TODO, tmp hack, delete it later
     bool half_way = false;
     bool display = false;
+    bool mig = false; // If this is a migration request.
 
     int core_id;
     Addr eip; // Advanced feature, the instruction that caused this memory request;

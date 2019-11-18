@@ -35,7 +35,7 @@ class DRAMPCMController
         assert(pcm_cfg.mem_controller_type == "Hybrid");
 
         DRAM_controller.disableTL();
-        // PCM_controller.disableTL();
+        PCM_controller.disableTL();
         // std::cout << dram_cfg.num_of_ranks << "\n";
         // std::cout << base_rank_id_pcm << "\n";
         // std::cout << base_rank_id_dram << "\n";
@@ -63,6 +63,18 @@ class DRAMPCMController
         {
             return PCM_controller.numStages();
         }
+    }
+
+    uint64_t totalRequests(int k)
+    {
+        if (k == 0) { return DRAM_controller.finished_requests; }
+        else { return PCM_controller.finished_requests; }
+    }
+
+    uint64_t totalWaiting(int k)
+    {
+        if (k == 0) { return DRAM_controller.total_waiting_time; }
+        else { return PCM_controller.total_waiting_time; }
     }
 
     uint64_t stageAccess(int i, int j, int k)

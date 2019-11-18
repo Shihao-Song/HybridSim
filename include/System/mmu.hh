@@ -208,7 +208,7 @@ class Hybrid : public TrainedMMU
         stats.registerStats(mig_writes);
         */
     }
-    /*
+
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -341,6 +341,7 @@ class Hybrid : public TrainedMMU
 
                     Addr target_addr = (pages_to_migrate[i].page_id << Mapper::va_page_shift) + offset;
                     Request req(target_addr, Request::Request_Type::READ);
+                    req.mig = true;
                     if (!(pages_to_migrate[i].in_dram))
                     {
                         req.req_type = Request::Request_Type::READ;
@@ -388,6 +389,7 @@ class Hybrid : public TrainedMMU
 
                     // std::cout << target_addr << "\n";
                     Request req(target_addr, Request::Request_Type::WRITE);
+		    req.mig = true;
                     if (!(pages_to_migrate[i].in_dram))
                     {
                         req.req_type = Request::Request_Type::WRITE;
@@ -444,8 +446,9 @@ class Hybrid : public TrainedMMU
 
         return true;
     }
-    */
+
     /* FTI Section */
+    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -751,27 +754,27 @@ class Hybrid : public TrainedMMU
         iter->second.num_of_writes = 0;
     }
 
-    static unsigned phase = 0;
-    std::ofstream output("pages/" + std::to_string(phase) + ".csv");
-    std::vector<Page_Info> MFU_pages_profiling;
-    for (auto [key, value] : pages)
-    {
-        MFU_pages_profiling.push_back(value);
-    }
-    std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
-              [](const Page_Info &a, const Page_Info &b)
-              {
-                  return (a.num_of_reads + a.num_of_writes) >
-                         (b.num_of_reads + b.num_of_writes);
-              });
-    for (int i = 0; i < MFU_pages_profiling.size(); i++)
-    {
-        output << MFU_pages_profiling[i].page_id << ","
-               << MFU_pages_profiling[i].first_touch_instruction << ","
-               << (MFU_pages_profiling[i].num_of_reads + 
-                   MFU_pages_profiling[i].num_of_writes) << ","
-               << MFU_pages_profiling[i].in_dram << "\n";
-    }
+    // static unsigned phase = 0;
+    // std::ofstream output("pages/" + std::to_string(phase) + ".csv");
+    // std::vector<Page_Info> MFU_pages_profiling;
+    // for (auto [key, value] : pages)
+    // {
+    //     MFU_pages_profiling.push_back(value);
+    // }
+    // std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+    //           [](const Page_Info &a, const Page_Info &b)
+    //           {
+    //               return (a.num_of_reads + a.num_of_writes) >
+    //                      (b.num_of_reads + b.num_of_writes);
+    //           });
+    // for (int i = 0; i < MFU_pages_profiling.size(); i++)
+    // {
+    //     output << MFU_pages_profiling[i].page_id << ","
+    //            << MFU_pages_profiling[i].first_touch_instruction << ","
+    //            << (MFU_pages_profiling[i].num_of_reads + 
+    //                MFU_pages_profiling[i].num_of_writes) << ","
+    //            << MFU_pages_profiling[i].in_dram << "\n";
+    // }
 
     for (auto iter = pages.begin(); iter != pages.end(); iter++)
     {
@@ -783,13 +786,13 @@ class Hybrid : public TrainedMMU
         (iter->second).num_of_reads = 0;
         (iter->second).num_of_writes = 0;
     }
-    output.close();
-    phase++;
+    // output.close();
+    // phase++;
     // 
 //    output << "**************************************************\n\n";
 //    output << std::flush;
     }
-    
+    */
 
   protected:
     bool mig_ready = false;
@@ -868,7 +871,7 @@ class Hybrid : public TrainedMMU
             cur_accesses += MFU_pages_profiling[i].num_of_reads;
             cur_accesses += MFU_pages_profiling[i].num_of_writes;
 
-            if (cur_accesses >= total_accesses * 0.9) { break; }
+            if (cur_accesses >= total_accesses * 0.6) { break; }
         }
         mig_ready = true;
     }
