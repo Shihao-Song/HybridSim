@@ -182,6 +182,7 @@ class Hybrid : public TrainedMMU
         // std::cout << base_rank_id_pcm << "\n";
         // std::cout << base_rank_id_dram << "\n";
         // output.open("analysis.txt");
+        srand(time(NULL));
     }
 
     void registerStats(Simulator::Stats &stats) override
@@ -209,6 +210,54 @@ class Hybrid : public TrainedMMU
         */
     }
 
+    void va2pa(Request &req) override
+    {
+    Addr pa = mappers[req.core_id].va2pa(req.addr);
+    Addr page_id = pa >> Mapper::va_page_shift;
+
+    // Has the page already allocated?
+    if (auto iter = re_alloc_pages.find(page_id);
+             iter != re_alloc_pages.end())
+    {
+        Addr new_page_id = iter->second;
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+    }
+    else
+    {
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        Decoder::decode(page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        int random_rank_id = rand() % 5;
+        dec_addr[int(Config::Decoding::Rank)] = random_rank_id;
+        
+        Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+        Addr tmp = pa;
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp >> mem_addr_decoding_bits[i];
+        }
+        for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+        {
+            tmp = tmp << mem_addr_decoding_bits[i];
+        }
+        Addr new_page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
+
+        Addr new_pa = new_page_id << Mapper::va_page_shift |
+                      pa & Mapper::va_page_mask;
+
+        req.addr = new_pa; // Replace with the new PA
+
+        re_alloc_pages.insert({page_id, new_page_id});
+    }
+    }
+
+    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -446,6 +495,7 @@ class Hybrid : public TrainedMMU
 
         return true;
     }
+    */
 
     /* FTI Section */
     /*
