@@ -262,7 +262,6 @@ class Hybrid : public TrainedMMU
     }
     }
     */
-    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -500,9 +499,9 @@ class Hybrid : public TrainedMMU
 
         return true;
     }
-    */
 
     /* FTI Section */
+    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -747,11 +746,11 @@ class Hybrid : public TrainedMMU
         re_alloc_pages.insert({page_id, new_page_id});
     }
     }
-    
+    */
     void phaseDone()
     {
-    for (int core = 0; core < num_of_cores; core++)
-    {
+    // for (int core = 0; core < num_of_cores; core++)
+    // {
     /*
     std::cout << "Core: " << core << "\n";
     for (auto [key, value] : first_touch_instructions[core])
@@ -774,6 +773,7 @@ class Hybrid : public TrainedMMU
 //    output << "************************\n";
 
 //    output << "AIR Table: \n";
+    /*
     std::vector<First_Touch_Instr_Info> ordered_by_ref;
     for (auto [key, value] : fti_candidates[core])
     {
@@ -811,6 +811,7 @@ class Hybrid : public TrainedMMU
 
     fti_candidates[core].clear();
     }
+    */
     /*
     for (auto iter = first_touch_instructions.begin(); 
               iter != first_touch_instructions.end();
@@ -941,7 +942,7 @@ class Hybrid : public TrainedMMU
             cur_accesses += MFU_pages_profiling[i].num_of_reads;
             cur_accesses += MFU_pages_profiling[i].num_of_writes;
 
-            if (cur_accesses >= total_accesses * 0.9) { break; }
+            if (cur_accesses >= total_accesses * 0.6) { break; }
         }
         mig_ready = true;
     }

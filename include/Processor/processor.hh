@@ -401,7 +401,7 @@ class Processor
         {
             if (!core->endOfPhase()) { return; }
         }
-        // if (!mmu->pageMig()) { return; } // Only proceed when the 
+        if (!mmu->pageMig()) { return; } // Only proceed when the 
                                             // page migration is done.
 
         // All cores reach the end of a execution phase
