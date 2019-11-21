@@ -186,8 +186,8 @@ void MFUPageToNearRows::va2pa(Request &req)
     // used in decoding.
 
     // Re-test our method.
-//    runtimeProfiling(req);
-//    reAllocate(req);
+    runtimeProfiling(req);
+    reAllocate(req);
 
 //    if (profiling_stage) { oraclePageProfiling(req); }
 //    if (inference_stage) { oraclePageInference(req); }
@@ -213,8 +213,11 @@ void MFUPageToNearRows::va2pa(Request &req)
 
 void MFUPageToNearRows::phaseDone()
 {
+    for (int core = 0; core < num_of_cores; core++)
+    {
     /*
-    for (auto [key, value] : first_touch_instructions)
+    std::cout << "Core: " << core << "\n";
+    for (auto [key, value] : first_touch_instructions[core])
     {
         std::cout << value.eip << " : "
                   << value.num_of_reads << " : "
@@ -228,7 +231,7 @@ void MFUPageToNearRows::phaseDone()
 
     // Sort all the FTI candidates
     std::vector<First_Touch_Instr_Info> ordered_by_ref;
-    for (auto [key, value] : fti_candidates)
+    for (auto [key, value] : fti_candidates[core])
     {
         ordered_by_ref.push_back(value);
     }
@@ -242,10 +245,11 @@ void MFUPageToNearRows::phaseDone()
     // Capture the top FTIs
     for (int i = 0; i < num_ftis_per_phase && i < ordered_by_ref.size(); i++)
     {
-        first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
+        first_touch_instructions[core].insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
     }
 
-    fti_candidates.clear();
+    fti_candidates[core].clear();
+    }
 }
 
 void MFUPageToNearRows::runtimeProfiling(Request& req)
@@ -260,8 +264,8 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
             p_iter == pages.end())
     {
         // Step two, is the first-touch instruction already cached?
-        if (auto f_instr = first_touch_instructions.find(pc);
-                f_instr != first_touch_instructions.end())
+        if (auto f_instr = first_touch_instructions[req.core_id].find(pc);
+                f_instr != first_touch_instructions[req.core_id].end())
         {
             if (req.req_type == Request::Request_Type::READ)
             {
@@ -273,8 +277,8 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
             }
         }
         // Step two (2), cached in fti_candidates?
-	else if (auto f_instr = fti_candidates.find(pc);
-                f_instr != fti_candidates.end())
+	else if (auto f_instr = fti_candidates[req.core_id].find(pc);
+                f_instr != fti_candidates[req.core_id].end())
         {
             // Yes, cached!
             if (req.req_type == Request::Request_Type::READ)
@@ -300,11 +304,11 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
                 num_of_writes = 1;
             }
 
-            fti_candidates.insert({pc,
-                                  {pc,
-                                   num_of_reads,
-                                   num_of_writes
-                                   }});
+            fti_candidates[req.core_id].insert({pc,
+                                               {pc,
+                                                num_of_reads,
+                                                num_of_writes
+                                               }});
         }
 
         uint64_t num_of_reads = 0;
@@ -340,8 +344,8 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
         Addr corres_fti = p_iter->second.first_touch_instruction;
         // TODO, this is not correct. FIXME!!!
         // (2) Recored FTI information
-        if (auto f_instr = first_touch_instructions.find(corres_fti);
-                f_instr != first_touch_instructions.end())
+        if (auto f_instr = first_touch_instructions[req.core_id].find(corres_fti);
+                f_instr != first_touch_instructions[req.core_id].end())
         {
             if (req.req_type == Request::Request_Type::READ)
             {
@@ -353,8 +357,8 @@ void MFUPageToNearRows::runtimeProfiling(Request& req)
             }
         }
         // Step two (2), cached in fti_candidates?
-	else if (auto f_instr = fti_candidates.find(corres_fti);
-                f_instr != fti_candidates.end())
+	else if (auto f_instr = fti_candidates[req.core_id].find(corres_fti);
+                f_instr != fti_candidates[req.core_id].end())
         {
             // Yes, cached!
             if (req.req_type == Request::Request_Type::READ)
@@ -564,8 +568,8 @@ void MFUPageToNearRows::reAllocate(Request &req)
         return;
     }
     // Not found, should we allocate to near rows?
-    if (auto iter = first_touch_instructions.find(pc);
-             iter != first_touch_instructions.end())
+    if (auto iter = first_touch_instructions[req.core_id].find(pc);
+             iter != first_touch_instructions[req.core_id].end())
     {          	
         std::vector<int> dec_addr;
         dec_addr.resize(mem_addr_decoding_bits.size());

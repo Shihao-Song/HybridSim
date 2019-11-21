@@ -260,7 +260,11 @@ class Processor
             if (core_id == 0) { mmu->phaseDone(); }
         }
 
-        bool endOfPhase() { return phase_end; }
+        bool endOfPhase()
+	{
+            if (done()) { return true; }
+	    else { return phase_end; }
+        }
 
         bool done()
         {
@@ -397,7 +401,6 @@ class Processor
         {
             if (!core->endOfPhase()) { return; }
         }
-
         // if (!mmu->pageMig()) { return; } // Only proceed when the 
                                             // page migration is done.
 

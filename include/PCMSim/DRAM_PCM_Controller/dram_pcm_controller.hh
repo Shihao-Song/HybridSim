@@ -34,7 +34,7 @@ class DRAMPCMController
         assert(dram_cfg.mem_controller_type == "Hybrid");
         assert(pcm_cfg.mem_controller_type == "Hybrid");
 
-        // DRAM_controller.disableTL();
+        DRAM_controller.disableTL();
         // PCM_controller.disableTL();
         // std::cout << dram_cfg.num_of_ranks << "\n";
         // std::cout << base_rank_id_pcm << "\n";

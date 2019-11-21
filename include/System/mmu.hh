@@ -27,10 +27,12 @@ class MMU
 
     typedef Simulator::Request Request;
 
+    unsigned num_of_cores;
+
   public:
     typedef uint64_t Addr;
 
-    MMU(int num_cores)
+    MMU(int num_cores) : num_of_cores(num_cores)
     {
         for (int i = 0; i < num_cores; i++)
         {
@@ -148,8 +150,8 @@ class Hybrid : public TrainedMMU
     };
     // For every FTI in first_touch_instructions, if in_dram is true, allocate the page into DRAM,
     // if not true, allocate to the fast region of PCM.
-    std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
-    std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
+    std::vector<std::unordered_map<Addr,First_Touch_Instr_Info>> first_touch_instructions;
+    std::vector<std::unordered_map<Addr,First_Touch_Instr_Info>> fti_candidates;
 
     int num_ftis_per_phase = 8;
 
@@ -179,6 +181,8 @@ class Hybrid : public TrainedMMU
         , num_of_partitions(cfg.num_of_parts)
         , num_of_ranks(cfg.num_of_ranks)
     {
+        first_touch_instructions.resize(num_of_cores);
+        fti_candidates.resize(num_of_cores);
         // std::cout << base_rank_id_pcm << "\n";
         // std::cout << base_rank_id_dram << "\n";
         // output.open("analysis.txt");
@@ -210,6 +214,7 @@ class Hybrid : public TrainedMMU
         */
     }
 
+    /*
     void va2pa(Request &req) override
     {
     Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -256,7 +261,7 @@ class Hybrid : public TrainedMMU
         re_alloc_pages.insert({page_id, new_page_id});
     }
     }
-
+    */
     /*
     void va2pa(Request &req) override
     {
@@ -498,7 +503,6 @@ class Hybrid : public TrainedMMU
     */
 
     /* FTI Section */
-    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -558,8 +562,8 @@ class Hybrid : public TrainedMMU
             p_iter == pages.end())
     {
         // Step two, is the first-touch instruction already cached?
-        if (auto f_instr = first_touch_instructions.find(pc);
-                f_instr != first_touch_instructions.end())
+        if (auto f_instr = first_touch_instructions[req.core_id].find(pc);
+                f_instr != first_touch_instructions[req.core_id].end())
         {
             if (req.req_type == Request::Request_Type::READ)
             {
@@ -575,8 +579,8 @@ class Hybrid : public TrainedMMU
             }
         }
         // Step two (2), cached in fti_candidates?
-        else if (auto f_instr = fti_candidates.find(pc);
-                f_instr != fti_candidates.end())
+        else if (auto f_instr = fti_candidates[req.core_id].find(pc);
+                f_instr != fti_candidates[req.core_id].end())
         {
             // Yes, cached!
             if (req.req_type == Request::Request_Type::READ)
@@ -606,7 +610,7 @@ class Hybrid : public TrainedMMU
                 num_of_writes = 1;
             }
 
-            fti_candidates.insert({pc,
+            fti_candidates[req.core_id].insert({pc,
                                   {pc,
                                    false,
                                    0, // no hits initially
@@ -648,8 +652,8 @@ class Hybrid : public TrainedMMU
         }
 
         Addr corres_fti = p_iter->second.first_touch_instruction;
-        if (auto f_instr = first_touch_instructions.find(corres_fti);
-                f_instr != first_touch_instructions.end())
+        if (auto f_instr = first_touch_instructions[req.core_id].find(corres_fti);
+                f_instr != first_touch_instructions[req.core_id].end())
         {
             if (req.req_type == Request::Request_Type::READ)
             {
@@ -661,8 +665,8 @@ class Hybrid : public TrainedMMU
             }
         }
         // Step two (2), cached in fti_candidates?
-        else if (auto f_instr = fti_candidates.find(corres_fti);
-                f_instr != fti_candidates.end())
+        else if (auto f_instr = fti_candidates[req.core_id].find(corres_fti);
+                f_instr != fti_candidates[req.core_id].end())
         {
             // Yes, cached!
             if (req.req_type == Request::Request_Type::READ)
@@ -697,8 +701,8 @@ class Hybrid : public TrainedMMU
     }
 
     // Should we allocate in DRAM?
-    if (auto iter = first_touch_instructions.find(pc);
-             iter != first_touch_instructions.end())
+    if (auto iter = first_touch_instructions[req.core_id].find(pc);
+             iter != first_touch_instructions[req.core_id].end())
     {
         std::vector<int> dec_addr;
         dec_addr.resize(mem_addr_decoding_bits.size());
@@ -746,6 +750,18 @@ class Hybrid : public TrainedMMU
     
     void phaseDone()
     {
+    for (int core = 0; core < num_of_cores; core++)
+    {
+    /*
+    std::cout << "Core: " << core << "\n";
+    for (auto [key, value] : first_touch_instructions[core])
+    {
+        std::cout << value.eip << " : "
+                  << value.num_of_reads << " : "
+                  << value.num_of_writes << "\n";
+    }
+    std::cout << "\n";
+    */
 //    output << "FTI Table: \n";
 //    for (auto [key, value] : first_touch_instructions)
 //    {
@@ -759,7 +775,7 @@ class Hybrid : public TrainedMMU
 
 //    output << "AIR Table: \n";
     std::vector<First_Touch_Instr_Info> ordered_by_ref;
-    for (auto [key, value] : fti_candidates)
+    for (auto [key, value] : fti_candidates[core])
     {
 //        output << "PC: " << value.eip << "\n";
 //        output << "Allocation Hits: " << value.num_hits << "\n";
@@ -790,10 +806,12 @@ class Hybrid : public TrainedMMU
         {
             ordered_by_ref[i].in_dram = false;
         }
-        first_touch_instructions.insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
+        first_touch_instructions[core].insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
     }
 
-    fti_candidates.clear();
+    fti_candidates[core].clear();
+    }
+    /*
     for (auto iter = first_touch_instructions.begin(); 
               iter != first_touch_instructions.end();
               iter++)
@@ -803,6 +821,7 @@ class Hybrid : public TrainedMMU
         iter->second.num_of_reads = 0;
         iter->second.num_of_writes = 0;
     }
+    */
 
     // static unsigned phase = 0;
     // std::ofstream output("pages/" + std::to_string(phase) + ".csv");
@@ -826,6 +845,7 @@ class Hybrid : public TrainedMMU
     //            << MFU_pages_profiling[i].in_dram << "\n";
     // }
 
+    /*
     for (auto iter = pages.begin(); iter != pages.end(); iter++)
     {
         if ((iter->second).num_of_reads + (iter->second).num_of_writes == 0)
@@ -836,13 +856,13 @@ class Hybrid : public TrainedMMU
         (iter->second).num_of_reads = 0;
         (iter->second).num_of_writes = 0;
     }
+    */
     // output.close();
     // phase++;
     // 
 //    output << "**************************************************\n\n";
 //    output << std::flush;
     }
-    */
 
   protected:
     bool mig_ready = false;
@@ -1154,7 +1174,11 @@ class MFUPageToNearRows : public NearRegionAware
   public:
     MFUPageToNearRows(int num_of_cores, Config &cfg)
         : NearRegionAware(num_of_cores, cfg)
-    { srand(time(0)); }
+    { 
+        srand(time(0));
+        first_touch_instructions.resize(num_of_cores);
+        fti_candidates.resize(num_of_cores);
+    }
 
     void va2pa(Request &req) override;
 
@@ -1242,8 +1266,8 @@ class MFUPageToNearRows : public NearRegionAware
         uint64_t num_of_reads = 0;
         uint64_t num_of_writes = 0;
     };
-    std::unordered_map<Addr,First_Touch_Instr_Info> first_touch_instructions;
-    std::unordered_map<Addr,First_Touch_Instr_Info> fti_candidates;
+    std::vector<std::unordered_map<Addr,First_Touch_Instr_Info>> first_touch_instructions;
+    std::vector<std::unordered_map<Addr,First_Touch_Instr_Info>> fti_candidates;
 
     int num_ftis_per_phase = 8;
 };

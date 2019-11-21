@@ -53,7 +53,8 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
                           std::string &offline_request_analysis_file)
 {
     unsigned num_of_cores = trace_lists.size();
-    
+    Config &pcm_cfg = cfgs[0];
+
     /* Memory System Creation */
     // Create a DRAM-PCM system
     std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
@@ -64,19 +65,19 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
 //    std::cout << cfgs[1].mem_controller_type << "\n";
 
     // Create (PCM) main memory
-//    std::unique_ptr<MemObject> PCM(createMemObject(cfg, Memories::PCM));
+//    std::unique_ptr<MemObject> PCM(createMemObject(pcm_cfg, Memories::PCM));
 //    PCM->offlineReqAnalysis(offline_request_analysis_file);
 
 //    exit(0);
     // Create eDRAM
-//    std::unique_ptr<MemObject> eDRAM(createMemObject(cfg, Memories::eDRAM, isLLC));
-//    eDRAM->setNextLevel(PCM.get());
+    // std::unique_ptr<MemObject> eDRAM(createMemObject(pcm_cfg, Memories::eDRAM, isLLC));
+    // eDRAM->setNextLevel(PCM.get());
    
     // Create L2
-//    std::unique_ptr<MemObject> L2(createMemObject(cfg, Memories::L2_CACHE, isNonLLC));
-    std::unique_ptr<MemObject> L2(createMemObject(cfgs[1], Memories::L2_CACHE, isLLC));
-//    L2->setNextLevel(eDRAM.get());
-//    L2->setNextLevel(PCM.get());
+    //std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, Memories::L2_CACHE, isNonLLC));
+    std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, Memories::L2_CACHE, isLLC));
+    //L2->setNextLevel(eDRAM.get());
+    // L2->setNextLevel(PCM.get());
     L2->setNextLevel(DRAM_PCM.get());
     L2->setArbitrator(num_of_cores);
 
@@ -85,7 +86,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     for (int i = 0; i < num_of_cores; i++)
     {
         // Create L1-D
-        std::unique_ptr<MemObject> L1_D(createMemObject(cfgs[1], Memories::L1_D_CACHE, isNonLLC));
+        std::unique_ptr<MemObject> L1_D(createMemObject(pcm_cfg, Memories::L1_D_CACHE, isNonLLC));
         L1_D->setId(i);
         L1_D->setBoundaryMemObject();
         L1_D->setNextLevel(L2.get());
@@ -95,7 +96,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
     
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
-    std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, cfgs[1]));
+    std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, pcm_cfg));
     mmu->setMemSystem(DRAM_PCM.get());
     /*
     for (int i = 0; i < num_of_cores; i++)
@@ -137,7 +138,7 @@ void FullSystemSimulation(std::vector<Config> &cfgs,
         L1_D->registerStats(stats);
     }
     L2->registerStats(stats);
-    // eDRAM->registerStats(stats);
+//    eDRAM->registerStats(stats);
     // PCM->registerStats(stats);
     mmu->registerStats(stats);
     DRAM_PCM->registerStats(stats);
