@@ -152,8 +152,8 @@ class Processor
                             << " has done " << retired << " instructions. \n";
 	    }
             // (1) check if end of a trace
-            if (!more_insts) { return; }
-            // if (!more_insts) { phase_end = true; return; }
+            // if (!more_insts) { return; }
+            if (!more_insts) { phase_end = true; return; }
             // (2) check if end of a phase
             if (phase_enabled)
             {
@@ -285,6 +285,7 @@ class Processor
         uint64_t numLoads() { return num_loads; }
         uint64_t numStores() { return num_stores; }
 
+	bool instrDrained() { return !more_insts; }
       private:
         TrainedMMU *mmu;
 
@@ -398,6 +399,14 @@ class Processor
 
         // Tick the shared cache
         shared_m_obj->tick();
+
+        // If all the instructions are drained, there is no need to proceed.
+        bool all_drained = true;
+        for (auto &core : cores)
+        {
+            if (core->instrDrained() == false) { all_drained = false; }
+        }
+        if (all_drained) { return; }
 
         // Check if the end of an execution phase
         for (auto &core : cores)
