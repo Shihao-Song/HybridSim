@@ -153,6 +153,7 @@ class Processor
 	    }
             // (1) check if end of a trace
             if (!more_insts) { return; }
+            // if (!more_insts) { phase_end = true; return; }
             // (2) check if end of a phase
             if (phase_enabled)
             {
@@ -262,8 +263,7 @@ class Processor
 
         bool endOfPhase()
 	{
-            if (done()) { return true; }
-	    else { return phase_end; }
+            return phase_end;
         }
 
         bool done()
@@ -276,7 +276,9 @@ class Processor
             {
                 cache_done = true;
             }
-            
+	    // std::cout << "Core: " << core_id << "\n";
+            // std::cout << "issuing_done: " << issuing_done << "\n";
+            // std::cout << "cache_done: " << cache_done << "\n";
 	    return issuing_done && cache_done;
         }
 
@@ -387,6 +389,7 @@ class Processor
     void tick()
     {
         cycles++;
+        // std::cout << cycles << "\n";
         for (auto &core : cores)
         {
             core->tick();
@@ -401,6 +404,7 @@ class Processor
         {
             if (!core->endOfPhase()) { return; }
         }
+
         if (!mmu->pageMig()) { return; } // Only proceed when the 
                                             // page migration is done.
 
@@ -425,8 +429,10 @@ class Processor
         //     are finished.
         if (shared_m_obj->pendingRequests() != 0)
 	{
+            // std::cout << "Shared not done!!.\n";
             return false;
         }
+        // std::cout << "Shared is done.\n";
         return true;
     }
 

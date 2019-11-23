@@ -126,7 +126,10 @@ class Hybrid : public TrainedMMU
         Addr page_id;
         Addr first_touch_instruction; // The first-touch instruction that brings in this page
 
-        bool in_dram = false; // Initially, all the pages are in PCM instead of DRAM.
+        bool in_pcm_near = false;
+        bool in_pcm_far = false;
+        bool in_dram_near = false;
+        bool in_dram_far = false;
 
         uint64_t num_of_reads = 0;
         uint64_t num_of_writes = 0;
@@ -140,10 +143,9 @@ class Hybrid : public TrainedMMU
     struct First_Touch_Instr_Info // Information of first-touch instruction
     {
         Addr eip;
-        bool in_dram = false;
 
-        uint64_t num_hits = 0;
-        uint64_t num_pages = 0;
+        bool in_pcm_near = false;
+        bool in_dram_near = false;
 
         uint64_t num_of_reads = 0;
         uint64_t num_of_writes = 0;
@@ -158,12 +160,21 @@ class Hybrid : public TrainedMMU
     struct Mig_Page
     {
         Addr page_id;
+	
+        bool done = false; // Is migration process done?
 
-        bool in_dram = false;
-        bool done = false;
+        bool pcm_near_to_far = false; // From near segment to far segment (PCM)
+        bool pcm_to_dram = false; // From PCM to DRAM
+        bool dram_near_to_far = false; // From near segment to far segment (DRAM)
+        bool dram_to_pcm = false; // From DRAM to PCM
 
-        unsigned num_reads_left; // Number of reads from PCM
-        unsigned num_writes_left; // Number of writes to DRAM
+        // Only across memory is considered, because internal migrations can be handled by
+        // rowClone.
+        unsigned num_pcm_oprs_left;
+        unsigned num_dram_oprs_left;
+
+        Addr pcm_page_id;
+        Addr dram_page_id;
     };
     std::vector<Mig_Page> pages_to_migrate;
 
@@ -201,6 +212,18 @@ class Hybrid : public TrainedMMU
         {
             std::string mig = "Total_Mig_Pages_To_PCM_" + std::to_string(i) + " = " + 
                               std::to_string(num_of_mig_pages_to_pcm[i]);
+            stats.registerStats(mig);
+        }
+        for (int i = 0; i < num_of_mig_pages_pcm_near_to_far.size(); i++)
+        {
+            std::string mig = "Total_Mig_Pages_PCM_Near_To_Far_" + std::to_string(i) + " = " +
+                              std::to_string(num_of_mig_pages_pcm_near_to_far[i]);
+            stats.registerStats(mig);
+        }
+        for (int i = 0; i < num_of_mig_pages_dram_near_to_far.size(); i++)
+        {
+            std::string mig = "Total_Mig_Pages_DRAM_Near_To_Far_" + std::to_string(i) + " = " +
+                              std::to_string(num_of_mig_pages_dram_near_to_far[i]);
             stats.registerStats(mig);
         }
 
@@ -262,6 +285,7 @@ class Hybrid : public TrainedMMU
     }
     }
     */
+    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -374,7 +398,8 @@ class Hybrid : public TrainedMMU
             }
         }
     }
-
+    */
+    /*
     virtual bool pageMig()
     {
         if (!mig_ready) { prepMig(); return false; }
@@ -499,9 +524,91 @@ class Hybrid : public TrainedMMU
 
         return true;
     }
+    */
+    virtual bool pageMig()
+    {
+        if (!mig_ready) { prepMig(); return false; }
+
+                // TODO, first step, finish all the write-backs (In the future).
+
+        // Second step, finish all the page migration.
+        // Only cold migrations are considered because very small amount of hot pages
+        // are allocated.
+        for (int i = 0; i < pages_to_migrate.size(); i++)
+        {
+            if (!pages_to_migrate[i].done)
+            {
+                assert(pages_to_migrate[i].dram_to_pcm == true && 
+                       pages_to_migrate[i].pcm_near_to_far == false &&
+                       pages_to_migrate[i].pcm_to_dram == false &&
+                       pages_to_migrate[i].dram_near_to_far == false);
+
+                // PCM-side operations
+                if (pages_to_migrate[i].num_pcm_oprs_left > 0)
+                {
+                    // One cache-line at one time
+                    uint64_t granuality = 64;
+                    uint64_t offset = granuality * 
+                        uint64_t(pages_to_migrate[i].num_pcm_oprs_left - 1);
+
+                    Addr page_id = pages_to_migrate[i].pcm_page_id;
+                    Addr target_addr = (page_id << Mapper::va_page_shift) + offset;
+                    Request req(target_addr, Request::Request_Type::WRITE);
+                    req.mig = true;
+
+                    // req.display = true;
+                    if (mem_system->send(req))
+                    {
+                        --pages_to_migrate[i].num_pcm_oprs_left;
+                        // ++mig_num_pcm_reads;
+                    }
+
+                    return false;
+                }
+
+                if (pages_to_migrate[i].num_dram_oprs_left > 0)
+                {
+                    // One cache-line at one time
+                    uint64_t granuality = 64;
+                    uint64_t offset = granuality * 
+                        uint64_t(pages_to_migrate[i].num_dram_oprs_left - 1);
+
+                    Addr page_id = pages_to_migrate[i].dram_page_id;
+                    Addr target_addr = (page_id << Mapper::va_page_shift) + offset;
+                    Request req(target_addr, Request::Request_Type::READ);
+                    req.mig = true;
+
+                    // req.display = true;
+                    if (mem_system->send(req))
+                    {
+                        --pages_to_migrate[i].num_dram_oprs_left;
+                    }
+
+                    return false;
+                }
+                
+                pages_to_migrate[i].done = true;
+            }
+        }
+
+        mig_ready = false;
+        pages_to_migrate.clear();
+
+        for (auto iter = pages.begin(); iter != pages.end(); iter++)
+        {
+            if ((iter->second).num_of_reads + (iter->second).num_of_writes == 0)
+            {
+                ++(iter->second).num_of_phases_silent;
+            }
+
+            (iter->second).num_of_reads = 0;
+            (iter->second).num_of_writes = 0;
+        }
+
+        return true;
+    }
 
     /* FTI Section */
-    /*
     void va2pa(Request &req) override
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -548,7 +655,6 @@ class Hybrid : public TrainedMMU
         runtimeReAlloc(req);
     }
 
-
     void runtimeProfiling(Request& req)
     {
     // PC
@@ -567,14 +673,10 @@ class Hybrid : public TrainedMMU
             if (req.req_type == Request::Request_Type::READ)
             {
                 ++f_instr->second.num_of_reads;
-                ++f_instr->second.num_hits;
-                ++f_instr->second.num_pages;
             }
             else if (req.req_type == Request::Request_Type::WRITE)
             {
                 ++f_instr->second.num_of_writes;
-                ++f_instr->second.num_hits;
-                ++f_instr->second.num_pages;
             }
         }
         // Step two (2), cached in fti_candidates?
@@ -585,14 +687,10 @@ class Hybrid : public TrainedMMU
             if (req.req_type == Request::Request_Type::READ)
             {
                 ++f_instr->second.num_of_reads;
-                ++f_instr->second.num_hits;
-                ++f_instr->second.num_pages;
             }
             else if (req.req_type == Request::Request_Type::WRITE)
             {
                 ++f_instr->second.num_of_writes;
-                ++f_instr->second.num_hits;
-                ++f_instr->second.num_pages;
             }
         }
         else
@@ -611,9 +709,8 @@ class Hybrid : public TrainedMMU
 
             fti_candidates[req.core_id].insert({pc,
                                   {pc,
-                                   false,
-                                   0, // no hits initially
-                                   1, // brought in one page
+                                   false, // in_pcm_near = false
+                                   false, // in_dram_near = false
                                    num_of_reads,
                                    num_of_writes
                                    }});
@@ -630,9 +727,34 @@ class Hybrid : public TrainedMMU
             num_of_writes = 1;
         }
 
+        // Before we insert the page, we need to make sure the location of the page in PCM.
+        std::vector<int> dec_addr;
+        dec_addr.resize(mem_addr_decoding_bits.size());
+        // std::cout << "Page ID: " << page_id << "\n";
+        Decoder::decode(page_id << Mapper::va_page_shift,
+                        mem_addr_decoding_bits,
+                        dec_addr);
+
+        bool in_pcm_near, in_pcm_far;
+        // Checking the row id.
+        if (dec_addr[int(Config::Decoding::Row)] < 512)
+        {
+            // In the near segment
+            in_pcm_near = true;
+            in_pcm_far = false;
+        }
+        else
+        {
+            // In the far segment
+            in_pcm_near = false;
+            in_pcm_far = true;
+        }
         pages.insert({page_id, {page_id,
                                 pc,
-                                false,
+                                in_pcm_near,
+                                in_pcm_far,
+                                false, // in_dram_near = false
+                                false, // in_dram_far = false
                                 num_of_reads,
                                 num_of_writes,
 				0}});
@@ -648,6 +770,12 @@ class Hybrid : public TrainedMMU
         else if (req.req_type == Request::Request_Type::WRITE)
         {
             ++p_iter->second.num_of_writes;
+        }
+
+        // The page has remained silient for some phases, reset it to zero.
+        if ((p_iter->second).num_of_phases_silent > 0)
+        {
+            (p_iter->second).num_of_phases_silent = 0;
         }
 
         Addr corres_fti = p_iter->second.first_touch_instruction;
@@ -710,12 +838,14 @@ class Hybrid : public TrainedMMU
                         dec_addr);
 
         // For FTI in DRAM, do this
-        if (iter->second.in_dram)
+        if (iter->second.in_dram_near)
 	{
             dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+            // Now, the page is in DRAM 
+            pages.find(page_id)->second.in_dram_near = true;
         }
         // For FTI in PCM, do this
-        else
+        else if (iter->second.in_pcm_near)
         {
             dec_addr[int(Config::Decoding::Rank)] = cur_re_alloc_page.rank_id;
             dec_addr[int(Config::Decoding::Partition)] = cur_re_alloc_page.part_id;
@@ -723,6 +853,8 @@ class Hybrid : public TrainedMMU
             dec_addr[int(Config::Decoding::Row)] = cur_re_alloc_page.row_id;
             dec_addr[int(Config::Decoding::Col)] = cur_re_alloc_page.col_id;
             nextReAllocPage(cur_re_alloc_page, int(INCREMENT_LEVEL::RANK));
+            // Now, the page is in PCM. 
+            pages.find(page_id)->second.in_pcm_near = true;
         }
 
         Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
@@ -736,7 +868,6 @@ class Hybrid : public TrainedMMU
             tmp = tmp << mem_addr_decoding_bits[i];
         }
         Addr new_page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
-        pages.find(page_id)->second.in_dram = true;
 
         Addr new_pa = new_page_id << Mapper::va_page_shift |
                       pa & Mapper::va_page_mask;
@@ -746,43 +877,14 @@ class Hybrid : public TrainedMMU
         re_alloc_pages.insert({page_id, new_page_id});
     }
     }
-    */
+
     void phaseDone()
     {
-    // for (int core = 0; core < num_of_cores; core++)
-    // {
-    /*
-    std::cout << "Core: " << core << "\n";
-    for (auto [key, value] : first_touch_instructions[core])
+    for (int core = 0; core < num_of_cores; core++)
     {
-        std::cout << value.eip << " : "
-                  << value.num_of_reads << " : "
-                  << value.num_of_writes << "\n";
-    }
-    std::cout << "\n";
-    */
-//    output << "FTI Table: \n";
-//    for (auto [key, value] : first_touch_instructions)
-//    {
-//        output << "PC: " << value.eip << "\n";
-//        output << "Allocation Hits: " << value.num_hits << "\n";
-//        output << "Number of New Pages It Allocated: " << value.num_pages << "\n";
-//        output << "Number of Accesses to All Pages It Allocated: "
-//               << (value.num_of_reads + value.num_of_writes) << "\n\n";
-//    }
-//    output << "************************\n";
-
-//    output << "AIR Table: \n";
-    /*
     std::vector<First_Touch_Instr_Info> ordered_by_ref;
     for (auto [key, value] : fti_candidates[core])
     {
-//        output << "PC: " << value.eip << "\n";
-//        output << "Allocation Hits: " << value.num_hits << "\n";
-//        output << "Number of New Pages It Allocated: " << value.num_pages << "\n";
-//        output << "Number of Accesses to All Pages It Allocated: "
-//               << (value.num_of_reads + value.num_of_writes) << "\n\n";
-
         ordered_by_ref.push_back(value);
     }
 
@@ -800,69 +902,20 @@ class Hybrid : public TrainedMMU
         // page or not. Urgent! 
         if (ordered_by_ref[i].num_of_writes >= 0)
         {
-            ordered_by_ref[i].in_dram = true;
+            // Write-intensive will be allocated to near DRAM
+            ordered_by_ref[i].in_dram_near = true;
         }
         else
         {
-            ordered_by_ref[i].in_dram = false;
+            // Read-intensive will be allocated to near PCM
+            ordered_by_ref[i].in_pcm_near = true;
         }
         first_touch_instructions[core].insert({ordered_by_ref[i].eip, ordered_by_ref[i]});
     }
 
+    // Clear all the candidates.
     fti_candidates[core].clear();
     }
-    */
-    /*
-    for (auto iter = first_touch_instructions.begin(); 
-              iter != first_touch_instructions.end();
-              iter++)
-    {
-        iter->second.num_hits = 0;
-        iter->second.num_pages = 0;
-        iter->second.num_of_reads = 0;
-        iter->second.num_of_writes = 0;
-    }
-    */
-
-    // static unsigned phase = 0;
-    // std::ofstream output("pages/" + std::to_string(phase) + ".csv");
-    // std::vector<Page_Info> MFU_pages_profiling;
-    // for (auto [key, value] : pages)
-    // {
-    //     MFU_pages_profiling.push_back(value);
-    // }
-    // std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
-    //           [](const Page_Info &a, const Page_Info &b)
-    //           {
-    //               return (a.num_of_reads + a.num_of_writes) >
-    //                      (b.num_of_reads + b.num_of_writes);
-    //           });
-    // for (int i = 0; i < MFU_pages_profiling.size(); i++)
-    // {
-    //     output << MFU_pages_profiling[i].page_id << ","
-    //            << MFU_pages_profiling[i].first_touch_instruction << ","
-    //            << (MFU_pages_profiling[i].num_of_reads + 
-    //                MFU_pages_profiling[i].num_of_writes) << ","
-    //            << MFU_pages_profiling[i].in_dram << "\n";
-    // }
-
-    /*
-    for (auto iter = pages.begin(); iter != pages.end(); iter++)
-    {
-        if ((iter->second).num_of_reads + (iter->second).num_of_writes == 0)
-        {
-            ++(iter->second).num_of_phases_silent;
-        }
-
-        (iter->second).num_of_reads = 0;
-        (iter->second).num_of_writes = 0;
-    }
-    */
-    // output.close();
-    // phase++;
-    // 
-//    output << "**************************************************\n\n";
-//    output << std::flush;
     }
 
   protected:
@@ -872,7 +925,192 @@ class Hybrid : public TrainedMMU
     // uint64_t mig_num_dram_writes = 0;
     std::vector<unsigned> num_of_mig_pages_to_dram;
     std::vector<unsigned> num_of_mig_pages_to_pcm;
+    std::vector<unsigned> num_of_mig_pages_pcm_near_to_far;
+    std::vector<unsigned> num_of_mig_pages_dram_near_to_far;
 
+    void prepMig()
+    {
+        assert(pages_to_migrate.size() == 0);
+
+        std::vector<Page_Info> MFU_pages_profiling;
+
+        for (auto [key, value] : pages)
+        {
+            MFU_pages_profiling.push_back(value); // Will be used later.
+            
+            // (1) Determine PCM near to far
+            if (value.in_pcm_near && value.num_of_phases_silent == 1)
+            {
+                // The original page is in PCM near and has stayed silent for 1 phase
+                pages_to_migrate.push_back({value.page_id,
+                                            true, // Internal migration is not considered
+                                                  // let's set it done
+                                            true, // pcm_near_to_far = true
+                                            false, // pcm_to_dram = false
+                                            false, // dram_near_to_far = false
+                                            false, // dram_to_pcm = false
+                                            0, // num_pcm_to_dram_left = 0
+                                            0}); // num_dram_to_pcm_left = 0
+	    }
+            // (2) Determine DRAM near to far
+            if (value.in_dram_near && value.num_of_phases_silent == 1)
+            {
+                // The original page is in DRAM near and has stayed silent for 1 phase
+                pages_to_migrate.push_back({value.page_id,
+                                            true, // Internal migration is not considered
+                                                  // let's set it done
+                                            false, // pcm_near_to_far = false
+                                            false, // pcm_to_dram = false
+                                            true, // dram_near_to_far = true
+                                            false, // dram_to_pcm = false
+                                            0, // num_pcm_to_dram_left = 0
+                                            0}); // num_dram_to_pcm_left = 0
+            }
+            // (3) Determine DRAM to PCM migrations
+            if (value.in_dram_far && value.num_of_phases_silent == 2)
+            {
+                // The original page is in DRAM far and has stayed silent for 2 phase
+                pages_to_migrate.push_back({value.page_id,
+                                            false, // External migration is counted
+                                            false, // pcm_near_to_far = false
+                                            false, // pcm_to_dram = false
+                                            false, // dram_near_to_far = false
+                                            true, // dram_to_pcm = true
+                                            64, // num_pcm_to_dram_left = 64
+                                            64}); // num_dram_to_pcm_left = 64
+            }
+        }
+
+        std::sort(MFU_pages_profiling.begin(), MFU_pages_profiling.end(),
+                  [](const Page_Info &a, const Page_Info &b)
+                  {
+                      return (a.num_of_reads + a.num_of_writes) >
+                             (b.num_of_reads + b.num_of_writes);
+                  });
+
+        // Check the top pages (limit to 8 pages per core).
+        for (int i = 0; i < MFU_pages_profiling.size() && i < 8 * num_of_cores; i++)
+        {
+            if (MFU_pages_profiling[i].in_pcm_near == true || 
+                MFU_pages_profiling[i].in_pcm_far == true)
+            {
+                // Since we migrate very limited number of hot pages, the delay is ignored.
+                pages_to_migrate.push_back({MFU_pages_profiling[i].page_id,
+                                            true, // External migration is counted
+                                            false, // pcm_near_to_far = false
+                                            true, // pcm_to_dram = true
+                                            false, // dram_near_to_far = false
+                                            false, // dram_to_pcm = false
+                                            0, // num_pcm_to_dram_left = 64
+                                            0}); // num_dram_to_pcm_left = 64
+            }
+        }
+        mig_ready = true;
+	
+        // Last step, update page states and re-allocate page 
+        unsigned num_pages_from_pcm_to_dram = 0;
+        unsigned num_pages_from_dram_to_pcm = 0;
+        unsigned num_pages_pcm_near_to_far = 0;
+        unsigned num_pages_dram_near_to_far = 0;
+
+        for (int i = 0; i < pages_to_migrate.size(); i++)
+        {
+            if (pages_to_migrate[i].pcm_near_to_far)
+            {
+                num_pages_pcm_near_to_far++;
+                // We don't re-allocation here, because this page is unlikely to be
+                // accessed.
+		(pages.find(pages_to_migrate[i].page_id)->second).in_dram_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_far = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_far = true;
+            }
+
+            if (pages_to_migrate[i].dram_near_to_far)
+            {
+                num_pages_dram_near_to_far++;
+                // We don't re-allocation here, because this page is unlikely to be
+                // accessed.
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_far = true;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_far = false;
+            }
+
+            if (pages_to_migrate[i].dram_to_pcm)
+            {
+                // Code page migrations.
+                auto iter = re_alloc_pages.find(pages_to_migrate[i].page_id);
+                assert(iter != re_alloc_pages.end()); // The page must be in DRAM
+                pages_to_migrate[i].pcm_page_id = pages_to_migrate[i].page_id;
+                pages_to_migrate[i].dram_page_id = iter->second;
+
+                num_pages_from_dram_to_pcm++;
+                // We don't re-allocation here, because this page is unlikely to be
+                // accessed.
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_far = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_far = true;
+            }
+
+            if (pages_to_migrate[i].pcm_to_dram)
+            {
+                num_pages_from_pcm_to_dram++;
+
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_near = true;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_dram_far = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_near = false;
+                (pages.find(pages_to_migrate[i].page_id)->second).in_pcm_far = false;
+
+                Addr page_id = pages_to_migrate[i].page_id;
+                std::vector<int> dec_addr;
+                dec_addr.resize(mem_addr_decoding_bits.size());
+                Decoder::decode(page_id << Mapper::va_page_shift,
+                                mem_addr_decoding_bits,
+                                dec_addr);
+
+                dec_addr[int(Config::Decoding::Rank)] += base_rank_id_dram;
+        
+                Addr page_recon = Decoder::reConstruct(dec_addr, mem_addr_decoding_bits);
+                Addr tmp = page_id << Mapper::va_page_shift;
+                for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+                {
+                    tmp = tmp >> mem_addr_decoding_bits[i];
+                }
+                for (int i = 0; i < mem_addr_decoding_bits.size(); i++)
+                {
+                    tmp = tmp << mem_addr_decoding_bits[i];
+                }
+                Addr new_page_id = (page_recon | tmp)  >> Mapper::va_page_shift;
+
+                if (auto iter = re_alloc_pages.find(page_id);
+                         iter != re_alloc_pages.end())
+                {
+                    iter->second = new_page_id;
+                }
+                else
+                {
+                    re_alloc_pages.insert({page_id, new_page_id});
+                }
+            }
+        }
+	std::cout << "\n";
+        std::cout << "phase: " << phases << "\n";
+        std::cout << "num_pages_dram_near_to_far: " << num_pages_dram_near_to_far << "\n";
+        std::cout << "num_pages_pcm_near_to_far: " << num_pages_pcm_near_to_far << "\n";
+        std::cout << "num_pages_from_pcm_to_dram: " << num_pages_from_pcm_to_dram << "\n";
+        std::cout << "num_pages_from_dram_to_pcm: " << num_pages_from_dram_to_pcm << "\n\n";
+
+	num_of_mig_pages_dram_near_to_far.push_back(num_pages_dram_near_to_far);
+	num_of_mig_pages_pcm_near_to_far.push_back(num_pages_pcm_near_to_far);
+        num_of_mig_pages_to_dram.push_back(num_pages_from_pcm_to_dram);
+        num_of_mig_pages_to_pcm.push_back(num_pages_from_dram_to_pcm);
+
+	phases++;
+    }
+    unsigned phases = 0;
+    /*
     void prepMig()
     {
         assert(pages_to_migrate.size() == 0);
@@ -946,6 +1184,7 @@ class Hybrid : public TrainedMMU
         }
         mig_ready = true;
     }
+    */
 
     // Our technique
     const unsigned num_of_cache_lines_per_row;
