@@ -119,7 +119,10 @@ class CPAwareController : public FRFCFSController
 
         if (scheduled_req->req_type == Request::Request_Type::READ)
         {
-            ++stage_accesses[int(Req_Type::READ)][stage_id];
+            if (!(scheduled_req->mig))
+            {
+                ++stage_accesses[int(Req_Type::READ)][stage_id];
+            }
 
             if (tl_enable)
             {
@@ -139,7 +142,10 @@ class CPAwareController : public FRFCFSController
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
-            ++stage_accesses[int(Req_Type::WRITE)][stage_id];
+            if (!(scheduled_req->mig))
+            {
+                ++stage_accesses[int(Req_Type::WRITE)][stage_id];
+            }
 
             if (tl_enable)
             {
@@ -289,7 +295,10 @@ class TLDRAMController : public FRFCFSController
 
         if (scheduled_req->req_type == Request::Request_Type::READ)
         {
-            ++stage_accesses[int(Req_Type::READ)][stage_id];
+            if (!(scheduled_req->mig))
+	    {
+                ++stage_accesses[int(Req_Type::READ)][stage_id];
+            }
 
             if (tl_enable)
             {
@@ -309,7 +318,10 @@ class TLDRAMController : public FRFCFSController
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
-            ++stage_accesses[int(Req_Type::WRITE)][stage_id];
+            if (!(scheduled_req->mig))
+	    {
+                ++stage_accesses[int(Req_Type::WRITE)][stage_id];
+            }
 
             if (tl_enable)
             {
