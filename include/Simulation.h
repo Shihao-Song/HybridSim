@@ -39,7 +39,6 @@ struct ParseArgsRet
     std::vector<std::string> cfg_files;
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
-    int num_ftis_per_phase;
     std::string stats_output_file;
     std::string offline_request_analysis_file;
 };
@@ -102,7 +101,6 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> cfg_files;
     std::vector<std::string> cpu_traces;
     int64_t num_instrs_per_phase = -1;
-    int num_ftis_per_phase = -1;
     std::string stats_output;
     std::string offline_request_analysis_file;
 
@@ -116,8 +114,6 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                       "CPU trace")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instructions per phase (Optional)")
-        ("num_ftis_per_phase", po::value<int>(&num_ftis_per_phase),
-                   "Number of FTIs recorded per stage (Optional w. Default: 8)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
                         "Stats output file")
         ("offline_request_analysis_file",
@@ -149,7 +145,6 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     return ParseArgsRet{cfg_files,
                         cpu_traces,
                         num_instrs_per_phase,
-                        num_ftis_per_phase,
                         stats_output,
                         offline_request_analysis_file};
 }
