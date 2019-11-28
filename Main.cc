@@ -43,6 +43,8 @@ int main(int argc, const char *argv[])
 
     if (cfgs.size() > 1)
     {
+        // For a Hybrid system, the first config file should be for DRAM and the second
+        // one should be PCM.
         Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
                                                trace_lists,
                                                num_instrs_per_phase,

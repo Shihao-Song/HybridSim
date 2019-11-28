@@ -13,6 +13,8 @@ class DRAMPCMController
     typedef Simulator::Config Config;
     typedef Simulator::Decoder Decoder;
 
+    typedef Simulator::Request Request;
+
   protected:
     DCtrl DRAM_controller;
     PCtrl PCM_controller;

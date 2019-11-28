@@ -22,9 +22,6 @@ class LASPCM : public FCFSController
   public:
     LASPCM(int _id, Config &cfg)
         : FCFSController(_id, cfg)
-        , back_logging_threshold(cfg.THB)
-        , aging_threshold(cfg.THA)
-        , idle_threshold(cfg.THI)
         , num_of_ranks(cfg.num_of_ranks)
         , num_of_banks(cfg.num_of_banks)
     {
@@ -123,9 +120,9 @@ class LASPCM : public FCFSController
 
   // Technology-specific parameters (You should tune it based on the need of your system)
   protected:
-    const int back_logging_threshold;
-    const int aging_threshold;
-    const int idle_threshold;
+    const int back_logging_threshold = -16;
+    const int aging_threshold = 1500;
+    const int idle_threshold = -1;
 
   protected:
     const unsigned num_of_ranks;

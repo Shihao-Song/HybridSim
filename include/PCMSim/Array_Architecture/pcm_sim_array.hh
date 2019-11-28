@@ -19,8 +19,6 @@ class Array
     Array(typename Config::Array_Level level_val,
           Config &cfg) : level(level_val), id(0)
     {
-        initArrInfo(cfg);
-
         cur_clk = 0;
         next_free = 0;
 
@@ -65,73 +63,6 @@ class Array
         {
             child->reInitialize();
         }
-    }
-
-    struct Info
-    {
-        // Timing and energy parameters
-        unsigned tRCD;
-        unsigned tData;
-        unsigned tWL;
-
-        unsigned tWR;
-        unsigned tCL;
-
-        double pj_bit_rd;
-        double pj_bit_set;
-        double pj_bit_reset;
-    };
-    Info arr_info;
-    unsigned singleReadLatency() const
-    {
-        return arr_info.tRCD + arr_info.tCL + arr_info.tData;
-    }
-    unsigned bankDelayCausedBySingleRead() const
-    {
-        return arr_info.tRCD + arr_info.tCL;
-    }
-    unsigned singleWriteLatency() const
-    {
-        return arr_info.tRCD + arr_info.tData +
-               arr_info.tWL + arr_info.tWR;
-    }
-    unsigned bankDelayCausedBySingleWrite() const
-    {
-        return singleWriteLatency();
-    }
-    unsigned activationLatency() const
-    {
-        return arr_info.tRCD;
-    }
-    unsigned dataTransferLatency() const
-    {
-        return arr_info.tData;
-    }
-    // For our PLP technique
-    unsigned readWithReadLatency() const
-    {
-        return arr_info.tRCD +
-               arr_info.tRCD +
-               arr_info.tRCD +
-               arr_info.tCL +
-               arr_info.tData +
-               arr_info.tRCD +
-               arr_info.tData;
-    }
-    unsigned readWhileWriteLatency() const
-    {
-        return singleWriteLatency() + arr_info.tRCD;
-    }
-    double powerPerBitRead() const
-    {
-        return arr_info.pj_bit_rd /
-               singleReadLatency();
-    }
-    double powerPerBitWrite() const
-    {
-        return (arr_info.pj_bit_set +
-                arr_info.pj_bit_reset) /
-                2.0 / singleWriteLatency();
     }
 
     typename Config::Array_Level level;
@@ -190,21 +121,6 @@ class Array
   private:
     Tick cur_clk;
     Tick next_free;
-
-    // Helper functions
-    void initArrInfo(Config &cfg)
-    {
-        arr_info.tRCD = cfg.tRCD;
-        arr_info.tData = cfg.tData;
-        arr_info.tWL = cfg.tWL;
-
-        arr_info.tWR = cfg.tWR;
-        arr_info.tCL = cfg.tCL;
-
-        arr_info.pj_bit_rd = cfg.pj_bit_rd;
-        arr_info.pj_bit_set = cfg.pj_bit_set;
-        arr_info.pj_bit_reset = cfg.pj_bit_reset;
-    }
 };
 }
 

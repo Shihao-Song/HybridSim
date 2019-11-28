@@ -132,20 +132,13 @@ class FCFSController : public BaseController
     std::deque<Request> r_w_pending_queue;
 
   protected:
-    const unsigned singleReadLatency;
-    const unsigned bankDelayCausedBySingleRead;
-    const unsigned singleWriteLatency;
-    const unsigned bankDelayCausedBySingleWrite;
-    const unsigned dataTransferLatency; 
+    const unsigned singleReadLatency = 57;
+    const unsigned singleWriteLatency = 162;
+    const unsigned channelDelay = 15;
 
   public:
     FCFSController(int _id, Config &cfg)
-        : BaseController(_id, cfg),
-          singleReadLatency(channel->singleReadLatency()),
-          bankDelayCausedBySingleRead(channel->bankDelayCausedBySingleRead()),
-          singleWriteLatency(channel->singleWriteLatency()),
-          bankDelayCausedBySingleWrite(channel->bankDelayCausedBySingleWrite()),
-          dataTransferLatency(channel->dataTransferLatency())
+        : BaseController(_id, cfg)
     {}
 
     int pendingRequests() override 
@@ -278,20 +271,19 @@ class FCFSController : public BaseController
         if (scheduled_req->req_type == Request::Request_Type::READ)
         {
             req_latency = singleReadLatency;
-            bank_latency = bankDelayCausedBySingleRead;
-            channel_latency = dataTransferLatency;
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
             req_latency = singleWriteLatency;
-            bank_latency = bankDelayCausedBySingleWrite;
-            channel_latency = dataTransferLatency;
         }
         else
         {
             std::cerr << "Unknown Request Type. \n";
             exit(0);
         }
+
+        bank_latency = req_latency;
+        channel_latency = channelDelay;
 
         scheduled_req->end_exe = scheduled_req->begin_exe + req_latency;
 

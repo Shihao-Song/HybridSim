@@ -8,9 +8,7 @@
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
-#include "PCMSim/CP_Aware_Controller/cp_aware_controller_plp.hh"
 #include "PCMSim/CP_Aware_Controller/las_pcm_controller.hh"
-#include "PCMSim/PLP_Controller/pcm_sim_plp_controller.hh"
 #include "PCMSim/DRAM_PCM_Controller/dram_pcm_controller.hh"
 
 #include <functional>
@@ -274,9 +272,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<PLPController> PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<PLPCPAwareController> CP_Aware_PLP_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<TLDRAMPCMController> HybridDRAMPCMSystem;
 
@@ -302,20 +298,10 @@ class PCMSimMemorySystemFactory
                                 return std::make_unique<FR_FCFS_PCMSimMemorySystem>(cfg);
                             };
 
-        factories["PLP"] = [](Config &cfg)
-                            {
-                                return std::make_unique<PLP_PCMSimMemorySystem>(cfg);
-                            };
-
         factories["CP-AWARE"] = [](Config &cfg)
                                 {
                                     return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
                                 };
-
-        factories["CP-AWARE-PLP"] = [](Config &cfg)
-                            {
-                                return std::make_unique<CP_Aware_PLP_PCMSimMemorySystem>(cfg);
-                            };
 
         factories["LASPCM"] = [](Config &cfg)
                           {
