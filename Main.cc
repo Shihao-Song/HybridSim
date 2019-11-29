@@ -142,7 +142,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
 
     /* Memory System Creation */
     std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
-  
+    // TODO, give Memory System access to MMU.
+
     // Create L2
     std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, Memories::L2_CACHE, isLLC));
     L2->setNextLevel(DRAM_PCM.get());

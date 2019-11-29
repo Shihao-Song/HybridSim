@@ -8,7 +8,7 @@
 #include "Sim/stats.hh"
 #include "Sim/trace.hh"
 
-#include "System/mmu.hh"
+#include "System/mmu_factory.hh"
 
 #include "CacheSim/cache.hh"
 #include "PCMSim/Memory_System/pcm_sim_memory_system.hh"
