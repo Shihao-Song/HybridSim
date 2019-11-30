@@ -20,11 +20,12 @@
 
 namespace PCMSim
 {
-template<typename T>
+template<typename DRAMController, typename PCMController>
 class PCMSimMemorySystem : public Simulator::MemObject
 {
   private:
-    std::vector<std::unique_ptr<T>> controllers;
+    std::vector<std::unique_ptr<T>> pcm_controllers;
+
     std::vector<int> memory_addr_decoding_bits;
 
   private:
