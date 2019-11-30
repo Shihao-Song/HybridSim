@@ -83,24 +83,6 @@ class MMU
             tile_idx = int(Config::Decoding::Tile);
             row_idx = int(Config::Decoding::Row);
             col_idx = int(Config::Decoding::Col);
-
-            // Determine the effects
-            int total_bits_covered = 0;
-            for (int i = mem_addr_decoding_bits.size() - 1; i >= 0; i--)
-            {
-                total_bits_covered += mem_addr_decoding_bits[i];
-                if (total_bits_covered >= Mapper::va_page_shift)
-                {
-                    last_effect_stride = pow(2, (total_bits_covered - Mapper::va_page_shift));
-
-                    for (int j = 0; j <= i; j++)
-                    {
-                        effects.push_back(j);
-                        effects_size.push_back(pow(2, (mem_addr_decoding_bits[j])));
-                    }
-                    break;
-                }
-            }
         }
 
         // Decoding bits
@@ -112,11 +94,6 @@ class MMU
         unsigned tile_idx;
         unsigned row_idx;
         unsigned col_idx;
-
-        // Affecting components
-        std::vector<int> effects;
-        std::vector<int> effects_size;
-        int last_effect_stride;
     };
 };
 }

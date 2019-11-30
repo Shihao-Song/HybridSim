@@ -1,6 +1,9 @@
 #ifndef __HYBRID_HH__
 #define __HYBRID_HH__
 
+#include <algorithm>
+#include <random>
+
 #include "System/mmu.hh"
 
 namespace System
@@ -11,9 +14,10 @@ class Hybrid : public MMU
     // Data structure for page information
     struct Page_Info
     {
-        Addr page_id;
-        Addr first_touch_instruction; // The first-touch instruction that brings in this page
+        Addr page_id; // virtual page_id
         Addr re_alloc_page_id; // A page may be re-allocated to a different location (see below)
+        
+        Addr first_touch_instruction; // The first-touch instruction that brings in this page
 
         // Record physical location of a page. So far, a page may be in:
         //     (1) The fast-access region of PCM (pcm_near)
@@ -32,7 +36,7 @@ class Hybrid : public MMU
         unsigned num_of_phases_silent = 0;
     };
     // All the touched pages for each core.
-    std::vector<std::unordered_map<Addr,Page_Info>> pages;
+    std::vector<std::unordered_map<Addr,Page_Info>> pages_by_cores;
 
     // Data structure for first-touch instruction (FTI)
     struct First_Touch_Instr_Info // Information of first-touch instruction
@@ -49,7 +53,7 @@ class Hybrid : public MMU
         uint64_t num_of_writes = 0;
     };
     // All the FTIs for each core
-    std::vector<std::unordered_map<Addr,First_Touch_Instr_Info>> first_touch_instructions;
+    std::vector<std::unordered_map<Addr,First_Touch_Instr_Info>> FTIs_by_cores;
 
     // Data structure for page migration (single page migration)
     struct Mig_Page
@@ -82,19 +86,114 @@ class Hybrid : public MMU
     };
     std::vector<Mig_Page> pages_to_migrate;
 
-    // PageID helper
-    std::vector<PageIDHelper>page_id_helpers; // TODO, need to do more testings.
+    enum class Memory_Node : int { DRAM, PCM, MAX };
+    // Memory sizes 
+    std::vector<unsigned> mem_size_in_gb;
+
+    // PageID helper, one for DRAM, one for PCM
+    std::vector<PageIDHelper> page_id_helpers_by_technology;
+
+    // A pool of free physical pages, one for DRAM, one for PCM
+    std::vector<std::vector<Addr>> free_frame_pool_by_technology;
+
+    // A pool of used physical pages, one for DRAM, one for PCM
+    std::vector<std::vector<Addr>> used_frame_pool_by_technology;
+
   public:
     Hybrid(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
         : MMU(num_of_cores)
     {
-        pages.resize(num_of_cores);
-        first_touch_instructions.resize(num_of_cores);
+        pages_by_cores.resize(num_of_cores);
+        FTIs_by_cores.resize(num_of_cores);
 
-        page_id_helpers.emplace_back(dram_cfg);
-        page_id_helpers.emplace_back(pcm_cfg);
+        mem_size_in_gb.push_back(dram_cfg.sizeInGB());
+        mem_size_in_gb.push_back(pcm_cfg.sizeInGB());
 
-        srand(time(NULL));
+        page_id_helpers_by_technology.emplace_back(dram_cfg);
+        page_id_helpers_by_technology.emplace_back(pcm_cfg);
+
+        free_frame_pool_by_technology.resize(int(Memory_Node::MAX));
+        used_frame_pool_by_technology.resize(int(Memory_Node::MAX));
+
+        // Construct all available pages
+        auto rng = std::default_random_engine {};
+        for (int m = 0; m < int(Memory_Node::MAX); m++)
+        {
+            for (int i = 0; i < mem_size_in_gb[m] * 1024 * 1024 / 4; i++)
+            {
+                free_frame_pool_by_technology[m].push_back(i);
+            }
+            std::shuffle(std::begin(free_frame_pool_by_technology[m]),
+                         std::end(free_frame_pool_by_technology[m]), rng);
+        }
+    }
+
+    // Default: randomly map a virtual page to DRAM or PCM (segment is not considered)
+    void va2pa(Request &req) override
+    {
+        int core_id = req.core_id;
+
+        Addr va = req.eip;
+        Addr virtual_page_id = va >> Mapper::va_page_shift;
+
+        auto &pages = pages_by_cores[core_id];
+        if (auto p_iter = pages.find(virtual_page_id);
+                p_iter != pages.end())
+        {
+            Addr page_id = p_iter->second.re_alloc_page_id;
+            req.addr = (page_id << Mapper::va_page_shift) |
+                       (va & Mapper::va_page_mask);
+        }
+        else
+        {
+            int total_mem_size = mem_size_in_gb[int(Memory_Node::DRAM)] + 
+                                 mem_size_in_gb[int(Memory_Node::PCM)];
+
+            static std::default_random_engine e{};
+            static std::uniform_int_distribution<int> d{1, total_mem_size};
+
+            // Randomly determine which technology to be mapped
+            int chosen_technology = 0;
+            if (int random_num = d(e);
+                random_num <= mem_size_in_gb[int(Memory_Node::DRAM)])
+            {
+                chosen_technology = int(Memory_Node::DRAM);
+                std::cout << "Mapped to DRAM \n";
+            }
+            else
+            {
+                chosen_technology = int(Memory_Node::PCM);
+                std::cout << "Mapped to PCM \n";
+            }
+            auto &free_frames = free_frame_pool_by_technology[chosen_technology];
+            auto &used_frames = used_frame_pool_by_technology[chosen_technology];
+            std::cout << "Size of free frames: " << free_frames.size() << "\n";
+            std::cout << "Size of used frames: " << used_frames.size() << "\n";
+
+            // Choose a free frame
+            Addr free_frame = *(free_frames.begin());
+            for (int i = 0; i < 11; i++)
+            {
+                std::cout << free_frames[i] << "\n";
+            }
+
+            free_frames.erase(free_frames.begin());
+            used_frames.push_back(free_frame);
+
+            std::cout << "\nSize of free frames: " << free_frames.size() << "\n";
+            std::cout << "Size of used frames: " << used_frames.size() << "\n";
+            for (int i = 0; i < 10; i++)
+            {
+                std::cout << free_frames[i] << "\n";
+            }
+
+            req.addr = (free_frame << Mapper::va_page_shift) |
+                       (va & Mapper::va_page_mask);
+            std::cout << "\nPhysical address: " << req.addr << "\n";
+            // Insert the page
+            pages.insert({virtual_page_id, {virtual_page_id, free_frame}});
+            exit(0);
+        }
     }
 };
 }

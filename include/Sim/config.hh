@@ -79,8 +79,7 @@ class Config
     std::vector<int> mem_addr_decoding_bits;
     void genMemAddrDecodingBits();
 
-    // For PCM
-    unsigned sizeOfPCMInGB()
+    unsigned sizeInGB()
     {
         unsigned long long num_of_word_lines_per_bank = num_of_word_lines_per_tile *
                                                         num_of_parts;
