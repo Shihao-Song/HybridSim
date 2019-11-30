@@ -5,7 +5,7 @@
 
 namespace System
 {
-class Hybrid : public TrainedMMU
+class Hybrid : public MMU
 {
   protected:
     // Data structure for page information
@@ -82,27 +82,17 @@ class Hybrid : public TrainedMMU
     };
     std::vector<Mig_Page> pages_to_migrate;
 
-  protected:
-    // Keep track of Array Architecture of DRAM and PCM
-    struct array
-    {
-        unsigned num_of_channels;
-        unsigned num_of_ranks; // per channel
-        unsigned num_of_banks; // per rank
-        unsigned num_of_partitions; // per bank
-        unsigned num_of_tiles; // per partition
-        unsigned num_of_rows; // per tile
-        unsigned num_of_blocks; // per row
-
-        const std::vector<int> mem_addr_decoding_bits;
-    };
-
+    // PageID helper
+    std::vector<PageIDHelper>page_id_helpers; // TODO, need to do more testings.
   public:
-    Hybrid(int num_of_cores, Config &cfg)
-        : TrainedMMU(num_of_cores, cfg)
+    Hybrid(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
+        : MMU(num_of_cores)
     {
         pages.resize(num_of_cores);
         first_touch_instructions.resize(num_of_cores);
+
+        page_id_helpers.emplace_back(dram_cfg);
+        page_id_helpers.emplace_back(pcm_cfg);
 
         srand(time(NULL));
     }

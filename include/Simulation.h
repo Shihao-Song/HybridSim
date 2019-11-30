@@ -36,7 +36,8 @@ enum class Memories : int
 
 struct ParseArgsRet
 {
-    std::vector<std::string> cfg_files;
+    std::string dram_cfg_file;
+    std::string pcm_cfg_file;
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
@@ -44,9 +45,9 @@ struct ParseArgsRet
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
-auto createTrainedMMU(int num_of_cores, Config &cfg)
+auto createMMU(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
 {
-    return System::createTrainedMMU(num_of_cores, cfg);
+    return System::createMMU(num_of_cores, dram_cfg, pcm_cfg);
 }
 
 auto createHybridSystem(Config &dram_cfg,
@@ -98,7 +99,8 @@ auto runCPUTrace(Processor *processor)
 
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
-    std::vector<std::string> cfg_files;
+    std::string dram_cfg_file = "N/A";
+    std::string pcm_cfg_file = "N/A";
     std::vector<std::string> cpu_traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
@@ -108,8 +110,10 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     po::options_description desc("Options"); 
     desc.add_options() 
         ("help", "Print help messages")
-        ("config", po::value<std::vector<std::string>>(&cfg_files)->required(), 
-                   "Configuration file")
+        ("dram-config", po::value<std::string>(&dram_cfg_file),
+                   "Configuration file for DRAM (if hybrid system)")
+        ("pcm-config", po::value<std::string>(&pcm_cfg_file),
+                   "Configuration file for PCM (if hybrid system)")
         ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
                       "CPU trace")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
@@ -142,7 +146,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         exit(0);
     }
 
-    return ParseArgsRet{cfg_files,
+    return ParseArgsRet{dram_cfg_file,
+                        pcm_cfg_file,
                         cpu_traces,
                         num_instrs_per_phase,
                         stats_output,
@@ -320,7 +325,7 @@ auto LLCTrace(Config &cfg, std::vector<std::string> &trace_lists, std::string ou
 
 auto runMemTrace(MemObject *mem_obj,
                  const char *trace_name,
-                 System::TrainedMMU *mmu)
+                 System::MMU *mmu)
 {
     Simulator::Trace mem_trace(trace_name);
 

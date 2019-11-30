@@ -24,7 +24,7 @@ typedef Simulator::Request Request;
 typedef Simulator::Trace Trace;
 
 typedef System::MMU MMU;
-typedef System::TrainedMMU TrainedMMU;
+typedef System::MMU MMU;
 
 class Processor
 {
@@ -111,7 +111,7 @@ class Processor
         }
 
         void setDCache(MemObject* _d_cache) {d_cache = _d_cache;}
-        void setMMU(TrainedMMU *_mmu) {mmu = _mmu;}
+        void setMMU(MMU *_mmu) {mmu = _mmu;}
 
         /*
         // Are we in profiling stage?
@@ -287,7 +287,7 @@ class Processor
 
 	bool instrDrained() { return !more_insts; }
       private:
-        TrainedMMU *mmu;
+        MMU *mmu;
 
         Trace trace;
 
@@ -333,7 +333,7 @@ class Processor
         cores[core_id]->setDCache(d_cache);
     }
 
-    void setMMU(TrainedMMU *_mmu)
+    void setMMU(MMU *_mmu)
     {
         mmu = _mmu;
 
@@ -470,7 +470,7 @@ class Processor
   private:
     Tick cycles;
 
-    TrainedMMU *mmu;
+    MMU *mmu;
     std::vector<std::unique_ptr<Core>> cores;
     MemObject *shared_m_obj;
 };

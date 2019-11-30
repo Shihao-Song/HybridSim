@@ -47,7 +47,7 @@ class MMU
     }
 };
 
-class TrainedMMU : public MMU
+class MMU : public MMU
 {
   protected:
     MemObject *mem_system;
@@ -58,11 +58,11 @@ class TrainedMMU : public MMU
     typedef Simulator::Instruction Instruction;
     typedef Simulator::Trace Trace;
 
-    TrainedMMU(int num_of_cores, Config &cfg)
+    MMU(int num_of_cores, Config &cfg)
         : MMU(num_of_cores)
     {}
 
-    ~TrainedMMU()
+    ~MMU()
     {}
 
     // The MMU should be able to do page migration among different memory nodes
@@ -86,7 +86,7 @@ class TrainedMMU : public MMU
 // (2) Decoding is fixed: Rank, Partition, Tile, Row, Col, Bank, Channel, Cache_Line
 // (3) DRAM and PCM share the same memory space. Implementation-wise, number of ranks
 // are doubled, ranks 0~3 are for PCM; ranks 4~7 are for DRAM.
-class Hybrid : public TrainedMMU
+class Hybrid : public MMU
 {
   protected:
     unsigned base_rank_id_pcm;
@@ -155,7 +155,7 @@ class Hybrid : public TrainedMMU
     // std::ofstream output;
   public: 
     Hybrid(int num_of_cores, Config &cfg)
-        : TrainedMMU(num_of_cores, cfg)
+        : MMU(num_of_cores, cfg)
         , base_rank_id_pcm(0)
         , base_rank_id_dram(cfg.num_of_ranks / 2)
         , mem_addr_decoding_bits(cfg.mem_addr_decoding_bits)
@@ -1288,7 +1288,7 @@ class Hybrid : public TrainedMMU
 // TODO, Limitations
 // (1) I assume there are 4 channels, 4 ranks/channel, 8 banks/rank, 1 GB bank;
 // (2) Decoding is fixed: Rank, Partition, Tile, Row, Col, Bank, Channel, Cache_Line
-class NearRegionAware : public TrainedMMU
+class NearRegionAware : public MMU
 {
   protected:
     const unsigned num_of_cache_lines_per_row;
@@ -1303,7 +1303,7 @@ class NearRegionAware : public TrainedMMU
 
   public:
     NearRegionAware(int num_of_cores, Config &cfg)
-        : TrainedMMU(num_of_cores, cfg),
+        : MMU(num_of_cores, cfg),
           num_of_cache_lines_per_row(cfg.num_of_bit_lines_per_tile / 8 / cfg.block_size),
           num_of_rows(cfg.num_of_word_lines_per_tile),
           num_of_tiles(cfg.num_of_tiles),
@@ -1486,16 +1486,16 @@ class MFUPageToNearRows : public NearRegionAware
 };
 
 
-class TrainedMMUFactory
+class MMUFactory
 {
     typedef Simulator::Config Config;
 
   private:
     std::unordered_map<std::string,
-                       std::function<std::unique_ptr<TrainedMMU>(int,Config&)>> factories;
+                       std::function<std::unique_ptr<MMU>(int,Config&)>> factories;
 
   public:
-    TrainedMMUFactory()
+    MMUFactory()
     {
         factories["MFUPageToNearRows"] = [](int num_of_cores, Config &cfg)
                  {
@@ -1524,10 +1524,10 @@ class TrainedMMUFactory
     }
 };
 
-static TrainedMMUFactory TrainedMMUFactories;
-static auto createTrainedMMU(int num_of_cores, Simulator::Config &cfg)
+static MMUFactory MMUFactories;
+static auto createMMU(int num_of_cores, Simulator::Config &cfg)
 {
-    return TrainedMMUFactories.createMMU(num_of_cores, cfg);
+    return MMUFactories.createMMU(num_of_cores, cfg);
 }
 }
 

@@ -3,12 +3,13 @@
 
 #include "Simulation.h"
 
+/*
 void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                       std::vector<std::string> &trace_lists,
                                       int64_t num_instrs_per_phase,
                                       std::string &stats_output_file,
                                       std::string &offline_request_analysis_file);
-
+*/
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
@@ -17,28 +18,24 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
 
 int main(int argc, const char *argv[])
 {
-    auto [cfg_files,
+    auto [dram_cfg_file,
+          pcm_cfg_file,
           trace_lists,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           stats_output_file,
           offline_request_analysis_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
-
-    // TODO, limitation, if there are two config files, the first one should always be DRAM, and
-    // the second one should always be PCM.
-    std::cout << "\n";
-    auto i = 0;
-    for (auto &cfg_file : cfg_files)
-    {
-        std::cout << "Configuration file " << i << ": " << cfg_file << "\n";
-        ++i;
-    }
-    std::cout << "\nStats output file: " << stats_output_file << "\n\n";
+    assert(pcm_cfg_file != "N/A");
 
     std::vector<Config> cfgs;
-    for (auto &cfg_file : cfg_files)
+    if (dram_cfg_file != "N/A")
     {
-        cfgs.emplace_back(cfg_file);
+        cfgs.emplace_back(dram_cfg_file);
+        cfgs.emplace_back(pcm_cfg_file);
+    }
+    else
+    {
+        cfgs.emplace_back(pcm_cfg_file);
     }
 
     if (cfgs.size() > 1)
@@ -51,16 +48,16 @@ int main(int argc, const char *argv[])
                                                stats_output_file,
                                                offline_request_analysis_file);
     }
-    else
-    {
-        eDRAM_PCM_Full_System_Simulation(cfgs,
-                                         trace_lists,
-                                         num_instrs_per_phase,
-                                         stats_output_file,
-                                         offline_request_analysis_file);
-    }
+//    else
+//    {
+//        eDRAM_PCM_Full_System_Simulation(cfgs,
+//                                         trace_lists,
+//                                         num_instrs_per_phase,
+//                                         stats_output_file,
+//                                         offline_request_analysis_file);
+//    }
 }
-
+/*
 void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                       std::vector<std::string> &trace_lists,
                                       int64_t num_instrs_per_phase,
@@ -83,7 +80,7 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     L2->setNextLevel(eDRAM.get());
     L2->setArbitrator(num_of_cores);
 
-    /* Create Processor */
+    // Create Processor
     std::vector<std::unique_ptr<MemObject>> L1_D_all;
     for (int i = 0; i < num_of_cores; i++)
     {
@@ -100,7 +97,7 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
-    std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, pcm_cfg));
+    std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, pcm_cfg));
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
@@ -114,7 +111,7 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     std::cout << "\nSimulation Stage...\n\n";
     runCPUTrace(processor.get());
 
-    /* Collecting Stats */
+    // Collecting Stats
     Stats stats;
 
     for (auto &L1_D : L1_D_all)
@@ -130,7 +127,7 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     stats.outputStats(stats_output_file);
 
 }
-
+*/
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
@@ -138,9 +135,10 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::string &offline_request_analysis_file)
 {
     unsigned num_of_cores = trace_lists.size();
+    Config &dram_cfg = cfgs[0];
     Config &pcm_cfg = cfgs[1];
 
-    /* Memory System Creation */
+    // Memory System Creation
     std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(cfgs[0], cfgs[1]));
     // TODO, give Memory System access to MMU.
 
@@ -149,7 +147,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     L2->setNextLevel(DRAM_PCM.get());
     L2->setArbitrator(num_of_cores);
 
-    /* Create Processor */
+    // Create Processor
     std::vector<std::unique_ptr<MemObject>> L1_D_all;
     for (int i = 0; i < num_of_cores; i++)
     {
@@ -166,8 +164,9 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
-    std::unique_ptr<System::TrainedMMU> mmu(createTrainedMMU(num_of_cores, pcm_cfg));
+    std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, dram_cfg, pcm_cfg));
     mmu->setMemSystem(DRAM_PCM.get());
+    // TODO, give memory system access to MMU
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
@@ -181,7 +180,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     std::cout << "\nSimulation Stage...\n\n";
     runCPUTrace(processor.get());
 
-    /* Collecting Stats */
+    // Collecting Stats
     Stats stats;
 
     for (auto &L1_D : L1_D_all)
