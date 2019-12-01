@@ -20,15 +20,20 @@
 
 namespace PCMSim
 {
-template<typename DRAMController, typename PCMController>
+// Since the main focus is PCM, the DRAM controller is simply a Tiered-Latency FR-FCFS PCM controller with 
+// different timings.
+template<typename PCMController>
 class PCMSimMemorySystem : public Simulator::MemObject
 {
   private:
-    std::vector<std::unique_ptr<T>> pcm_controllers;
+    std::vector<std::unique_ptr<PCMController>> pcm_controllers;
+    std::vector<std::unique_ptr<TLDRAMController>> dram_controllers;
 
-    std::vector<int> memory_addr_decoding_bits;
+    std::vector<int> pcm_memory_addr_decoding_bits;
+    std::vector<int> dram_memory_addr_decoding_bits;
 
   private:
+    // Only for PCM
     bool offline_req_analysis_mode = false;
     std::ofstream offline_req_ana_output;
 
@@ -40,19 +45,15 @@ class PCMSimMemorySystem : public Simulator::MemObject
     typedef Simulator::Decoder Decoder;
     typedef Simulator::Request Request;
 
-    PCMSimMemorySystem(Config &cfg) : Simulator::MemObject()
+    PCMSimMemorySystem(Config &pcm_cfg) : Simulator::MemObject()
     {
-        // Initialize
-        init(cfg);
+        // A PCM-Only System
+        init(pcm_cfg);
     }
 
     PCMSimMemorySystem(Config &dram_cfg, Config &pcm_cfg) : Simulator::MemObject()
     {
-        for (int i = 0; i < dram_cfg.num_of_channels; i++)
-        {
-            controllers.push_back(std::move(std::make_unique<T>(i, dram_cfg, pcm_cfg)));
-        }
-        memory_addr_decoding_bits = pcm_cfg.mem_addr_decoding_bits;
+        init(dram_cfg, pcm_cfg);
     }
 
     ~PCMSimMemorySystem()
@@ -67,9 +68,16 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         int outstandings = 0;
 
-        for (auto &controller : controllers)
+        // Pending requests at PCM memory
+        for (auto &pcm_controller : pcm_controllers)
         {
-            outstandings += controller->pendingRequests();
+            outstandings += pcm_controller->pendingRequests();
+        }
+
+        // Pending requests at DRAM memory
+        for (auto &dram_controller : dram_controllers)
+        {
+            outstandings += dram_controller->pendingRequests();
         }
 
         return outstandings;
@@ -77,9 +85,12 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     bool send(Request &req) override
     {
+        // TODO, need MMU assistant to determine which memory to send
+/*
         req.addr_vec.resize(int(Config::Decoding::MAX));
 
         Decoder::decode(req.addr, memory_addr_decoding_bits, req.addr_vec);
+*/
 /*
         std::cout << "\n Address: " << req.addr << "\n";
         std::cout << "Rank: " << req.addr_vec[int(Config::Decoding::Rank)] << "\n"; 
@@ -91,6 +102,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
         std::cout << "Channel: " << req.addr_vec[int(Config::Decoding::Channel)] << "\n";
         std::cout << "Block: " << req.addr_vec[int(Config::Decoding::Cache_Line)] << "\n";
 */
+/*
         int channel_id = req.addr_vec[int(Config::Decoding::Channel)];
 
         if(controllers[channel_id]->enqueue(req))
@@ -109,23 +121,33 @@ class PCMSimMemorySystem : public Simulator::MemObject
             }
             return true;
         }
-
+*/
         return false;
     }
 
     void tick() override
     {
-        for (auto &controller : controllers)
+        for (auto &pcm_controller : pcm_controllers)
         {
-            controller->tick();
+            pcm_controller->tick();
+        }
+	
+        for (auto &dram_controller : dram_controllers)
+        {
+            dram_controller->tick();
         }
     }
 
     void reInitialize() override
     {
-        for (auto &controller : controllers)
+        for (auto &pcm_controller : pcm_controllers)
         {
-            controller->reInitialize();
+            pcm_controller->reInitialize();
+        }
+	
+        for (auto &dram_controller : dram_controllers)
+        {
+            dram_controller->reInitialize();
         }
     }
 
@@ -134,79 +156,16 @@ class PCMSimMemorySystem : public Simulator::MemObject
         offline_req_analysis_mode = true;
         offline_req_ana_output.open(file);
 
-        for (auto &controller : controllers)
+        for (auto &pcm_controller : pcm_controllers)
         {
-            controller->offlineReqAnalysis(&offline_req_ana_output);
+            pcm_controller->offlineReqAnalysis(&offline_req_ana_output);
         }
     }
 
     void registerStats(Simulator::Stats &stats) override
     {
-        if constexpr (std::is_same<TLDRAMPCMController, T>::value)
-        {
-            for (int k = 0; k < 2; k++)
-            {
-            uint64_t total_reqs = 0;
-            uint64_t total_waiting_time = 0;
-            for (auto &controller : controllers)
-            {
-                total_reqs += controller->totalRequests(k);
-                total_waiting_time += controller->totalWaiting(k);
-            }
-
-            std::string req_info = "Total_Number_Requests";
-            if (k == 0) { req_info = req_info + "_DRAM = "; }
-            else { req_info = req_info + "_PCM = "; }
-            req_info = req_info + std::to_string(total_reqs);
-
-            std::string waiting_info = "Total_Waiting_Time";
-            if (k == 0) { waiting_info = waiting_info + "_DRAM = "; }
-            else { waiting_info = waiting_info + "_PCM = "; }
-            waiting_info = waiting_info + std::to_string(total_waiting_time);
-
-            std::string access_latency = "Access_Latency";
-            if (k == 0) { access_latency = access_latency + "_DRAM = "; }
-            else { access_latency = access_latency + "_PCM = "; }
-            access_latency = access_latency + std::to_string(double(total_waiting_time) /
-                                                             double(total_reqs));
-            stats.registerStats(req_info);
-            stats.registerStats(waiting_info);
-            stats.registerStats(access_latency);
-
-            for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
-            {
-                std::string target = "READ";
-                if (i == int(CPAwareController::Req_Type::READ))
-                {
-                    target = "READ";
-                }
-                if (i == int(CPAwareController::Req_Type::WRITE))
-                {
-                    target = "WRITE";
-                }
-                
-                unsigned num_stages = controllers[0]->numStages(k);
-                for (int j = 0; j < num_stages; j++)
-                {
-                    int64_t stage_accesses = 0;
-                    for (auto &controller : controllers)
-                    {
-                        // i - request type; j - stage ID.
-                        stage_accesses += controller->stageAccess(i, j, k);
-                    }
-                    std::string stage_access_prin =
-                                                "Stage-" + std::to_string(j) + "-"
-                                                + target + "-Access"
-                                                + " = "
-                                                + std::to_string(stage_accesses);
-                    if (k == 0) { stage_access_prin = "DRAM-" + stage_access_prin; }
-                    else { stage_access_prin = "PCM-" + stage_access_prin;  }
-                    stats.registerStats(stage_access_prin);
-                }
-            }
-            }
-        }
-
+        // TODO, need to register stats for both DRAM and PCM
+        /*
         if constexpr (std::is_same<CPAwareController, T>::value)
         {
             uint64_t total_reqs = 0;
@@ -258,24 +217,36 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 }
             }
         }
+	*/
     }
 
   private:
-    void init(Config &cfg)
+    void init(Config &pcm_cfg)
     {
-        for (int i = 0; i < cfg.num_of_channels; i++)
+        for (int i = 0; i < pcm_cfg.num_of_channels; i++)
         {
-            controllers.push_back(std::move(std::make_unique<T>(i, cfg)));
+            pcm_controllers.push_back(std::move(std::make_unique<PCMController>(i, pcm_cfg)));
         }
-        memory_addr_decoding_bits = cfg.mem_addr_decoding_bits;
+        pcm_memory_addr_decoding_bits = pcm_cfg.mem_addr_decoding_bits;
     }
+    
+    void init(Config &dram_cfg, Config &pcm_cfg)
+    {
+        for (int i = 0; i < dram_cfg.num_of_channels; i++)
+        {
+            dram_controllers.push_back(std::move(std::make_unique<TLDRAMController>(i, dram_cfg)));
+        }
+        dram_memory_addr_decoding_bits = dram_cfg.mem_addr_decoding_bits;
+
+        init(pcm_cfg);
+    }
+
 };
 
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<TLDRAMPCMController> HybridDRAMPCMSystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -310,11 +281,6 @@ class PCMSimMemorySystemFactory
                           };
     }
 
-    auto createHybridSystem(Config &dram_cfg, Config &pcm_cfg)
-    {
-        return std::make_unique<HybridDRAMPCMSystem>(dram_cfg, pcm_cfg);
-    }
-
     auto createPCMSimMemorySystem(Config &cfg)
     {
         std::string type = cfg.mem_controller_type;
@@ -336,11 +302,5 @@ static auto createPCMSimMemorySystem(Simulator::Config &cfg)
 {
     return PCMSimMemorySystemFactories.createPCMSimMemorySystem(cfg);
 }
-
-static auto createHybridSystem(Simulator::Config &dram_cfg, Simulator::Config &pcm_cfg)
-{
-    return PCMSimMemorySystemFactories.createHybridSystem(dram_cfg, pcm_cfg);
-}
-
 }
 #endif
