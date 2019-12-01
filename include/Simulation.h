@@ -53,7 +53,7 @@ auto createMMU(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
 auto createHybridSystem(Config &dram_cfg,
                         Config &pcm_cfg)
 {
-    return PCMSim::createHybridSystem(dram_cfg, pcm_cfg);
+    return PCMSim::createHybridMemorySystem(dram_cfg, pcm_cfg);
 }
 
 auto createMemObject(Config &cfg,
@@ -62,7 +62,7 @@ auto createMemObject(Config &cfg,
 {
     if (mem_type == Memories::PCM)
     {
-        return PCMSim::createPCMSimMemorySystem(cfg);
+        return PCMSim::createPCMMemorySystem(cfg);
     }
     else
     {

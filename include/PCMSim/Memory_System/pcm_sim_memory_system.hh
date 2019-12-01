@@ -255,39 +255,55 @@ class PCMSimMemorySystemFactory
 
   private:
     std::unordered_map<std::string,
-                       std::function<std::unique_ptr<MemObject>(Config&)>> factories;
+                       std::function<std::unique_ptr<MemObject>(Config&)>> pcm_factories;
+
+    std::unordered_map<std::string,
+                       std::function<std::unique_ptr<MemObject>(Config&,Config&)>> hybrid_factories;
 
   public:
     PCMSimMemorySystemFactory()
     {
-        factories["FCFS"] = [](Config &cfg)
+        pcm_factories["FCFS"] = [](Config &pcm_cfg)
                             {
-                                return std::make_unique<FCFS_PCMSimMemorySystem>(cfg);
+                                return std::make_unique<FCFS_PCMSimMemorySystem>(pcm_cfg);
                             };
 
-        factories["FR-FCFS"] = [](Config &cfg)
+        pcm_factories["FR-FCFS"] = [](Config &pcm_cfg)
                             {
-                                return std::make_unique<FR_FCFS_PCMSimMemorySystem>(cfg);
+                                return std::make_unique<FR_FCFS_PCMSimMemorySystem>(pcm_cfg);
                             };
 
-        factories["CP-AWARE"] = [](Config &cfg)
+        pcm_factories["CP-AWARE"] = [](Config &pcm_cfg)
                                 {
-                                    return std::make_unique<CP_Aware_PCMSimMemorySystem>(cfg);
+                                    return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
                                 };
 
-        factories["LASPCM"] = [](Config &cfg)
+        pcm_factories["LASPCM"] = [](Config &pcm_cfg)
                           {
-                              return std::make_unique<LASPCM_PCMSimMemorySystem>(cfg);
+                              return std::make_unique<LASPCM_PCMSimMemorySystem>(pcm_cfg);
                           };
+
+        hybrid_factories["CP-AWARE"] = [](Config &dram_cfg, Config &pcm_cfg)
+                                {
+                                    return std::make_unique<CP_Aware_PCMSimMemorySystem>(dram_cfg,
+                                                                                         pcm_cfg);
+                                };
+
+        hybrid_factories["LASPCM"] = [](Config &dram_cfg, Config &pcm_cfg)
+                          {
+                              return std::make_unique<LASPCM_PCMSimMemorySystem>(dram_cfg,
+                                                                                 pcm_cfg);
+                          };
+ 
     }
 
-    auto createPCMSimMemorySystem(Config &cfg)
+    auto createPCMMemorySystem(Config &pcm_cfg)
     {
-        std::string type = cfg.mem_controller_type;
-        if (auto iter = factories.find(type);
-            iter != factories.end())
+        std::string type = pcm_cfg.mem_controller_type;
+        if (auto iter = pcm_factories.find(type);
+            iter != pcm_factories.end())
         {
-            return iter->second(cfg);
+            return iter->second(pcm_cfg);
         }
         else
         {
@@ -295,12 +311,34 @@ class PCMSimMemorySystemFactory
             exit(0);
         }
     }
+
+    auto createHybridMemorySystem(Config &dram_cfg, Config &pcm_cfg)
+    {
+        std::string type = pcm_cfg.mem_controller_type;
+        if (auto iter = hybrid_factories.find(type);
+            iter != hybrid_factories.end())
+        {
+            return iter->second(dram_cfg, pcm_cfg);
+        }
+        else
+        {
+            std::cerr << "Unsupported memory controller type. \n";
+            exit(0);
+        }
+    }
+
 };
 
 static PCMSimMemorySystemFactory PCMSimMemorySystemFactories;
-static auto createPCMSimMemorySystem(Simulator::Config &cfg)
+static auto createPCMMemorySystem(Simulator::Config &pcm_cfg)
 {
-    return PCMSimMemorySystemFactories.createPCMSimMemorySystem(cfg);
+    return PCMSimMemorySystemFactories.createPCMMemorySystem(pcm_cfg);
 }
+
+static auto createHybridMemorySystem(Simulator::Config &dram_cfg, Simulator::Config &pcm_cfg)
+{
+    return PCMSimMemorySystemFactories.createHybridMemorySystem(dram_cfg, pcm_cfg);
+}
+
 }
 #endif
