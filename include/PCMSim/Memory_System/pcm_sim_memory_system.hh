@@ -9,7 +9,6 @@
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
 #include "PCMSim/CP_Aware_Controller/las_pcm_controller.hh"
-#include "PCMSim/DRAM_PCM_Controller/dram_pcm_controller.hh"
 
 #include <functional>
 #include <iostream>
@@ -232,6 +231,9 @@ class PCMSimMemorySystem : public Simulator::MemObject
     
     void init(Config &dram_cfg, Config &pcm_cfg)
     {
+        std::cout << "Good \n";
+        exit(0);
+
         for (int i = 0; i < dram_cfg.num_of_channels; i++)
         {
             dram_controllers.push_back(std::move(std::make_unique<TLDRAMController>(i, dram_cfg)));
