@@ -53,7 +53,7 @@ class MMU
     }
 
     // The MMU should be able to do page migration among different memory nodes
-    virtual bool pageMig() {}
+    virtual bool pageMig() { return true; }
 
     // Our simulator can run the program in multiple phases
     virtual void phaseDone() {}

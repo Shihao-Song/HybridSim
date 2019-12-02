@@ -99,7 +99,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 return true;
             }
         }
-        else if (memory_node == int(Config::Memory_Node::PCM))
+        else if (memory_node == int(Config::Memory_Node::PCM) || 
+                 memory_node == -1)
         {
             // std::cout << "In PCM. \n";
 

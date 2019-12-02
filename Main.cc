@@ -3,13 +3,12 @@
 
 #include "Simulation.h"
 
-/*
 void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                       std::vector<std::string> &trace_lists,
                                       int64_t num_instrs_per_phase,
                                       std::string &stats_output_file,
                                       std::string &offline_request_analysis_file);
-*/
+
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
@@ -48,16 +47,16 @@ int main(int argc, const char *argv[])
                                                stats_output_file,
                                                offline_request_analysis_file);
     }
-//    else
-//    {
-//        eDRAM_PCM_Full_System_Simulation(cfgs,
-//                                         trace_lists,
-//                                         num_instrs_per_phase,
-//                                         stats_output_file,
-//                                         offline_request_analysis_file);
-//    }
+    else
+    {
+        eDRAM_PCM_Full_System_Simulation(cfgs,
+                                         trace_lists,
+                                         num_instrs_per_phase,
+                                         stats_output_file,
+                                         offline_request_analysis_file);
+    }
 }
-/*
+
 void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                       std::vector<std::string> &trace_lists,
                                       int64_t num_instrs_per_phase,
@@ -98,6 +97,8 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, pcm_cfg));
+    mmu->setMemSystem(PCM.get());
+    PCM->setMMU(mmu.get());
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));
@@ -120,14 +121,14 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     }
     L2->registerStats(stats);
     eDRAM->registerStats(stats);
-    PCM->registerStats(stats);
     mmu->registerStats(stats);
+    PCM->registerStats(stats);
     stats.registerStats("Execution Time (cycles) = " + 
                         std::to_string(processor->exeTime()));
     stats.outputStats(stats_output_file);
 
 }
-*/
+
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,

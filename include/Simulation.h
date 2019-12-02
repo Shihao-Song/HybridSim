@@ -50,6 +50,11 @@ auto createMMU(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
     return System::createMMU(num_of_cores, dram_cfg, pcm_cfg);
 }
 
+auto createMMU(int num_of_cores, Config &pcm_cfg)
+{
+    return System::createMMU(num_of_cores, pcm_cfg);
+}
+
 auto createHybridSystem(Config &dram_cfg,
                         Config &pcm_cfg)
 {
