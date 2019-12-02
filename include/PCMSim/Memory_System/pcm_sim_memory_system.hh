@@ -156,59 +156,107 @@ class PCMSimMemorySystem : public Simulator::MemObject
     void registerStats(Simulator::Stats &stats) override
     {
         // TODO, need to register stats for both DRAM and PCM
-        /*
-        if constexpr (std::is_same<CPAwareController, T>::value)
+        if constexpr (std::is_same<CPAwareController, PCMController>::value)
         {
-            uint64_t total_reqs = 0;
-            uint64_t total_waiting_time = 0;
-            for (auto &controller : controllers)
+            for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
             {
-                total_reqs += controller->finished_requests;
-                total_waiting_time += controller->total_waiting_time;
-            }
+                if (m == int(Config::Memory_Node::DRAM) && 
+                    dram_controllers.size() == 0)
+                { continue; }
 
-            std::string req_info = "Total_Number_Requests = " + 
-                                   std::to_string(total_reqs);
-            std::string waiting_info = "Total_Waiting_Time = " + 
-                                   std::to_string(total_waiting_time);
-            std::string access_latency = "Access_Latency = " + 
-                                   std::to_string(double(total_waiting_time) / 
-                                                  double(total_reqs));
-            stats.registerStats(req_info);
-            stats.registerStats(waiting_info);
-            stats.registerStats(access_latency);
+                if (m == int(Config::Memory_Node::PCM) && 
+                    pcm_controllers.size() == 0)
+                { continue; }
 
-            unsigned num_stages = controllers[0]->numStages();
-            for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
-            {
-                std::string target = "READ";
-                if (i == int(CPAwareController::Req_Type::READ))
+                uint64_t total_reqs = 0;
+                uint64_t total_waiting_time = 0;
+
+                if (m == int(Config::Memory_Node::DRAM))
                 {
-                    target = "READ";
-                }
-                if (i == int(CPAwareController::Req_Type::WRITE))
-                {
-                    target = "WRITE";
-                }
-                
-                for (int j = 0; j < num_stages; j++)
-                {
-                    int64_t stage_accesses = 0;
-                    for (auto &controller : controllers)
+                    for (auto &controller : dram_controllers)
                     {
-                        // i - request type; j - stage ID.
-                        stage_accesses += controller->stageAccess(i, j);
+                        total_reqs += controller->finished_requests;
+                        total_waiting_time += controller->total_waiting_time;
                     }
-                    std::string stage_access_prin =
-                                                "Stage-" + std::to_string(j) + "-"
-                                                + target + "-Access"
-                                                + " = "
-                                                + std::to_string(stage_accesses);
-                    stats.registerStats(stage_access_prin);
+                }
+                else if (m == int(Config::Memory_Node::PCM))
+                {
+                    for (auto &controller : pcm_controllers)
+                    {
+                        total_reqs += controller->finished_requests;
+                        total_waiting_time += controller->total_waiting_time;
+                    }
+                }
+
+                std::string technology = "N/A";
+                if (m == int(Config::Memory_Node::DRAM))
+                { technology = "DRAM_"; }
+                else if (m == int(Config::Memory_Node::PCM))
+                { technology = "PCM_"; }
+
+                std::string req_info = technology + "Total_Number_Requests = " + 
+                                       std::to_string(total_reqs);
+                std::string waiting_info = technology + "Total_Waiting_Time = " + 
+                                       std::to_string(total_waiting_time);
+                std::string access_latency = technology + "Access_Latency = " + 
+                                       std::to_string(double(total_waiting_time) / 
+                                                      double(total_reqs));
+                stats.registerStats(req_info);
+                stats.registerStats(waiting_info);
+                stats.registerStats(access_latency);
+
+                unsigned num_stages = 0;
+                if (m == int(Config::Memory_Node::DRAM))
+                {
+                    num_stages = dram_controllers[0]->numStages();
+                }
+                else if (m == int(Config::Memory_Node::PCM))
+                {
+                    num_stages = pcm_controllers[0]->numStages();
+                }
+
+                for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
+                {
+                    std::string target = "READ";
+                    if (i == int(CPAwareController::Req_Type::READ))
+                    {
+                        target = "READ";
+                    }
+                    if (i == int(CPAwareController::Req_Type::WRITE))
+                    {
+                        target = "WRITE";
+                    }
+                
+                    for (int j = 0; j < num_stages; j++)
+                    {
+                        int64_t stage_accesses = 0;
+                        if (m == int(Config::Memory_Node::DRAM))
+                        {
+                            for (auto &controller : dram_controllers)
+                            {
+                                // i - request type; j - stage ID.
+                                stage_accesses += controller->stageAccess(i, j);
+                            }
+                        }
+                        else if (m == int(Config::Memory_Node::PCM))
+                        {
+                            for (auto &controller : pcm_controllers)
+                            {
+                                // i - request type; j - stage ID.
+                                stage_accesses += controller->stageAccess(i, j);
+                            }
+                        }
+
+                        std::string stage_access_prin = technology + 
+                                                        "Stage_" + std::to_string(j) + "_"
+                                                        + target + "_Access"
+                                                        + " = "
+                                                        + std::to_string(stage_accesses);
+                        stats.registerStats(stage_access_prin);
+                    }
                 }
             }
         }
-	*/
     }
 
   private:

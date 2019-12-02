@@ -175,7 +175,7 @@ class Hybrid : public MMU
     {
         int core_id = req.core_id;
 
-        Addr va = req.eip;
+        Addr va = req.addr;
         Addr virtual_page_id = va >> Mapper::va_page_shift;
 
         auto &pages = pages_by_cores[core_id];
@@ -262,6 +262,18 @@ class Hybrid : public MMU
 
         std::cerr << "Invalid Page ID.\n";
         exit(0);
+    }
+
+    void registerStats(Simulator::Stats &stats)
+    {
+        uint64_t num_pages = 0;
+        for (auto &pages : pages_by_cores)
+        {
+            num_pages += pages.size();
+        }
+
+        std::string prin = "MMU_Total_Pages = " + std::to_string(num_pages);
+        stats.registerStats(prin);
     }
 };
 }
