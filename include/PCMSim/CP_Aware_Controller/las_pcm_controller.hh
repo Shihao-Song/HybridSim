@@ -302,8 +302,6 @@ class LASPCM : public FCFSController
     {
         // Discharge the bank when it's done serving on-going request.
         // Or the bank is serving another type of request.
-        // TODO, this logic needs to be revisited if we want to integrate PLP with
-        // LAS-PCM.
         if (channel->isFree(rank_id, bank_id) || 
             cp_type != sTab[rank_id][bank_id].cur_busy_cp)
         {
