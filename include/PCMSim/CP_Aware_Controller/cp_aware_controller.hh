@@ -7,6 +7,7 @@
 // anymore.
 namespace PCMSim
 {
+// The TL has been disabled for the pending submission.
 class CPAwareController : public FRFCFSController
 {
   public:
@@ -14,8 +15,8 @@ class CPAwareController : public FRFCFSController
 
   protected:
     // Only consider near and far segments.
-    unsigned num_stages = 2;
-//    unsigned num_stages = 1;
+//    unsigned num_stages = 2;
+    unsigned num_stages = 1;
     const unsigned num_rows_per_stage = 512;
 
   protected:
@@ -35,7 +36,8 @@ class CPAwareController : public FRFCFSController
     const float read_latencies_ns[2] = {41.25, 56.25};
     const float write_latencies_ns[2] = {119.75, 161.55};
 
-    bool tl_enable = true;
+//    bool tl_enable = true;
+    bool tl_enable = false;
 
   public:
     CPAwareController(int _id, Config &cfg) : FRFCFSController(_id, cfg)
@@ -193,7 +195,7 @@ class TLDRAMController : public FRFCFSController
     // Only consider near and far segments.
     unsigned num_stages = 2;
 //    const unsigned num_stages = 1;
-    const unsigned num_rows_per_stage = 512;
+    const unsigned num_rows_per_stage = 128;
 
   protected:
     std::vector<uint64_t> stage_accesses[int(Req_Type::MAX)];

@@ -94,6 +94,9 @@ class Config
                                   1024 / 1024 / 1024;
         return size;
     }
+
+    // Supported memory node type
+    enum class Memory_Node : int { DRAM, PCM, MAX };
 };
 }
 #endif

@@ -61,6 +61,9 @@ class MMU
     // MMU should have acess to the memory system to perform page migration
     void setMemSystem(MemObject *_sys) { mem_system = _sys; }
 
+    // Based on the PA, determine which memory node the page is. (For hybrid MMU)
+    virtual int memoryNode(Request &req) { return -1; }
+
     // Register MMU statistics
     virtual void registerStats(Simulator::Stats &stats) {}
 

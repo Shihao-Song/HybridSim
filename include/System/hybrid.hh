@@ -86,7 +86,6 @@ class Hybrid : public MMU
     };
     std::vector<Mig_Page> pages_to_migrate;
 
-    enum class Memory_Node : int { DRAM, PCM, MAX };
     // Memory sizes 
     std::vector<unsigned> mem_size_in_gb;
 
@@ -95,9 +94,16 @@ class Hybrid : public MMU
 
     // A pool of free physical pages, one for DRAM, one for PCM
     std::vector<std::vector<Addr>> free_frame_pool_by_technology;
+    
+    // A pool of free fast-access physical pages, one for DRAM, one for PCM
+    const unsigned NUM_FAST_ACCESS_ROWS[int(Config::Memory_Node::MAX)] = {128, 512};
+    std::vector<std::vector<Addr>> free_fast_access_frame_pool_by_technology;
+
+    // A pool of free slow-access physical pages, one for DRAM, one for PCM
+    std::vector<std::vector<Addr>> free_slow_access_frame_pool_by_technology;
 
     // A pool of used physical pages, one for DRAM, one for PCM
-    std::vector<std::vector<Addr>> used_frame_pool_by_technology;
+    std::vector<std::unordered_map<Addr,bool>> used_frame_pool_by_technology;
 
   public:
     Hybrid(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
@@ -112,20 +118,56 @@ class Hybrid : public MMU
         page_id_helpers_by_technology.emplace_back(dram_cfg);
         page_id_helpers_by_technology.emplace_back(pcm_cfg);
 
-        free_frame_pool_by_technology.resize(int(Memory_Node::MAX));
-        used_frame_pool_by_technology.resize(int(Memory_Node::MAX));
+        free_frame_pool_by_technology.resize(int(Config::Memory_Node::MAX));
+        free_fast_access_frame_pool_by_technology.resize(int(Config::Memory_Node::MAX));
+        free_slow_access_frame_pool_by_technology.resize(int(Config::Memory_Node::MAX));
+        used_frame_pool_by_technology.resize(int(Config::Memory_Node::MAX));
 
         // Construct all available pages
         auto rng = std::default_random_engine {};
-        for (int m = 0; m < int(Memory_Node::MAX); m++)
+        for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
         {
             for (int i = 0; i < mem_size_in_gb[m] * 1024 * 1024 / 4; i++)
             {
+                // All available pages
                 free_frame_pool_by_technology[m].push_back(i);
+
+                // All free fast-access and slow-access physical pages
+                auto &mem_addr_decoding_bits = 
+                    page_id_helpers_by_technology[m].mem_addr_decoding_bits;
+                std::vector<int> dec_addr;
+                dec_addr.resize(mem_addr_decoding_bits.size());
+                Decoder::decode(i << Mapper::va_page_shift,
+                                mem_addr_decoding_bits,
+                                dec_addr);
+
+                int row_idx = page_id_helpers_by_technology[m].row_idx;
+                if (dec_addr[row_idx] < NUM_FAST_ACCESS_ROWS[m])
+                {
+                    free_fast_access_frame_pool_by_technology[m].push_back(i);
+                }
+                else
+                {
+                    free_slow_access_frame_pool_by_technology[m].push_back(i);
+                }
             }
+
+            std::shuffle(std::begin(free_fast_access_frame_pool_by_technology[m]),
+                         std::end(free_fast_access_frame_pool_by_technology[m]), rng);
+
+            std::shuffle(std::begin(free_slow_access_frame_pool_by_technology[m]),
+                         std::end(free_slow_access_frame_pool_by_technology[m]), rng);
+
             std::shuffle(std::begin(free_frame_pool_by_technology[m]),
                          std::end(free_frame_pool_by_technology[m]), rng);
+            // std::cout << "Number of fast-access pages: "
+            //           << free_fast_access_frame_pool_by_technology[m].size() << "\n";
+            // std::cout << "Number of slow-access pages: "
+            //           << free_slow_access_frame_pool_by_technology[m].size() << "\n";
+            // std::cout << "Total number of pages: "
+            //           << free_frame_pool_by_technology[m].size() << "\n\n";
         }
+        // exit(0);
     }
 
     // Default: randomly map a virtual page to DRAM or PCM (segment is not considered)
@@ -137,6 +179,7 @@ class Hybrid : public MMU
         Addr virtual_page_id = va >> Mapper::va_page_shift;
 
         auto &pages = pages_by_cores[core_id];
+
         if (auto p_iter = pages.find(virtual_page_id);
                 p_iter != pages.end())
         {
@@ -146,8 +189,8 @@ class Hybrid : public MMU
         }
         else
         {
-            int total_mem_size = mem_size_in_gb[int(Memory_Node::DRAM)] + 
-                                 mem_size_in_gb[int(Memory_Node::PCM)];
+            int total_mem_size = mem_size_in_gb[int(Config::Memory_Node::DRAM)] + 
+                                 mem_size_in_gb[int(Config::Memory_Node::PCM)];
 
             static std::default_random_engine e{};
             static std::uniform_int_distribution<int> d{1, total_mem_size};
@@ -155,45 +198,70 @@ class Hybrid : public MMU
             // Randomly determine which technology to be mapped
             int chosen_technology = 0;
             if (int random_num = d(e);
-                random_num <= mem_size_in_gb[int(Memory_Node::DRAM)])
+                random_num <= mem_size_in_gb[int(Config::Memory_Node::DRAM)])
             {
-                chosen_technology = int(Memory_Node::DRAM);
-                std::cout << "Mapped to DRAM \n";
+                chosen_technology = int(Config::Memory_Node::DRAM);
+                // std::cout << "Mapped to DRAM \n";
             }
             else
             {
-                chosen_technology = int(Memory_Node::PCM);
-                std::cout << "Mapped to PCM \n";
+                chosen_technology = int(Config::Memory_Node::PCM);
+                // std::cout << "Mapped to PCM \n";
             }
-            auto &free_frames = free_frame_pool_by_technology[chosen_technology];
+
+            auto &free_frames = free_fast_access_frame_pool_by_technology[chosen_technology];
+            if (free_frames.size() == 0)
+            {
+                free_frames = free_slow_access_frame_pool_by_technology[chosen_technology];
+            }
+
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
-            std::cout << "Size of free frames: " << free_frames.size() << "\n";
-            std::cout << "Size of used frames: " << used_frames.size() << "\n";
+            // std::cout << "Size of free frames: " << free_frames.size() << "\n";
+            // std::cout << "Size of used frames: " << used_frames.size() << "\n";
 
             // Choose a free frame
             Addr free_frame = *(free_frames.begin());
-            for (int i = 0; i < 11; i++)
-            {
-                std::cout << free_frames[i] << "\n";
-            }
+            // for (int i = 0; i < 11; i++)
+            // {
+            //     std::cout << free_frames[i] << "\n";
+            // }
 
             free_frames.erase(free_frames.begin());
-            used_frames.push_back(free_frame);
+            used_frames.insert({free_frame, true});
 
-            std::cout << "\nSize of free frames: " << free_frames.size() << "\n";
-            std::cout << "Size of used frames: " << used_frames.size() << "\n";
-            for (int i = 0; i < 10; i++)
-            {
-                std::cout << free_frames[i] << "\n";
-            }
+            // std::cout << "\nSize of free frames: " << free_frames.size() << "\n";
+            // std::cout << "Size of used frames: " << used_frames.size() << "\n";
+            // for (int i = 0; i < 10; i++)
+            // {
+            //     std::cout << free_frames[i] << "\n";
+            // }
 
             req.addr = (free_frame << Mapper::va_page_shift) |
                        (va & Mapper::va_page_mask);
-            std::cout << "\nPhysical address: " << req.addr << "\n";
+            // std::cout << "\nPhysical address: " << req.addr << "\n";
             // Insert the page
             pages.insert({virtual_page_id, {virtual_page_id, free_frame}});
-            exit(0);
+            // exit(0);
         }
+    }
+
+    int memoryNode(Request &req) override
+    {
+        Addr page_id = req.addr >> Mapper::va_page_shift;
+        // std::cout << "Page ID: " << page_id << "\n";
+        for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
+        {
+            auto &used_frames = used_frame_pool_by_technology[m];
+
+            if (auto p_iter = used_frames.find(page_id);
+                    p_iter != used_frames.end())
+            {
+                return m;
+            }
+        }
+
+        std::cerr << "Invalid Page ID.\n";
+        exit(0);
     }
 };
 }

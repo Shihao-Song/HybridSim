@@ -7,6 +7,7 @@
 #include "Sim/stats.hh"
 
 // This class should be the base class for all the memory component
+namespace System { class MMU; }
 namespace Simulator
 {
 class MemObject
@@ -60,7 +61,10 @@ class MemObject
     // Write-back all the physical address belong to the given page_id.
     // virtual bool writeback(uint64_t page_id) = 0;
 
+    void setMMU(System::MMU *_mmu) { mmu = _mmu; }
   protected:
+    System::MMU *mmu; // Give mem object access to MMU
+
     MemObject *next_level;
 
     int id = -1;

@@ -84,43 +84,35 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     bool send(Request &req) override
     {
-        // TODO, need MMU assistant to determine which memory to send
-/*
-        req.addr_vec.resize(int(Config::Decoding::MAX));
-
-        Decoder::decode(req.addr, memory_addr_decoding_bits, req.addr_vec);
-*/
-/*
-        std::cout << "\n Address: " << req.addr << "\n";
-        std::cout << "Rank: " << req.addr_vec[int(Config::Decoding::Rank)] << "\n"; 
-        std::cout << "Partition: " << req.addr_vec[int(Config::Decoding::Partition)] << "\n";
-        std::cout << "Tile: " << req.addr_vec[int(Config::Decoding::Tile)] << "\n";
-        std::cout << "Row: " << req.addr_vec[int(Config::Decoding::Row)] << "\n";
-        std::cout << "Col: " << req.addr_vec[int(Config::Decoding::Col)] << "\n";
-        std::cout << "Bank: " << req.addr_vec[int(Config::Decoding::Bank)] << "\n";
-        std::cout << "Channel: " << req.addr_vec[int(Config::Decoding::Channel)] << "\n";
-        std::cout << "Block: " << req.addr_vec[int(Config::Decoding::Cache_Line)] << "\n";
-*/
-/*
-        int channel_id = req.addr_vec[int(Config::Decoding::Channel)];
-
-        if(controllers[channel_id]->enqueue(req))
+        // std::cout << req.addr  << "\n";
+        int memory_node = mmu->memoryNode(req);
+        if (memory_node == int(Config::Memory_Node::DRAM))
         {
-            if (mem_trace_extr_mode)
+            // std::cout << "In DRAM. \n";
+
+            req.addr_vec.resize(int(Config::Decoding::MAX));
+            Decoder::decode(req.addr, dram_memory_addr_decoding_bits, req.addr_vec);
+
+            int channel_id = req.addr_vec[int(Config::Decoding::Channel)];
+            if(dram_controllers[channel_id]->enqueue(req))
             {
-                mem_trace << req.addr << " ";
-                if (req.req_type == Request::Request_Type::READ)
-                {
-                    mem_trace << "R\n";
-                }
-                else if (req.req_type == Request::Request_Type::WRITE)
-                {
-                    mem_trace << "W\n";
-                }
+                return true;
             }
-            return true;
         }
-*/
+        else if (memory_node == int(Config::Memory_Node::PCM))
+        {
+            // std::cout << "In PCM. \n";
+
+            req.addr_vec.resize(int(Config::Decoding::MAX));
+            Decoder::decode(req.addr, pcm_memory_addr_decoding_bits, req.addr_vec);
+	    
+            int channel_id = req.addr_vec[int(Config::Decoding::Channel)];
+            if(pcm_controllers[channel_id]->enqueue(req))
+            {
+                return true;
+            }
+        }
+	
         return false;
     }
 
@@ -231,12 +223,10 @@ class PCMSimMemorySystem : public Simulator::MemObject
     
     void init(Config &dram_cfg, Config &pcm_cfg)
     {
-        std::cout << "Good \n";
-        exit(0);
-
         for (int i = 0; i < dram_cfg.num_of_channels; i++)
         {
-            dram_controllers.push_back(std::move(std::make_unique<TLDRAMController>(i, dram_cfg)));
+            dram_controllers.push_back(std::move(std::make_unique<TLDRAMController>(i, 
+                                                                                    dram_cfg)));
         }
         dram_memory_addr_decoding_bits = dram_cfg.mem_addr_decoding_bits;
 
@@ -257,10 +247,10 @@ class PCMSimMemorySystemFactory
 
   private:
     std::unordered_map<std::string,
-                       std::function<std::unique_ptr<MemObject>(Config&)>> pcm_factories;
+        std::function<std::unique_ptr<MemObject>(Config&)>> pcm_factories;
 
     std::unordered_map<std::string,
-                       std::function<std::unique_ptr<MemObject>(Config&,Config&)>> hybrid_factories;
+        std::function<std::unique_ptr<MemObject>(Config&,Config&)>> hybrid_factories;
 
   public:
     PCMSimMemorySystemFactory()
@@ -276,9 +266,9 @@ class PCMSimMemorySystemFactory
                             };
 
         pcm_factories["CP-AWARE"] = [](Config &pcm_cfg)
-                                {
-                                    return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
-                                };
+                            {
+                                return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
+                            };
 
         pcm_factories["LASPCM"] = [](Config &pcm_cfg)
                           {
@@ -286,10 +276,10 @@ class PCMSimMemorySystemFactory
                           };
 
         hybrid_factories["CP-AWARE"] = [](Config &dram_cfg, Config &pcm_cfg)
-                                {
-                                    return std::make_unique<CP_Aware_PCMSimMemorySystem>(dram_cfg,
-                                                                                         pcm_cfg);
-                                };
+                          {
+                              return std::make_unique<CP_Aware_PCMSimMemorySystem>(dram_cfg,
+                                                                                   pcm_cfg);
+                          };
 
         hybrid_factories["LASPCM"] = [](Config &dram_cfg, Config &pcm_cfg)
                           {
@@ -341,6 +331,5 @@ static auto createHybridMemorySystem(Simulator::Config &dram_cfg, Simulator::Con
 {
     return PCMSimMemorySystemFactories.createHybridMemorySystem(dram_cfg, pcm_cfg);
 }
-
 }
 #endif

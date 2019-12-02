@@ -166,7 +166,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     // simulator.
     std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, dram_cfg, pcm_cfg));
     mmu->setMemSystem(DRAM_PCM.get());
-    // TODO, give memory system access to MMU
+    DRAM_PCM->setMMU(mmu.get());
 
     // Create Processor 
     std::unique_ptr<Processor> processor(new Processor(trace_lists, L2.get()));

@@ -6,12 +6,6 @@ Config::Config(const std::string &cfg_file)
 {
     parse(cfg_file);
 
-    if (mmu_type == "Hybrid")
-    {
-        // TODO, memory controller should not only be Hybrid
-        assert(mem_controller_type == "Hybrid");
-    }
-
     // Generate memory address decoding bits
     genMemAddrDecodingBits();
 }
