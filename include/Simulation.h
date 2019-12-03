@@ -41,7 +41,7 @@ struct ParseArgsRet
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
-    std::string offline_request_analysis_file;
+    std::string offline_request_analysis_dir;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -109,7 +109,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> cpu_traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
-    std::string offline_request_analysis_file;
+    std::string offline_request_analysis_dir = "N/A";
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
@@ -125,9 +125,9 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                    "Number of instructions per phase (Optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
                         "Stats output file")
-        ("offline_request_analysis_file",
-            po::value<std::string>(&offline_request_analysis_file),
-            "Offline request analysis file");
+        ("offline_request_analysis_dir",
+            po::value<std::string>(&offline_request_analysis_dir),
+            "Offline request analysis directory");
 
     po::variables_map vm;
 
@@ -156,7 +156,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         cpu_traces,
                         num_instrs_per_phase,
                         stats_output,
-                        offline_request_analysis_file};
+                        offline_request_analysis_dir};
 }
 
 // Function to test cache behavior.

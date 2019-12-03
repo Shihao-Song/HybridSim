@@ -32,9 +32,11 @@ class PCMSimMemorySystem : public Simulator::MemObject
     std::vector<int> dram_memory_addr_decoding_bits;
 
   private:
-    // Only for PCM
     bool offline_req_analysis_mode = false;
     std::ofstream offline_req_ana_output;
+
+    bool offline_cp_analysis_mode = false;
+    std::ofstream offline_cp_ana_output;
 
   public:
     typedef uint64_t Addr;
@@ -60,6 +62,11 @@ class PCMSimMemorySystem : public Simulator::MemObject
         if (offline_req_analysis_mode)
         {
             offline_req_ana_output.close();
+        }
+
+        if (offline_cp_analysis_mode)
+        {
+            offline_cp_ana_output.close();
         }
     }
 
@@ -143,14 +150,29 @@ class PCMSimMemorySystem : public Simulator::MemObject
         }
     }
 
-    void offlineReqAnalysis(std::string &file) override
+    void offlineReqAnalysis(std::string &dir) override
     {
         offline_req_analysis_mode = true;
-        offline_req_ana_output.open(file);
+
+        std::string req_file = dir + "/req_info.csv";
+        offline_req_ana_output.open(req_file);
 
         for (auto &pcm_controller : pcm_controllers)
         {
             pcm_controller->offlineReqAnalysis(&offline_req_ana_output);
+        }
+
+        if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value)
+        {
+	    offline_cp_analysis_mode = true;
+
+            std::string cp_file = dir + "/cp_info.csv";
+            offline_cp_ana_output.open(cp_file);
+
+            for (auto &pcm_controller : pcm_controllers)
+            {
+                pcm_controller->offlineCPAnalysis(&offline_cp_ana_output);
+            }
         }
     }
 
@@ -258,6 +280,57 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 }
             }
         }
+        else
+        {
+            for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
+            {
+                if (m == int(Config::Memory_Node::DRAM) && 
+                    dram_controllers.size() == 0)
+                { continue; }
+
+                if (m == int(Config::Memory_Node::PCM) && 
+                    pcm_controllers.size() == 0)
+                { continue; }
+
+                uint64_t total_reqs = 0;
+                uint64_t total_waiting_time = 0;
+
+                if (m == int(Config::Memory_Node::DRAM))
+                {
+                    for (auto &controller : dram_controllers)
+                    {
+                        total_reqs += controller->finished_requests;
+                        total_waiting_time += controller->total_waiting_time;
+                    }
+                }
+                else if (m == int(Config::Memory_Node::PCM))
+                {
+                    for (auto &controller : pcm_controllers)
+                    {
+                        total_reqs += controller->finished_requests;
+                        total_waiting_time += controller->total_waiting_time;
+                    }
+                }
+
+                std::string technology = "N/A";
+                if (m == int(Config::Memory_Node::DRAM))
+                { technology = "DRAM_"; }
+                else if (m == int(Config::Memory_Node::PCM))
+                { technology = "PCM_"; }
+
+                std::string req_info = technology + "Total_Number_Requests = " + 
+                                       std::to_string(total_reqs);
+                std::string waiting_info = technology + "Total_Waiting_Time = " + 
+                                       std::to_string(total_waiting_time);
+                std::string access_latency = technology + "Access_Latency = " + 
+                                       std::to_string(double(total_waiting_time) / 
+                                                      double(total_reqs));
+                stats.registerStats(req_info);
+                stats.registerStats(waiting_info);
+                stats.registerStats(access_latency);
+
+            }
+        }
     }
 
   private:
@@ -288,6 +361,7 @@ typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<LAS_PCM_Base> LASPCM_Base_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -319,10 +393,16 @@ class PCMSimMemorySystemFactory
                                 return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
                             };
 
-        pcm_factories["LASPCM"] = [](Config &pcm_cfg)
+        pcm_factories["LAS-PCM"] = [](Config &pcm_cfg)
                           {
                               return std::make_unique<LASPCM_PCMSimMemorySystem>(pcm_cfg);
                           };
+	
+        pcm_factories["LAS-PCM-Base"] = [](Config &pcm_cfg)
+            {
+                return std::make_unique<LASPCM_Base_PCMSimMemorySystem>(pcm_cfg);
+            };
+
 
         hybrid_factories["CP-AWARE"] = [](Config &dram_cfg, Config &pcm_cfg)
                           {
@@ -330,7 +410,7 @@ class PCMSimMemorySystemFactory
                                                                                    pcm_cfg);
                           };
 
-        hybrid_factories["LASPCM"] = [](Config &dram_cfg, Config &pcm_cfg)
+        hybrid_factories["LAS-PCM"] = [](Config &dram_cfg, Config &pcm_cfg)
                           {
                               return std::make_unique<LASPCM_PCMSimMemorySystem>(dram_cfg,
                                                                                  pcm_cfg);

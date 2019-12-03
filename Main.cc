@@ -7,13 +7,13 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                       std::vector<std::string> &trace_lists,
                                       int64_t num_instrs_per_phase,
                                       std::string &stats_output_file,
-                                      std::string &offline_request_analysis_file);
+                                      std::string &offline_request_analysis_dir);
 
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
                                             std::string &stats_output_file,
-                                            std::string &offline_request_analysis_file);
+                                            std::string &offline_request_analysis_dir);
 
 int main(int argc, const char *argv[])
 {
@@ -22,7 +22,7 @@ int main(int argc, const char *argv[])
           trace_lists,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           stats_output_file,
-          offline_request_analysis_file] = parse_args(argc, argv);
+          offline_request_analysis_dir] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
     assert(pcm_cfg_file != "N/A");
 
@@ -45,7 +45,7 @@ int main(int argc, const char *argv[])
                                                trace_lists,
                                                num_instrs_per_phase,
                                                stats_output_file,
-                                               offline_request_analysis_file);
+                                               offline_request_analysis_dir);
     }
     else
     {
@@ -53,7 +53,7 @@ int main(int argc, const char *argv[])
                                          trace_lists,
                                          num_instrs_per_phase,
                                          stats_output_file,
-                                         offline_request_analysis_file);
+                                         offline_request_analysis_dir);
     }
 }
 
@@ -61,14 +61,14 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                       std::vector<std::string> &trace_lists,
                                       int64_t num_instrs_per_phase,
                                       std::string &stats_output_file,
-                                      std::string &offline_request_analysis_file)
+                                      std::string &offline_request_analysis_dir)
 {
     unsigned num_of_cores = trace_lists.size();
     Config &pcm_cfg = cfgs[0];
 
     // Create (PCM) main memory
     std::unique_ptr<MemObject> PCM(createMemObject(pcm_cfg, Memories::PCM));
-//    PCM->offlineReqAnalysis(offline_request_analysis_file);
+    PCM->offlineReqAnalysis(offline_request_analysis_dir);
 
     // Create eDRAM
     std::unique_ptr<MemObject> eDRAM(createMemObject(pcm_cfg, Memories::eDRAM, isLLC));
@@ -109,7 +109,7 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
         processor->setDCache(i, L1_D_all[i].get());
     }
     
-    std::cout << "\nSimulation Stage...\n\n";
+    std::cout << "\nSimulation Stage (eDRAM-PCM system)...\n\n";
     runCPUTrace(processor.get());
 
     // Collecting Stats
@@ -121,8 +121,8 @@ void eDRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     }
     L2->registerStats(stats);
     eDRAM->registerStats(stats);
-    mmu->registerStats(stats);
     PCM->registerStats(stats);
+    mmu->registerStats(stats);
     stats.registerStats("Execution Time (cycles) = " + 
                         std::to_string(processor->exeTime()));
     stats.outputStats(stats_output_file);
@@ -133,7 +133,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
                                             std::string &stats_output_file,
-                                            std::string &offline_request_analysis_file)
+                                            std::string &offline_request_analysis_dir)
 {
     unsigned num_of_cores = trace_lists.size();
     Config &dram_cfg = cfgs[0];
@@ -178,7 +178,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
         processor->setDCache(i, L1_D_all[i].get());
     }
 
-    std::cout << "\nSimulation Stage...\n\n";
+    std::cout << "\nSimulation Stage (Hybrid DRAM-PCM system)...\n\n";
     runCPUTrace(processor.get());
 
     // Collecting Stats

@@ -29,6 +29,9 @@ class BaseController
     std::unique_ptr<Array> channel;
     int id; // controller/channel ID
 
+    const unsigned num_of_ranks;
+    const unsigned num_of_banks;
+
   protected:
     Tick clk;
 
@@ -42,7 +45,10 @@ class BaseController
 
   public:  
 
-    BaseController(int _id, Config &cfg) : id(_id), clk(0)
+    BaseController(int _id, Config &cfg) : id(_id)
+                                         , num_of_ranks(cfg.num_of_ranks)
+                                         , num_of_banks(cfg.num_of_banks)
+                                         , clk(0)
     {
         channel = std::make_unique<Array>(Config::Array_Level::Channel, cfg);
         channel->id = _id;
@@ -197,23 +203,26 @@ class FCFSController : public BaseController
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
-                        if (offline_req_analysis_mode)
+            if (offline_req_analysis_mode)
             {
                 if (req.req_type == Request::Request_Type::READ)
                 {
-                    *offline_req_ana_output << "R ";
+                    *offline_req_ana_output << "R,";
                 }
                 else
                 {
-                    *offline_req_ana_output << "W ";
+                    *offline_req_ana_output << "W,";
                 }
 
-                *offline_req_ana_output << req.addr_vec[int(Config::Decoding::Channel)] << " "
-                    << req.addr_vec[int(Config::Decoding::Rank)] << " "
-                    << req.addr_vec[int(Config::Decoding::Bank)] << " "
-                    << req.addr_vec[int(Config::Decoding::Row)] << " "
-                    << req.queue_arrival << " "
-                    << req.begin_exe << " "
+                unsigned uni_bank_id = req.addr_vec[int(Config::Decoding::Channel)] *
+                                       num_of_ranks * num_of_banks +
+                                       req.addr_vec[int(Config::Decoding::Rank)] *
+                                       num_of_banks +
+                                       req.addr_vec[int(Config::Decoding::Bank)];
+                *offline_req_ana_output << uni_bank_id << ","
+                    // << req.addr_vec[int(Config::Decoding::Row)] << ","
+                    << req.queue_arrival << ","
+                    << req.begin_exe << ","
                     << req.end_exe << "\n";
 		*offline_req_ana_output << std::flush;
             }
@@ -224,9 +233,9 @@ class FCFSController : public BaseController
                 {
                     if (!req.mig)
                     {
-                    uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
-                    total_waiting_time += waiting_time;
-                    ++finished_requests;
+                        uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
+                        total_waiting_time += waiting_time;
+                        ++finished_requests;
                     }
                     r_w_pending_queue.pop_front();
                 }
@@ -235,9 +244,9 @@ class FCFSController : public BaseController
             {
                 if (!req.mig)
 		{
-                uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
-                total_waiting_time += waiting_time;
-                ++finished_requests;
+                    uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
+                    total_waiting_time += waiting_time;
+                    ++finished_requests;
                 }
                 r_w_pending_queue.pop_front();
             }
