@@ -163,7 +163,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
         }
 
         if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value || 
-                      std::is_same<LAS_PCM_Static, PCMController>::value)
+                      std::is_same<LAS_PCM_Static, PCMController>::value ||
+                      std::is_same<LAS_PCM_Controller, PCMController>::value)
         {
 	    offline_cp_analysis_mode = true;
 
@@ -227,10 +228,14 @@ class PCMSimMemorySystem : public Simulator::MemObject
             stats.registerStats(access_latency);
         }
 
-        if constexpr (std::is_same<LAS_PCM_Static, PCMController>::value)
+        if constexpr (std::is_same<LAS_PCM_Static, PCMController>::value || 
+                      std::is_same<LAS_PCM_Controller, PCMController>::value)
         {
             for (auto &controller : pcm_controllers)
             {
+                // Make sure all the pumps are closed.
+                controller->drained();
+
                 std::string prin = "PCM_Channel_" + std::to_string(controller->id)
                                    + "_Min_Charging = "
                                    + std::to_string(controller->min_charging);

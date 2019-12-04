@@ -111,23 +111,145 @@ class LASPCM : public FCFSController
                 return std::make_pair(false, r_w_q.end());
             }
 
-            // Step two: scan the the queue and find out all the targeting ranks, banks.
-            QueueHash target_rank_bank;
-            for (auto iter = r_w_q.begin(); iter != r_w_q.end(); iter++)
+            if (idle_threshold != -1) // When banks (CPs) are allowed to be idle
             {
-                int target_rank = (iter->addr_vec)[int(Config::Decoding::Rank)];
-                int target_bank = (iter->addr_vec)[int(Config::Decoding::Bank)];
-                
-                int uni_bank_id = target_rank * num_of_banks + target_bank;
-                int req_type = int(iter->req_type);
+                // Choice one: find the bank that has been idle most.
+                // Step two: scan the queue and find out all the target banks.
+                QueueHash target_rank_bank;
+                for (auto q_iter = r_w_q.begin(); q_iter != r_w_q.end(); q_iter++)
+                {
+                    int target_rank = (q_iter->addr_vec)[int(Config::Decoding::Rank)];
+                    int target_bank = (q_iter->addr_vec)[int(Config::Decoding::Bank)];
 
-                target_rank_bank.insert({std::make_pair(uni_bank_id, req_type),
-                                         iter});
-            }
+                    // The hash key contains two parts: universal bank ID and request type.	
+                    int uni_bank_id = target_rank * num_of_banks + target_bank;
+                    int req_type = int(q_iter->req_type);
+                    auto key = std::make_pair(uni_bank_id, req_type);
 
-            // Step three: find the most idle rank and bank.
-            std::pair<int,int> to_schedule;
+                    if (auto k_iter = target_rank_bank.find(key);
+                            k_iter == target_rank_bank.end())
+                    {
+                        target_rank_bank.insert({key, q_iter});
+                    }
+                }
+
+                // Step three: find the most idle rank and bank.
+                std::pair<int,int> to_schedule;
+                int most_idle = -1;
+                for (int i = 0; i < num_of_ranks; i++)
+                {
+                    for (int j = 0; j < num_of_banks; j++)
+                    {
+                        int uni_bank_id = i * num_of_banks + j;
+
+                        if (sTab[i][j].cp_status == CP_Status::RCP_ON || 
+                            sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                        {
+                            // Check (1) read charge pump is ON;
+                            // (2) there are requests that target this bank
+                            int req_type = int(Request::Request_Type::READ);
+                            auto key = std::make_pair(uni_bank_id, req_type);
+                            if (auto k_iter = target_rank_bank.find(key);
+                                    k_iter != target_rank_bank.end())
+                            {
+                                // Get the bank's idle time
+                                int bank_idle = iTab[i][j].idle[int(CP_Type::RCP)];
+
+                                if (most_idle == -1)
+                                {
+                                    most_idle = bank_idle;
+
+                                    to_schedule.first = uni_bank_id;
+                                    to_schedule.second = req_type;
+                                }
+                                else
+                                {
+                                    if (bank_idle > most_idle)
+                                    {
+                                        most_idle = bank_idle;
+
+                                        to_schedule.first = uni_bank_id;
+                                        to_schedule.second = req_type;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (sTab[i][j].cp_status == CP_Status::WCP_ON || 
+                            sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                        {
+                            // Check (1) the write charge pump is ON;
+                            // (2) there are more requests target the bank.
+                            int req_type = int(Request::Request_Type::WRITE);
+                            auto key = std::make_pair(uni_bank_id, req_type);
+                            if (auto k_iter = target_rank_bank.find(key);
+                                    k_iter != target_rank_bank.end())
+                            {
+                                int bank_idle = iTab[i][j].idle[int(CP_Type::WCP)];
+
+                                if (most_idle == -1)
+                                {
+                                    most_idle = bank_idle;
+
+                                    to_schedule.first = uni_bank_id;
+                                    to_schedule.second = req_type;
+                                }
+                                else
+                                {
+                                    if (bank_idle > most_idle)
+                                    {
+                                        most_idle = bank_idle;
+
+                                        to_schedule.first = uni_bank_id;
+                                        to_schedule.second = req_type;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             
+                // Step four, if there is no open bank, schedule the first request.
+                if (most_idle != -1)
+                {
+                    req = target_rank_bank.find(to_schedule)->second;
+                }
+            }
+            else // Banks are not allowd to stay idle.
+            {
+                // Choice two: find the open bank of the oldest request
+                for (auto q_iter = r_w_q.begin(); q_iter != r_w_q.end(); q_iter++)
+                {
+                    int target_rank = (q_iter->addr_vec)[int(Config::Decoding::Rank)];
+                    int target_bank = (q_iter->addr_vec)[int(Config::Decoding::Bank)];
+
+                    if (q_iter->req_type == Request::Request_Type::READ)
+                    {
+                        if (sTab[target_rank][target_bank].cp_status == CP_Status::RCP_ON || 
+                            sTab[target_rank][target_bank].cp_status == CP_Status::BOTH_ON)
+                        {
+                            req = q_iter;
+                            break;
+                        }
+                    }
+
+                    if (q_iter->req_type == Request::Request_Type::WRITE)
+                    {
+                        if (sTab[target_rank][target_bank].cp_status == CP_Status::WCP_ON || 
+                            sTab[target_rank][target_bank].cp_status == CP_Status::BOTH_ON)
+                        {
+                            req = q_iter;
+                            break;
+                        }
+                    }
+                }
+            }
+            // Step five, issue the request if it is issueable.
+            if (issueable(req))
+            {
+                return std::make_pair(true, req);
+            }
+            return std::make_pair(false, r_w_q.end());
         }
     }
 
@@ -163,6 +285,14 @@ class LASPCM : public FCFSController
                 charging_latency = nclks_rcp;
             }
 
+            if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+            {
+                // For LAS-PCM, the pump is no longer idle
+                aTab[target_rank][target_bank].aging[int(CP_Type::RCP)] += 
+                    iTab[target_rank][target_bank].idle[int(CP_Type::RCP)];
+                iTab[target_rank][target_bank].idle[int(CP_Type::RCP)] = 0;
+            }
+
             // Read charge pump is now the busy pump.
             sTab[target_rank][target_bank].cur_busy_cp = CP_Type::RCP;
         }
@@ -183,6 +313,14 @@ class LASPCM : public FCFSController
                 sTab[target_rank][target_bank].cp_status = CP_Status::BOTH_ON;
 
                 charging_latency = nclks_wcp;
+            }
+
+            if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+            {
+                // For LAS-PCM, the pump is no longer idle
+                aTab[target_rank][target_bank].aging[int(CP_Type::WCP)] += 
+                    iTab[target_rank][target_bank].idle[int(CP_Type::WCP)];
+                iTab[target_rank][target_bank].idle[int(CP_Type::WCP)] = 0;
             }
 
             // Write charge pump is now the busy pump.
@@ -349,45 +487,146 @@ class LASPCM : public FCFSController
 
     void dischargeOpenBanks()
     {
-        for (int i = 0; i < num_of_ranks; i++)
+        if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
         {
-            for (int j = 0; j < num_of_banks; j++)
+	    QueueHash target_rank_bank;
+            for (auto q_iter = r_w_q.begin(); q_iter != r_w_q.end(); q_iter++)
             {
-                // Discharge read charge pumps
-                if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
-                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
-                {
-                    Tick total_aging = aTab[i][j].aging[int(CP_Type::RCP)] +
-                                       iTab[i][j].idle[int(CP_Type::RCP)];
+                int target_rank = (q_iter->addr_vec)[int(Config::Decoding::Rank)];
+                int target_bank = (q_iter->addr_vec)[int(Config::Decoding::Bank)];
 
-                    if constexpr (std::is_same<BASE, Scheduler>::value)
+                // The hash key contains two parts: universal bank ID and request type.	
+                int uni_bank_id = target_rank * num_of_banks + target_bank;
+                int req_type = int(q_iter->req_type);
+                auto key = std::make_pair(uni_bank_id, req_type);
+
+                if (auto k_iter = target_rank_bank.find(key);
+                        k_iter == target_rank_bank.end())
+                {
+                    target_rank_bank.insert({key, q_iter});
+                }
+            }
+	    
+            for (int i = 0; i < num_of_ranks; i++)
+            {
+                for (int j = 0; j < num_of_banks; j++)
+                {
+                    int uni_bank_id = i * num_of_banks + j;
+
+                    // Discharge read charge pumps
+                    if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
+                        sTab[i][j].cp_status == CP_Status::BOTH_ON)
                     {
-                        // BASE discharges read charge for every request
-                        dischargeSingleBank(CP_Type::RCP, i, j);
+                        Tick total_aging = aTab[i][j].aging[int(CP_Type::RCP)] +
+                                           iTab[i][j].idle[int(CP_Type::RCP)];
+                    
+                        if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
+                        {
+                            // Discharge because of aging
+                            if (total_aging >= aging_threshold)
+                            {
+                                dischargeSingleBank(CP_Type::RCP, i, j);
+                            }
+                            // Discharge because of aging
+			    else if (iTab[i][j].idle[int(CP_Type::RCP)] >= idle_threshold)
+                            {
+                                dischargeSingleBank(CP_Type::RCP, i, j);
+                            }
+                            // Discharge because of there is no more request to the bank
+                            else
+                            {
+                                int req_type = int(Request::Request_Type::READ);
+                                auto key = std::make_pair(uni_bank_id, req_type);
+                                if (auto k_iter = target_rank_bank.find(key);
+                                        k_iter == target_rank_bank.end())
+                                {
+                                    dischargeSingleBank(CP_Type::RCP, i, j);
+                                }
+                            }
+                        }
                     }
 
-                    if constexpr (std::is_same<CP_STATIC, Scheduler>::value)
+                    // Discharge write charge pumps	
+                    if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
+                        sTab[i][j].cp_status == CP_Status::BOTH_ON)
                     {
-                        if (total_aging >= 1000)
+                        Tick total_aging = aTab[i][j].aging[int(CP_Type::WCP)] +
+                                           iTab[i][j].idle[int(CP_Type::WCP)];
+
+                        if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
                         {
-                            dischargeSingleBank(CP_Type::RCP, i, j);
+                            // Discharge because of aging
+                            if (total_aging >= aging_threshold)
+                            {
+                                dischargeSingleBank(CP_Type::WCP, i, j);
+                            }
+                            // Discharge because of aging
+                            else if (iTab[i][j].idle[int(CP_Type::WCP)] >= idle_threshold)
+                            {
+                                dischargeSingleBank(CP_Type::WCP, i, j);
+                            }
+                            // Discharge because of there is no more request to the bank
+                            else
+                            {
+                                int req_type = int(Request::Request_Type::WRITE);
+                                auto key = std::make_pair(uni_bank_id, req_type);
+                                if (auto k_iter = target_rank_bank.find(key);
+                                        k_iter == target_rank_bank.end())
+                                {
+                                    dischargeSingleBank(CP_Type::WCP, i, j);
+                                }
+                            }
                         }
                     }
                 }
+            }
+        }
 
-                // Discharge write charge pumps	
-                if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
-                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
+        if constexpr (std::is_same<CP_STATIC, Scheduler>::value ||
+                      std::is_same<BASE, Scheduler>::value)
+	{
+            for (int i = 0; i < num_of_ranks; i++)
+            {
+                for (int j = 0; j < num_of_banks; j++)
                 {
-                    Tick total_aging = aTab[i][j].aging[int(CP_Type::WCP)] +
-                                       iTab[i][j].idle[int(CP_Type::WCP)];
+                    int uni_bank_id = i * num_of_banks + j;
 
-                    if constexpr (std::is_same<CP_STATIC, Scheduler>::value || 
-                                  std::is_same<BASE, Scheduler>::value)
+                    // Discharge read charge pumps
+                    if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
+                        sTab[i][j].cp_status == CP_Status::BOTH_ON)
                     {
-                        // CP_STATIC and BASE discharge write charge pump after every
-                        // request.
-                        dischargeSingleBank(CP_Type::WCP, i, j);
+                        Tick total_aging = aTab[i][j].aging[int(CP_Type::RCP)] +
+                                           iTab[i][j].idle[int(CP_Type::RCP)];
+
+                        if constexpr (std::is_same<BASE, Scheduler>::value)
+                        {
+                            // BASE discharges read charge for every request
+                            dischargeSingleBank(CP_Type::RCP, i, j);
+                        }
+
+                        if constexpr (std::is_same<CP_STATIC, Scheduler>::value)
+                        {
+                            if (total_aging >= 1000)
+                            {
+                                dischargeSingleBank(CP_Type::RCP, i, j);
+                            }
+                        }
+                    }
+
+                    // Discharge write charge pumps	
+                    if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
+                        sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                    {
+                        Tick total_aging = aTab[i][j].aging[int(CP_Type::WCP)] +
+                                           iTab[i][j].idle[int(CP_Type::WCP)];
+
+                        if constexpr (std::is_same<CP_STATIC, Scheduler>::value || 
+                                      std::is_same<BASE, Scheduler>::value)
+                        {
+                            // CP_STATIC and BASE discharge write charge pump after every
+                            // request.
+                            dischargeSingleBank(CP_Type::WCP, i, j);
+                        }
                     }
                 }
             }
@@ -531,6 +770,35 @@ class LASPCM : public FCFSController
 
                 aTab[rank_id][bank_id].aging[int(CP_Type::WCP)] = 0;
                 iTab[rank_id][bank_id].idle[int(CP_Type::WCP)] = 0;
+            }
+        }
+    }
+
+  public:
+    // End of simulation, make sure all the pumps are shut down.
+    virtual void drained()
+    {
+        for (int i = 0; i < num_of_ranks; i++)
+        {
+            for (int j = 0; j < num_of_banks; j++)
+            {
+                int uni_bank_id = i * num_of_banks + j;
+
+                // Discharge read charge pumps
+                if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
+                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                {
+                    dischargeSingleBank(CP_Type::RCP, i, j);
+                }
+
+                // Discharge write charge pumps	
+                if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
+                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                {
+                    dischargeSingleBank(CP_Type::WCP, i, j);
+		}
+
+                assert(sTab[i][j].cp_status == CP_Status::BOTH_OFF);	
             }
         }
     }
