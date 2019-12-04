@@ -162,7 +162,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
             pcm_controller->offlineReqAnalysis(&offline_req_ana_output);
         }
 
-        if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value)
+        if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value || 
+                      std::is_same<LAS_PCM_Static, PCMController>::value)
         {
 	    offline_cp_analysis_mode = true;
 
@@ -178,55 +179,94 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     void registerStats(Simulator::Stats &stats) override
     {
-        // TODO, need to register stats for both DRAM and PCM
+        for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
+        {
+            if (m == int(Config::Memory_Node::DRAM) && 
+                dram_controllers.size() == 0)
+            { continue; }
+
+            if (m == int(Config::Memory_Node::PCM) && 
+                pcm_controllers.size() == 0)
+            { continue; }
+
+            uint64_t total_reqs = 0;
+            uint64_t total_waiting_time = 0;
+
+            if (m == int(Config::Memory_Node::DRAM))
+            {
+                for (auto &controller : dram_controllers)
+                {
+                    total_reqs += controller->finished_requests;
+                    total_waiting_time += controller->total_waiting_time;
+                }
+            }
+            else if (m == int(Config::Memory_Node::PCM))
+            {
+                for (auto &controller : pcm_controllers)
+                {
+                    total_reqs += controller->finished_requests;
+                    total_waiting_time += controller->total_waiting_time;
+                }
+            }
+
+            std::string technology = "N/A";
+            if (m == int(Config::Memory_Node::DRAM))
+            { technology = "DRAM_"; }
+            else if (m == int(Config::Memory_Node::PCM))
+            { technology = "PCM_"; }
+
+            std::string req_info = technology + "Total_Number_Requests = " + 
+                                   std::to_string(total_reqs);
+            std::string waiting_info = technology + "Total_Waiting_Time = " + 
+                                   std::to_string(total_waiting_time);
+            std::string access_latency = technology + "Access_Latency = " + 
+                                   std::to_string(double(total_waiting_time) / 
+                                                  double(total_reqs));
+            stats.registerStats(req_info);
+            stats.registerStats(waiting_info);
+            stats.registerStats(access_latency);
+        }
+
+        if constexpr (std::is_same<LAS_PCM_Static, PCMController>::value)
+        {
+            for (auto &controller : pcm_controllers)
+            {
+                std::string prin = "PCM_Channel_" + std::to_string(controller->id)
+                                   + "_Min_Charging = "
+                                   + std::to_string(controller->min_charging);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Max_Charging = "
+                       + std::to_string(controller->max_charging);
+                stats.registerStats(prin);
+		
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_Charging = "
+                       + std::to_string(controller->total_charging);
+                stats.registerStats(prin);
+		
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_Working = "
+                       + std::to_string(controller->total_working);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_Idel = "
+                       + std::to_string(controller->total_idle);
+                stats.registerStats(prin);
+            }
+        }
+
         if constexpr (std::is_same<CPAwareController, PCMController>::value)
         {
             for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
             {
-                if (m == int(Config::Memory_Node::DRAM) && 
-                    dram_controllers.size() == 0)
-                { continue; }
-
-                if (m == int(Config::Memory_Node::PCM) && 
-                    pcm_controllers.size() == 0)
-                { continue; }
-
-                uint64_t total_reqs = 0;
-                uint64_t total_waiting_time = 0;
-
-                if (m == int(Config::Memory_Node::DRAM))
-                {
-                    for (auto &controller : dram_controllers)
-                    {
-                        total_reqs += controller->finished_requests;
-                        total_waiting_time += controller->total_waiting_time;
-                    }
-                }
-                else if (m == int(Config::Memory_Node::PCM))
-                {
-                    for (auto &controller : pcm_controllers)
-                    {
-                        total_reqs += controller->finished_requests;
-                        total_waiting_time += controller->total_waiting_time;
-                    }
-                }
-
                 std::string technology = "N/A";
                 if (m == int(Config::Memory_Node::DRAM))
                 { technology = "DRAM_"; }
                 else if (m == int(Config::Memory_Node::PCM))
                 { technology = "PCM_"; }
-
-                std::string req_info = technology + "Total_Number_Requests = " + 
-                                       std::to_string(total_reqs);
-                std::string waiting_info = technology + "Total_Waiting_Time = " + 
-                                       std::to_string(total_waiting_time);
-                std::string access_latency = technology + "Access_Latency = " + 
-                                       std::to_string(double(total_waiting_time) / 
-                                                      double(total_reqs));
-                stats.registerStats(req_info);
-                stats.registerStats(waiting_info);
-                stats.registerStats(access_latency);
 
                 unsigned num_stages = 0;
                 if (m == int(Config::Memory_Node::DRAM))
@@ -280,57 +320,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 }
             }
         }
-        else
-        {
-            for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
-            {
-                if (m == int(Config::Memory_Node::DRAM) && 
-                    dram_controllers.size() == 0)
-                { continue; }
-
-                if (m == int(Config::Memory_Node::PCM) && 
-                    pcm_controllers.size() == 0)
-                { continue; }
-
-                uint64_t total_reqs = 0;
-                uint64_t total_waiting_time = 0;
-
-                if (m == int(Config::Memory_Node::DRAM))
-                {
-                    for (auto &controller : dram_controllers)
-                    {
-                        total_reqs += controller->finished_requests;
-                        total_waiting_time += controller->total_waiting_time;
-                    }
-                }
-                else if (m == int(Config::Memory_Node::PCM))
-                {
-                    for (auto &controller : pcm_controllers)
-                    {
-                        total_reqs += controller->finished_requests;
-                        total_waiting_time += controller->total_waiting_time;
-                    }
-                }
-
-                std::string technology = "N/A";
-                if (m == int(Config::Memory_Node::DRAM))
-                { technology = "DRAM_"; }
-                else if (m == int(Config::Memory_Node::PCM))
-                { technology = "PCM_"; }
-
-                std::string req_info = technology + "Total_Number_Requests = " + 
-                                       std::to_string(total_reqs);
-                std::string waiting_info = technology + "Total_Waiting_Time = " + 
-                                       std::to_string(total_waiting_time);
-                std::string access_latency = technology + "Access_Latency = " + 
-                                       std::to_string(double(total_waiting_time) / 
-                                                      double(total_reqs));
-                stats.registerStats(req_info);
-                stats.registerStats(waiting_info);
-                stats.registerStats(access_latency);
-
-            }
-        }
     }
 
   private:
@@ -361,7 +350,9 @@ typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<LAS_PCM_Static> LASPCM_Static_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Base> LASPCM_Base_PCMSimMemorySystem;
+
 
 class PCMSimMemorySystemFactory
 {
@@ -397,7 +388,12 @@ class PCMSimMemorySystemFactory
                           {
                               return std::make_unique<LASPCM_PCMSimMemorySystem>(pcm_cfg);
                           };
-	
+
+        pcm_factories["LAS-PCM-Static"] = [](Config &pcm_cfg)
+            {
+                return std::make_unique<LASPCM_Static_PCMSimMemorySystem>(pcm_cfg);
+            };
+
         pcm_factories["LAS-PCM-Base"] = [](Config &pcm_cfg)
             {
                 return std::make_unique<LASPCM_Base_PCMSimMemorySystem>(pcm_cfg);

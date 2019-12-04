@@ -84,6 +84,20 @@ class Array
         }
     }
 
+    // Only consider the bank is free or not, help us to precisely track fine-grained bank
+    // status.
+    bool isBankFree(int target_rank, int target_bank)
+    {
+        if (children[target_rank]->children[target_bank]->next_free <= cur_clk)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     void update(Tick clk)
     { 
         cur_clk = clk; 

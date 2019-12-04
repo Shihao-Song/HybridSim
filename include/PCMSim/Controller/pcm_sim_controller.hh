@@ -30,7 +30,7 @@ class BaseController
     int id; // controller/channel ID
 
     const unsigned num_of_ranks;
-    const unsigned num_of_banks;
+    const unsigned num_of_banks; // per rank
 
   protected:
     Tick clk;
