@@ -418,7 +418,7 @@ class LASPCM : public FCFSController
                               dischargeSingleBank(CP_Type::RCP, i, j);
                         }
                         // Discharge because of there is no more request to the bank
-                        else if (num_reqs_to_banks[i][j] == 0)
+                        else if (num_reqs_to_banks[int(Request::Request_Type::READ)][i][j] == 0)
                         {
                             dischargeSingleBank(CP_Type::RCP, i, j);
                         }
@@ -441,7 +441,7 @@ class LASPCM : public FCFSController
                         {
                             dischargeSingleBank(CP_Type::WCP, i, j);
                         }
-                        else if (num_reqs_to_banks[i][j] == 0)
+                        else if (num_reqs_to_banks[int(Request::Request_Type::WRITE)][i][j] == 0)
                         {
                             dischargeSingleBank(CP_Type::WCP, i, j);
                         }
