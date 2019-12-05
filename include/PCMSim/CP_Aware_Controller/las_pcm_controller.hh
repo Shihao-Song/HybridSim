@@ -300,7 +300,7 @@ class LASPCM : public FCFSController
   protected:
     const int back_logging_threshold = -16;
     const int aging_threshold = 1500;
-    const int idle_threshold = 200;
+    const int idle_threshold = -1;
 
     // For simplicity, we generalize two types of charge pump (Read CP and Write CP)
     enum class CP_Type : int
@@ -413,10 +413,10 @@ class LASPCM : public FCFSController
                             dischargeSingleBank(CP_Type::RCP, i, j);
                         }
                         // Discharge because of aging
-                        else if (iTab[i][j].idle[int(CP_Type::RCP)] >= idle_threshold)
-                        {
-                             dischargeSingleBank(CP_Type::RCP, i, j);
-                        }
+                        // else if (iTab[i][j].idle[int(CP_Type::RCP)] >= idle_threshold)
+                        // {
+                        //      dischargeSingleBank(CP_Type::RCP, i, j);
+                        // }
                         // Discharge because of there is no more request to the bank
                         else if (num_reqs_to_banks[i][j] == 0)
                         {
@@ -437,10 +437,10 @@ class LASPCM : public FCFSController
                             dischargeSingleBank(CP_Type::WCP, i, j);
                         }
                         // Discharge because of aging
-                        else if (iTab[i][j].idle[int(CP_Type::WCP)] >= idle_threshold)
-                        {
-                             dischargeSingleBank(CP_Type::WCP, i, j);
-                        }
+                        // else if (iTab[i][j].idle[int(CP_Type::WCP)] >= idle_threshold)
+                        // {
+                        //     dischargeSingleBank(CP_Type::WCP, i, j);
+                        // }
                         else if (num_reqs_to_banks[i][j] == 0)
                         {
                             dischargeSingleBank(CP_Type::WCP, i, j);
