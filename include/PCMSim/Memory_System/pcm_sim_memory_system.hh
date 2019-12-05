@@ -234,7 +234,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
             for (auto &controller : pcm_controllers)
             {
                 // Make sure all the pumps are closed.
-                controller->drained();
+                // controller->drained();
 
                 std::string prin = "PCM_Channel_" + std::to_string(controller->id)
                                    + "_Min_Charging = "
@@ -245,7 +245,27 @@ class PCMSimMemorySystem : public Simulator::MemObject
                        + "_Max_Charging = "
                        + std::to_string(controller->max_charging);
                 stats.registerStats(prin);
-		
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Min_Working = "
+                       + std::to_string(controller->min_working);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Max_Working = "
+                       + std::to_string(controller->max_working);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Min_Idle = "
+                       + std::to_string(controller->min_idle);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Max_Idle = "
+                       + std::to_string(controller->max_idle);
+                stats.registerStats(prin);
+
                 prin = "PCM_Channel_" + std::to_string(controller->id)
                        + "_Total_Charging = "
                        + std::to_string(controller->total_charging);
