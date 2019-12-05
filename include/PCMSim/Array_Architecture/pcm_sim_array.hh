@@ -134,7 +134,7 @@ class Array
 
     void addBankLatency(int rank_id, int bank_id, unsigned bank_latency)
     {
-        children[rank_id]->children[bank_id]->next_free += bank_latency;
+        children[rank_id]->children[bank_id]->next_free = cur_clk + bank_latency;
     }
 
   private:

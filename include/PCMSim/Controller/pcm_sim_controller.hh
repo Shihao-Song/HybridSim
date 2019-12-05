@@ -29,8 +29,11 @@ class BaseController
     std::unique_ptr<Array> channel;
     int id; // controller/channel ID
 
+  protected:
     const unsigned num_of_ranks;
     const unsigned num_of_banks; // per rank
+
+    std::vector<std::vector<Tick>> num_reqs_to_banks;
 
   protected:
     Tick clk;
@@ -52,6 +55,17 @@ class BaseController
     {
         channel = std::make_unique<Array>(Config::Array_Level::Channel, cfg);
         channel->id = _id;
+
+        num_reqs_to_banks.resize(num_of_ranks);
+        for (int i = 0; i < num_of_ranks; i++)
+        {
+            num_reqs_to_banks[i].resize(num_of_banks);
+
+            for (int j = 0; j < num_of_banks; j++)
+            {
+                num_reqs_to_banks[i][j] = 0;
+            }
+        }
     }
     
     virtual ~BaseController()
@@ -159,7 +173,11 @@ class FCFSController : public BaseController
             // Queue is full
             return false;
         }
-        
+       
+        int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
+        int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
+        num_reqs_to_banks[rank_id][bank_id]++;
+
         if (req.display) { displayReqInfo(req); }
         req.queue_arrival = clk;	
         req.OrderID = r_w_q.size(); // To track back-logging.
@@ -237,6 +255,11 @@ class FCFSController : public BaseController
                         total_waiting_time += waiting_time;
                         ++finished_requests;
                     }
+
+                    int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
+                    int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
+                    num_reqs_to_banks[rank_id][bank_id]--;
+
                     r_w_pending_queue.pop_front();
                 }
             }
@@ -248,6 +271,11 @@ class FCFSController : public BaseController
                     total_waiting_time += waiting_time;
                     ++finished_requests;
                 }
+
+                int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
+                int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
+                num_reqs_to_banks[rank_id][bank_id]--;
+
                 r_w_pending_queue.pop_front();
             }
         }
