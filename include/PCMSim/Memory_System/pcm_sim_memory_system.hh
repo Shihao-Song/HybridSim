@@ -377,7 +377,7 @@ typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Static> LASPCM_Static_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Base> LASPCM_Base_PCMSimMemorySystem;
-
+typedef PCMSimMemorySystem<LASER_Controller> LASER_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -408,6 +408,12 @@ class PCMSimMemorySystemFactory
                             {
                                 return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
                             };
+
+        pcm_factories["LASER"] = [](Config &pcm_cfg)
+                          {
+                              return std::make_unique<LASER_PCMSimMemorySystem>(pcm_cfg);
+                          };
+
 
         pcm_factories["LAS-PCM"] = [](Config &pcm_cfg)
                           {
