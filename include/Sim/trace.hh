@@ -54,7 +54,7 @@ class Trace
             return true;
         }
 
-        if (instruction_index >= 100000000) { trace_file_expr.close(); return false; }
+        if (instruction_index >= 250000000) { trace_file_expr.close(); return false; }
         
         // if (profiling_stage && instruction_index >= profiling_limit)
         // {
