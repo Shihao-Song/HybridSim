@@ -164,7 +164,9 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
         if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value || 
                       std::is_same<LAS_PCM_Static, PCMController>::value ||
-                      std::is_same<LAS_PCM_Controller, PCMController>::value)
+                      std::is_same<LAS_PCM_Controller, PCMController>::value ||
+                      std::is_same<LASER_Controller, PCMController>::value ||
+                      std::is_same<LASER_2_Controller, PCMController>::value)
         {
 	    offline_cp_analysis_mode = true;
 
@@ -227,15 +229,15 @@ class PCMSimMemorySystem : public Simulator::MemObject
             stats.registerStats(waiting_info);
             stats.registerStats(access_latency);
         }
-        /*
-        if constexpr (std::is_same<LAS_PCM_Static, PCMController>::value || 
-                      std::is_same<LAS_PCM_Controller, PCMController>::value)
+
+        if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value ||
+                      std::is_same<LAS_PCM_Static, PCMController>::value ||
+                      std::is_same<LAS_PCM_Controller, PCMController>::value ||
+                      std::is_same<LASER_Controller, PCMController>::value ||
+                      std::is_same<LASER_2_Controller, PCMController>::value)
         {
             for (auto &controller : pcm_controllers)
             {
-                // Make sure all the pumps are closed.
-                controller->drained();
-
                 std::string prin = "PCM_Channel_" + std::to_string(controller->id)
                                    + "_Min_Charging = "
                                    + std::to_string(controller->min_charging);
@@ -255,34 +257,9 @@ class PCMSimMemorySystem : public Simulator::MemObject
                        + "_Max_Working = "
                        + std::to_string(controller->max_working);
                 stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Min_Idle = "
-                       + std::to_string(controller->min_idle);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Max_Idle = "
-                       + std::to_string(controller->max_idle);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_Charging = "
-                       + std::to_string(controller->total_charging);
-                stats.registerStats(prin);
-		
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_Working = "
-                       + std::to_string(controller->total_working);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_Idel = "
-                       + std::to_string(controller->total_idle);
-                stats.registerStats(prin);
             }
         }
-        */
+
         if constexpr (std::is_same<CPAwareController, PCMController>::value)
         {
             for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
