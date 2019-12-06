@@ -227,7 +227,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
             stats.registerStats(waiting_info);
             stats.registerStats(access_latency);
         }
-
+        /*
         if constexpr (std::is_same<LAS_PCM_Static, PCMController>::value || 
                       std::is_same<LAS_PCM_Controller, PCMController>::value)
         {
@@ -282,7 +282,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 stats.registerStats(prin);
             }
         }
-
+        */
         if constexpr (std::is_same<CPAwareController, PCMController>::value)
         {
             for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
@@ -378,6 +378,7 @@ typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Static> LASPCM_Static_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Base> LASPCM_Base_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LASER_Controller> LASER_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<LASER_2_Controller> LASER_2_PCMSimMemorySystem;
 
 class PCMSimMemorySystemFactory
 {
@@ -408,6 +409,13 @@ class PCMSimMemorySystemFactory
                             {
                                 return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
                             };
+
+	
+        pcm_factories["LASER-2"] = [](Config &pcm_cfg)
+                          {
+                              return std::make_unique<LASER_2_PCMSimMemorySystem>(pcm_cfg);
+                          };
+
 
         pcm_factories["LASER"] = [](Config &pcm_cfg)
                           {
