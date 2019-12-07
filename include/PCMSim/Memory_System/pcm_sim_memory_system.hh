@@ -257,6 +257,21 @@ class PCMSimMemorySystem : public Simulator::MemObject
                        + "_Max_Working = "
                        + std::to_string(controller->max_working);
                 stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_PS_Aging = "
+                       + std::to_string(controller->total_ps_aging);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_VL_Aging = "
+                       + std::to_string(controller->total_vl_aging);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_SA_Aging = "
+                       + std::to_string(controller->total_sa_aging);
+                stats.registerStats(prin);
             }
         }
 

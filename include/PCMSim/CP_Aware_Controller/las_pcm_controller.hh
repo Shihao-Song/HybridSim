@@ -830,6 +830,7 @@ class LASPCM : public FCFSController
             total_working = rTab[rank_id][bank_id].num_of_writes * singleWriteLatency;
         }
 
+        // Update global records
         Tick total_charging = begin_discharging - end_charging;
         if (max_charging == -1 && min_charging == -1)
         {
@@ -853,6 +854,27 @@ class LASPCM : public FCFSController
             if (total_working < min_working) { min_working = total_working; }
         }
 
+        unsigned total_idle = iTab[rank_id][bank_id].idle[int(CP_Type::WCP)] +
+                              iTab[rank_id][bank_id].idle[int(CP_Type::RCP)];
+
+        unsigned num_of_reads_done = rTab[rank_id][bank_id].num_of_reads;
+        unsigned num_of_writes_done = rTab[rank_id][bank_id].num_of_writes;
+
+        double ps_aging = 1.82 * (double)num_of_reads_done +
+                          580.95 * (double)num_of_writes_done +
+                          0.03 * (double)total_idle;
+        total_ps_aging += ps_aging;
+
+        double vl_aging = 1.82 * (double)num_of_reads_done + 
+                          171.26 * (double)num_of_writes_done + 
+                          0.03 * (double)total_idle;
+        total_vl_aging += vl_aging;
+
+        double sa_aging = 59.63 * (double)num_of_reads_done +
+                          5.22 * (double)num_of_writes_done +
+                          0.03 * (double)total_idle;
+        total_sa_aging += sa_aging;
+
         // Output
         if (cp_type == CP_Type::RCP)
         {
@@ -866,6 +888,7 @@ class LASPCM : public FCFSController
         unsigned uni_bank_id = id * num_of_ranks * num_of_banks +
                                rank_id * num_of_banks + bank_id;
 
+        /*
         *offline_cp_ana_output << uni_bank_id << ","
                                << begin_charging << ","
                                << end_charging << ","
@@ -873,6 +896,11 @@ class LASPCM : public FCFSController
                                << end_discharging << ","
                                << total_charging << ","
                                << total_working << "\n";
+        */
+        *offline_cp_ana_output << uni_bank_id << ","
+                               << ps_aging << ","
+                               << vl_aging << ","
+                               << sa_aging << "\n";
 
         *offline_cp_ana_output << std::flush;
     }
@@ -925,6 +953,10 @@ class LASPCM : public FCFSController
 
     int max_working = -1;
     int min_working = -1;
+
+    double total_ps_aging = 0.0;
+    double total_vl_aging = 0.0;
+    double total_sa_aging = 0.0;
 };
 
 typedef LASPCM<FCFS,LASER_2> LASER_2_Controller;
