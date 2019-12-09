@@ -236,7 +236,7 @@ class LASPCM : public FCFSController
             // Record a new read request.
             if (rTab[target_rank][target_bank].num_of_reads == 0)
             {
-                assert(charging_latency > 0);
+                // assert(charging_latency > 0);
                 // Read cp starts to charge now.
                 rTab[target_rank][target_bank].read_cp_begin_charging = clk;
                 rTab[target_rank][target_bank].read_cp_end_charging = clk + charging_latency;
@@ -276,7 +276,7 @@ class LASPCM : public FCFSController
             // Record a write request.
             if (rTab[target_rank][target_bank].num_of_writes == 0)
             {
-                assert(charging_latency > 0);
+                //assert(charging_latency > 0);
                 rTab[target_rank][target_bank].write_cp_begin_charging = clk;
                 rTab[target_rank][target_bank].write_cp_end_charging = clk + charging_latency;
             }
@@ -799,7 +799,7 @@ class LASPCM : public FCFSController
 
         if (cp_type == CP_Type::RCP)
         {
-            assert(rTab[rank_id][bank_id].num_of_reads > 0);
+            // assert(rTab[rank_id][bank_id].num_of_reads > 0);
 
             begin_charging = rTab[rank_id][bank_id].read_cp_begin_charging;
             end_charging = rTab[rank_id][bank_id].read_cp_end_charging;
@@ -809,7 +809,7 @@ class LASPCM : public FCFSController
         }
         else
         {
-            assert(rTab[rank_id][bank_id].num_of_writes > 0);
+            // assert(rTab[rank_id][bank_id].num_of_writes > 0);
 
             begin_charging = rTab[rank_id][bank_id].write_cp_begin_charging;
             end_charging = rTab[rank_id][bank_id].write_cp_end_charging;
