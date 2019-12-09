@@ -585,13 +585,21 @@ class LASPCM : public FCFSController
                         // Discharge write charge pump
                         if ((ps_aging > 1000.0 && rTab[i][j].num_of_writes > 0))
                         {
-                            dischargeSingleCP(CP_Type::WCP, i, j);
+                            if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
+                                sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                            {
+                                dischargeSingleCP(CP_Type::WCP, i, j);
+			    }
                         }
 
                         // Discharge read charge pump
 			if ((sa_aging > 1000.0 && rTab[i][j].num_of_reads > 0)) 
                         {
-                            dischargeSingleCP(CP_Type::RCP, i, j);
+                            if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
+                                sTab[i][j].cp_status == CP_Status::BOTH_ON)
+			    {
+                                dischargeSingleCP(CP_Type::RCP, i, j);
+			    }
                         }
 	
                         // When no aging exceeds, then proceed.
@@ -600,7 +608,8 @@ class LASPCM : public FCFSController
                             if (num_reqs_to_banks[int(Request::Request_Type::WRITE)][i][j]
                                 == 0)
                             {
-			        if (sTab[i][j].cp_status == CP_Status::WCP_ON)
+			        if (sTab[i][j].cp_status == CP_Status::WCP_ON ||
+                                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
                                 {
                                     dischargeSingleCP(CP_Type::WCP, i, j);
                                 }
@@ -610,7 +619,8 @@ class LASPCM : public FCFSController
                             if (num_reqs_to_banks[int(Request::Request_Type::READ)][i][j]
                                 == 0)
                             {
-                                if (sTab[i][j].cp_status == CP_Status::RCP_ON)
+                                if (sTab[i][j].cp_status == CP_Status::RCP_ON || 
+                                    sTab[i][j].cp_status == CP_Status::BOTH_ON)
                                 {
                                     dischargeSingleCP(CP_Type::RCP, i, j);
                                 }
