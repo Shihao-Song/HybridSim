@@ -215,6 +215,10 @@ class LASPCM : public FCFSController
                 sTab[target_rank][target_bank].cp_status = CP_Status::RCP_ON;
 
                 charging_latency = nclks_rcp;
+
+                // Record charging time
+                rTab[target_rank][target_bank].read_cp_begin_charging = clk;
+                rTab[target_rank][target_bank].read_cp_end_charging = clk + charging_latency;
             }
             // If the write charge pump is ON, turn on the read charge pump. 
             // Now, both charge pumps are ON.
@@ -223,6 +227,10 @@ class LASPCM : public FCFSController
                 sTab[target_rank][target_bank].cp_status = CP_Status::BOTH_ON;
 
                 charging_latency = nclks_rcp;
+
+                // Record charging time
+                rTab[target_rank][target_bank].read_cp_begin_charging = clk;
+                rTab[target_rank][target_bank].read_cp_end_charging = clk + charging_latency;
             }
 
             if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
@@ -234,13 +242,6 @@ class LASPCM : public FCFSController
             }
 
             // Record a new read request.
-            if (rTab[target_rank][target_bank].num_of_reads == 0)
-            {
-                // assert(charging_latency > 0);
-                // Read cp starts to charge now.
-                rTab[target_rank][target_bank].read_cp_begin_charging = clk;
-                rTab[target_rank][target_bank].read_cp_end_charging = clk + charging_latency;
-            }
             rTab[target_rank][target_bank].num_of_reads++;
 
             // Read charge pump is now the busy pump.
@@ -255,6 +256,9 @@ class LASPCM : public FCFSController
                 sTab[target_rank][target_bank].cp_status = CP_Status::WCP_ON;
 
                 charging_latency = nclks_wcp;
+
+                rTab[target_rank][target_bank].write_cp_begin_charging = clk;
+                rTab[target_rank][target_bank].write_cp_end_charging = clk + charging_latency;
             }
             // If only the read charge pump is ON, turn on the write charge pump.
             // Now, both charge pumps are ON.
@@ -263,6 +267,9 @@ class LASPCM : public FCFSController
                 sTab[target_rank][target_bank].cp_status = CP_Status::BOTH_ON;
 
                 charging_latency = nclks_wcp;
+
+                rTab[target_rank][target_bank].write_cp_begin_charging = clk;
+                rTab[target_rank][target_bank].write_cp_end_charging = clk + charging_latency;
             }
 
             if constexpr (std::is_same<LAS_PCM, Scheduler>::value)
@@ -274,12 +281,6 @@ class LASPCM : public FCFSController
             }
 
             // Record a write request.
-            if (rTab[target_rank][target_bank].num_of_writes == 0)
-            {
-                //assert(charging_latency > 0);
-                rTab[target_rank][target_bank].write_cp_begin_charging = clk;
-                rTab[target_rank][target_bank].write_cp_end_charging = clk + charging_latency;
-            }
             rTab[target_rank][target_bank].num_of_writes++;
 
             // Write charge pump is now the busy pump.
@@ -582,13 +583,13 @@ class LASPCM : public FCFSController
                                           0.03 * (double)total_idle;
 
                         // Discharge write charge pump
-                        if ((ps_aging > 1000.0 && num_of_writes_done > 0))
+                        if ((ps_aging > 1000.0 && rTab[i][j].num_of_writes > 0))
                         {
                             dischargeSingleCP(CP_Type::WCP, i, j);
                         }
 
                         // Discharge read charge pump
-			if ((sa_aging > 1000.0 && num_of_reads_done > 0)) 
+			if ((sa_aging > 1000.0 && rTab[i][j].num_of_reads > 0)) 
                         {
                             dischargeSingleCP(CP_Type::RCP, i, j);
                         }
@@ -596,17 +597,20 @@ class LASPCM : public FCFSController
                         // When no aging exceeds, then proceed.
                         if (ps_aging < 1000.0 && sa_aging < 1000.0)
                         {
-			    // Discharge because of no more requests
-                            if (num_reqs_to_banks[int(Request::Request_Type::WRITE)][i][j] 
-                                == 0 &&
-                                num_reqs_to_banks[int(Request::Request_Type::READ)][i][j]
+                            if (num_reqs_to_banks[int(Request::Request_Type::WRITE)][i][j]
                                 == 0)
                             {
-                                if (num_of_writes_done)
+			        if (sTab[i][j].cp_status == CP_Status::WCP_ON)
                                 {
                                     dischargeSingleCP(CP_Type::WCP, i, j);
                                 }
-                                else
+                            }
+
+			    // Discharge because of no more requests
+                            if (num_reqs_to_banks[int(Request::Request_Type::READ)][i][j]
+                                == 0)
+                            {
+                                if (sTab[i][j].cp_status == CP_Status::RCP_ON)
                                 {
                                     dischargeSingleCP(CP_Type::RCP, i, j);
                                 }
@@ -876,16 +880,13 @@ class LASPCM : public FCFSController
         unsigned uni_bank_id = id * num_of_ranks * num_of_banks +
                                rank_id * num_of_banks + bank_id;
 
-        /*
         *offline_cp_ana_output << uni_bank_id << ","
                                << begin_charging << ","
                                << end_charging << ","
                                << begin_discharging << ","
                                << end_discharging << ","
                                << total_charging << ","
-                               << total_working << "\n";
-        */
-        *offline_cp_ana_output << uni_bank_id << ","
+                               << total_working << ","
                                << ps_aging << ","
                                << vl_aging << ","
                                << sa_aging << "\n";
