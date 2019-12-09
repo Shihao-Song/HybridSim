@@ -710,41 +710,29 @@ class LASPCM : public FCFSController
                     // Turn off the read charge pump. 
                     // Only the write charge pump is left ON
                     sTab[rank_id][bank_id].cp_status = CP_Status::WCP_ON;
-
-                    // Reset the timings
-                    aTab[rank_id][bank_id].aging[int(CP_Type::RCP)] = 0;
-                    iTab[rank_id][bank_id].idle[int(CP_Type::RCP)] = 0;
-                    
-                    rTab[rank_id][bank_id].num_of_reads = 0;
                 }
                 else if (cp_type == CP_Type::WCP)
                 {
                     // Turn off the write charge pump.
                     // Only read charge pump is left ON
                     sTab[rank_id][bank_id].cp_status = CP_Status::RCP_ON;
-		    
-                    // Reset the timings
-                    aTab[rank_id][bank_id].aging[int(CP_Type::WCP)] = 0;
-                    iTab[rank_id][bank_id].idle[int(CP_Type::WCP)] = 0;
-
-                    rTab[rank_id][bank_id].num_of_writes = 0;
                 }
             }
             else
             {
                 // Both pumps are OFF
                 sTab[rank_id][bank_id].cp_status = CP_Status::BOTH_OFF;
-
-                // Reset the timings
-                aTab[rank_id][bank_id].aging[int(CP_Type::RCP)] = 0;
-                iTab[rank_id][bank_id].idle[int(CP_Type::RCP)] = 0;
-
-                aTab[rank_id][bank_id].aging[int(CP_Type::WCP)] = 0;
-                iTab[rank_id][bank_id].idle[int(CP_Type::WCP)] = 0;
-
-                rTab[rank_id][bank_id].num_of_reads = 0;
-                rTab[rank_id][bank_id].num_of_writes = 0;
             }
+
+	    // Reset the timings (all has to be cleared)
+            aTab[rank_id][bank_id].aging[int(CP_Type::RCP)] = 0;
+            iTab[rank_id][bank_id].idle[int(CP_Type::RCP)] = 0;
+
+            aTab[rank_id][bank_id].aging[int(CP_Type::WCP)] = 0;
+            iTab[rank_id][bank_id].idle[int(CP_Type::WCP)] = 0;
+
+            rTab[rank_id][bank_id].num_of_reads = 0;
+            rTab[rank_id][bank_id].num_of_writes = 0;
 
             if (channel->isBankFree(rank_id, bank_id))
             {
@@ -761,7 +749,7 @@ class LASPCM : public FCFSController
         {
             if (offline_cp_analysis_mode)
             {
-                // Output
+                // Output, TODO, output is not correct
                 if (rTab[rank_id][bank_id].num_of_reads > 0)
                 {
                     recordCPInfo(CP_Type::RCP, rank_id, bank_id);
