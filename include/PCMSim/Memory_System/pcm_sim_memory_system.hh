@@ -239,23 +239,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
             for (auto &controller : pcm_controllers)
             {
                 std::string prin = "PCM_Channel_" + std::to_string(controller->id)
-                                   + "_Min_Charging = "
-                                   + std::to_string(controller->min_charging);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Max_Charging = "
-                       + std::to_string(controller->max_charging);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Min_Working = "
-                       + std::to_string(controller->min_working);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Max_Working = "
-                       + std::to_string(controller->max_working);
+                                   + "_Total_Idle = "
+                                   + std::to_string(controller->total_idle);
                 stats.registerStats(prin);
 
                 prin = "PCM_Channel_" + std::to_string(controller->id)
@@ -271,6 +256,16 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 prin = "PCM_Channel_" + std::to_string(controller->id)
                        + "_Total_SA_Aging = "
                        + std::to_string(controller->total_sa_aging);
+                stats.registerStats(prin);
+
+                prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_MAX_Aging = "
+                       + std::to_string(controller->total_max_aging);
+                stats.registerStats(prin);
+
+		prin = "PCM_Channel_" + std::to_string(controller->id)
+                       + "_Total_Discharge = "
+                       + std::to_string(controller->total_discharge);
                 stats.registerStats(prin);
             }
         }
