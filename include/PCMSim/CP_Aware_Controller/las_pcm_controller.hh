@@ -788,6 +788,11 @@ class LASPCM : public FCFSController
                 sTab[rank_id][bank_id].cp_status = CP_Status::BOTH_OFF;
             }
 
+            if constexpr (std::is_same<BASE, Scheduler>::value)
+	    {
+	        sTab[rank_id][bank_id].cp_status = CP_Status::BOTH_OFF;
+	    }
+
             // Reset the timings (The following aging has already been considered)
             aTab[rank_id][bank_id].aging = 0;
             iTab[rank_id][bank_id].idle = 0;
