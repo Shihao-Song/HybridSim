@@ -491,7 +491,43 @@ class LASPCM : public FCFSController
             }
         }
         */
+        /*
+        if constexpr (std::is_same<LASER, Scheduler>::value || 
+                      std::is_same<CP_STATIC, Scheduler>::value)
+        {
+            for (int i = 0; i < num_of_ranks; i++)
+            {
+                
+                for (int j = 0; j < num_of_banks; j++)
+                {
+                    if (j != 12) { continue; }
+                    unsigned idle = iTab[i][j].idle;
 
+                    unsigned num_of_reads_done = rTab[i][j].num_of_reads;
+                    unsigned num_of_writes_done = rTab[i][j].num_of_writes;
+
+                    double ps_aging = 1.82 * (double)num_of_reads_done +
+                                      580.95 * (double)num_of_writes_done +
+                                      0.03 * (double)idle;
+
+                    double vl_aging = 1.82 * (double)num_of_reads_done +
+                                      171.26 * (double)num_of_writes_done +
+                                      0.03 * (double)idle;
+
+                    double sa_aging = 59.63 * (double)num_of_reads_done +
+                                      5.22 * (double)num_of_writes_done +
+                                      0.03 * (double)idle;
+
+                    *offline_cp_ana_output << j << ","
+                                           << ps_aging << ","
+                                           << vl_aging << ","
+                                           << sa_aging << std::endl;
+
+                    if (clk >= 100000) { exit(0); }
+                }
+            }
+        }
+        */
         if constexpr (std::is_same<LASER, Scheduler>::value)
         {
             for (int i = 0; i < num_of_ranks; i++)
@@ -514,8 +550,8 @@ class LASPCM : public FCFSController
                                           0.03 * (double)total_idle;
 
 			// Discharge because of aging
-                        if (ps_aging > 1000.0 ||
-                            sa_aging > 1000.0)
+                        if (ps_aging > 500.0 ||
+                            sa_aging > 500.0)
                         {
                             dischargeSingleBank(i, j);
                         }
@@ -760,7 +796,7 @@ class LASPCM : public FCFSController
         {
             if (offline_cp_analysis_mode)
             {
-                recordCPInfo(CP_Type::MAX, rank_id, bank_id);
+                // recordCPInfo(CP_Type::MAX, rank_id, bank_id);
             }
 
             Tick discharging_latency = 10; // Give all pumps 10 extra cycles to de-stress
