@@ -432,11 +432,23 @@ class PCMSimMemorySystemFactory
                                                                                    pcm_cfg);
                           };
 
-        hybrid_factories["LAS-PCM"] = [](Config &dram_cfg, Config &pcm_cfg)
+        hybrid_factories["LASER-2"] = [](Config &dram_cfg, Config &pcm_cfg)
                           {
-                              return std::make_unique<LASPCM_PCMSimMemorySystem>(dram_cfg,
-                                                                                 pcm_cfg);
+                              return std::make_unique<LASER_2_PCMSimMemorySystem>(dram_cfg,
+                                                                                  pcm_cfg);
                           };
+
+        hybrid_factories["LASER"] = [](Config &dram_cfg, Config &pcm_cfg)
+                          {
+                              return std::make_unique<LASER_PCMSimMemorySystem>(dram_cfg,
+                                                                                pcm_cfg);
+                          };
+
+        hybrid_factories["LAS-PCM-Static"] = [](Config &dram_cfg, Config &pcm_cfg)
+            {
+                return std::make_unique<LASPCM_Static_PCMSimMemorySystem>(dram_cfg, pcm_cfg);
+            };
+
  
     }
 
