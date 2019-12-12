@@ -550,8 +550,8 @@ class LASPCM : public FCFSController
                                           0.03 * (double)total_idle;
 
 			// Discharge because of aging
-                        if (ps_aging > 500.0 ||
-                            sa_aging > 500.0)
+                        if (ps_aging > 2000.0 ||
+                            sa_aging > 2000.0)
                         {
                             dischargeSingleBank(i, j);
                         }
@@ -796,7 +796,7 @@ class LASPCM : public FCFSController
         {
             if (offline_cp_analysis_mode)
             {
-                // recordCPInfo(CP_Type::MAX, rank_id, bank_id);
+                recordCPInfo(CP_Type::MAX, rank_id, bank_id);
             }
 
             Tick discharging_latency = 10; // Give all pumps 10 extra cycles to de-stress
