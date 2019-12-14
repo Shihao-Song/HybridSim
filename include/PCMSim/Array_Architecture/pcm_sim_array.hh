@@ -72,8 +72,8 @@ class Array
 
     bool isFree(int target_rank, int target_bank)
     {
+        // See if (1) bank is free; (2) channel is free.
         if (children[target_rank]->children[target_bank]->next_free <= cur_clk &&
-            children[target_rank]->next_free <= cur_clk &&
             next_free <= cur_clk)
         {
             return true;
@@ -84,6 +84,7 @@ class Array
         }
     }
 
+    // TODO, put this to laser file since this function is not a universal function.
     // Only consider the bank is free or not, help us to precisely track fine-grained bank
     // status.
     bool isBankFree(int target_rank, int target_bank)
@@ -97,6 +98,12 @@ class Array
             return false;
         }
     }
+    // TODO, put this to laser as well.
+    void addBankLatency(int rank_id, int bank_id, unsigned bank_latency)
+    {
+        children[rank_id]->children[bank_id]->next_free = cur_clk + bank_latency;
+    }
+
 
     void update(Tick clk)
     { 
@@ -110,7 +117,6 @@ class Array
 
     void postAccess(int rank_id, int bank_id,
                     unsigned channel_latency,
-                    unsigned rank_latency,
                     unsigned bank_latency)
     {
         // Add channel latency
@@ -118,25 +124,9 @@ class Array
 
         // Add bank latency
         children[rank_id]->children[bank_id]->next_free = cur_clk + bank_latency;
-
-        // All other ranks won't be available until this rank is fully de-coupled.
-        int num_of_ranks = children.size();
-        for (int i = 0; i < num_of_ranks; i++)
-        {
-            if (i == rank_id)
-            {
-                continue;
-            }
-
-            children[i]->next_free = cur_clk + rank_latency;
-        }
     }
 
-    void addBankLatency(int rank_id, int bank_id, unsigned bank_latency)
-    {
-        children[rank_id]->children[bank_id]->next_free = cur_clk + bank_latency;
-    }
-
+    
   private:
     Tick cur_clk;
     Tick next_free;

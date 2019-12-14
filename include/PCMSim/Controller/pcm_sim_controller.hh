@@ -14,6 +14,10 @@
 #include <list>
 #include <memory>
 
+// TODO, improvements
+// (1) There has to be two queues, one for read and one for write, the reason is that turning
+// around the direction of the memory bus when alternating between reads and writes requires 
+// additional latenty.
 namespace PCMSim
 {
 class BaseController

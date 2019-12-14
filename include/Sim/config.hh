@@ -74,7 +74,23 @@ class Config
     enum class Decoding : int
     {
         // Address mapping: bank-interleaving
-        Rank, Partition, Tile, Row, Col, Bank, Channel, Cache_Line, MAX
+        Partition, Tile, Row, Col, Rank, Bank, Channel, Cache_Line, MAX
+
+        // Why I don't consider row-buffer hits.
+        // In DRAM, you can read the entire row into the row buffer, thus priorizing row buffer 
+        // hits makes sense. But in NVM, e.g. PCM, I don't think you want to read the entire
+        // row, or even possible to read the entire row. There are couple of reasons I can
+        // think of (1): technology wise: reading a single NVM cell requires much energy;
+        // (2) technology wise: reading a single NVM cell needs to forward-bias the diode 
+        // itself, while all the other diodes corresponding to unselected cells must be 
+        // either reverse biased or biased at a voltage that is well below a certain threshold
+        // ; this is to guarantee that the currect flowing in the de-selected cell is 
+        // not causing any read or program disturb on the de-selected cell itself and 
+        // not inducing a wrong sensing of the selected cell because of the excessive
+        // leakage. As we can see, in NVM, limiting the read granuality has a potitive effect
+        // on energy consumption. (3) In more recent times, multi-core workload 
+        // characterizations have shown that the row buffer locality is limited and 
+        // the overfetch to row buffers is mostly wasted energy.
     };
     std::vector<int> mem_addr_decoding_bits;
     void genMemAddrDecodingBits();
