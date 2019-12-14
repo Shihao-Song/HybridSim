@@ -178,10 +178,6 @@ class CPAwareController : public FRFCFSController
         // Post access
         postAccess(scheduled_req,
                    channel_latency,
-                   req_latency, // This is rank latency for other ranks.
-                                // Since there is no rank-level parall,
-                                // other ranks must wait until the current rank
-                                // to be fully de-coupled.
                    bank_latency);
     }
 };
@@ -354,10 +350,6 @@ class TLDRAMController : public FRFCFSController
         // Post access
         postAccess(scheduled_req,
                    channel_latency,
-                   req_latency, // This is rank latency for other ranks.
-                                // Since there is no rank-level parall,
-                                // other ranks must wait until the current rank
-                                // to be fully de-coupled.
                    bank_latency);
     }
 };

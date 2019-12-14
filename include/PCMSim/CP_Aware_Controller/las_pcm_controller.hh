@@ -331,10 +331,6 @@ class LASPCM : public FCFSController
         // Post access
         postAccess(scheduled_req,
                    channel_latency,
-                   req_latency, // This is rank latency for other ranks.
-                                // Since there is no rank-level parall,
-                                // other ranks must wait until the current rank
-                                // to be fully de-coupled.
                    bank_latency);
     }
 

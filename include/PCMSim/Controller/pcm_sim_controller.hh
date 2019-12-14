@@ -115,7 +115,6 @@ class BaseController
 
     auto postAccess(auto scheduled_req,
                     unsigned channel_latency,
-                    unsigned rank_latency,
                     unsigned bank_latency)
     {
         int rank_id = (scheduled_req->addr_vec)[int(Config::Decoding::Rank)];
@@ -123,7 +122,6 @@ class BaseController
 
         channel->postAccess(rank_id, bank_id,
                             channel_latency,
-                            rank_latency,
                             bank_latency);
     }
 
@@ -335,10 +333,6 @@ class FCFSController : public BaseController
         // Post access
         postAccess(scheduled_req,
                    channel_latency,
-                   req_latency, // This is rank latency for other ranks.
-                                // Since there is no rank-level parall,
-                                // other ranks must wait until the current rank
-                                // to be fully de-coupled.
                    bank_latency);
     }
 
