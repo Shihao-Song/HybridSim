@@ -285,11 +285,17 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 unsigned num_stages = 0;
                 if (m == int(Config::Memory_Node::DRAM))
                 {
-                    num_stages = dram_controllers[0]->numStages();
+                    if (dram_controllers.size())
+                    {
+                        num_stages = dram_controllers[0]->numStages();
+                    }
                 }
                 else if (m == int(Config::Memory_Node::PCM))
                 {
-                    num_stages = pcm_controllers[0]->numStages();
+                    if (pcm_controllers.size())
+                    {
+                        num_stages = pcm_controllers[0]->numStages();
+                    }
                 }
 
                 for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
@@ -329,6 +335,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
                                                         + target + "_Access"
                                                         + " = "
                                                         + std::to_string(stage_accesses);
+
                         stats.registerStats(stage_access_prin);
                     }
                 }

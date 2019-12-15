@@ -539,6 +539,7 @@ class CacheFactory
   public:
     CacheFactory()
     {
+        /*
         factories["FA_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
                                       return std::make_unique<FA_LRU_LLC>(level, cfg);
@@ -549,7 +550,7 @@ class CacheFactory
                                       return std::make_unique<FA_LRU_LLC_WRITE_ONLY>(level,
                                                                                      cfg);
                                   };
-
+        */
         factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
                                       return std::make_unique<SET_WAY_LRU_LLC>(level, cfg);
@@ -565,10 +566,12 @@ class CacheFactory
     // We have limit the use of Set-Assoc-LRU here.
     auto createCache(Config::Cache_Level level, Config &cfg, bool LLC = false)
     {
+        /*
         if (level == Config::Cache_Level::eDRAM)
         {
             return factories["FA_LRU_LLC_WRITE_ONLY"](level, cfg);
         }
+        */
 
         if (LLC)
         {

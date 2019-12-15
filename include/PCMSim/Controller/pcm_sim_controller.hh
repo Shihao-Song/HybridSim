@@ -129,6 +129,15 @@ class BaseController
 
     auto displayReqInfo(auto &req)
     {
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            std::cout << "READ,";
+        }
+        else
+        {
+            std::cout << "WRITE,";
+        }
+
         std::cout << "Channel:" << req.addr_vec[int(Config::Decoding::Channel)] << ","
                   << "Rank:" << req.addr_vec[int(Config::Decoding::Rank)] << ","
                   << "Bank:" << req.addr_vec[int(Config::Decoding::Bank)] << ","
@@ -137,17 +146,9 @@ class BaseController
                   << "Row:" << req.addr_vec[int(Config::Decoding::Row)] << ","
                   << "Col:" << req.addr_vec[int(Config::Decoding::Col)] << ",";
 
-        if (req.req_type == Request::Request_Type::READ)
-        {
-            std::cout << "READ\n";
-        }
-        else
-        {
-            std::cout << "WRITE\n";
-        }
-
-        // std::cout << req.begin_exe << ","
-        //           << req.end_exe << "\n\n";
+        std::cout << req.begin_exe << ","
+                  << req.end_exe << ","
+                  << (req.end_exe - req.begin_exe) << "\n";
     }
 };
 
@@ -181,7 +182,7 @@ class FCFSController : public BaseController
     
     bool enqueue(Request& req) override
     {
-        auto queue = getQueue(req);
+        auto &queue = getQueue(req);
         if (queue.size() == max)
         {
             // Queue is full
@@ -192,11 +193,11 @@ class FCFSController : public BaseController
         int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
         num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]++;
 
-        if (req.display) { displayReqInfo(req); }
+        req.display = true;
         req.queue_arrival = clk;	
         req.OrderID = queue.size(); // To track back-logging.
 	queue.push_back(req);
-        
+
         return true;
     }
 
@@ -295,6 +296,8 @@ class FCFSController : public BaseController
             {
                 if (req.callback(req.addr))
                 {
+                    if (req.display) { displayReqInfo(req); }
+
                     if (!req.mig)
                     {
                         uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
@@ -311,6 +314,8 @@ class FCFSController : public BaseController
             }
             else
             {
+                if (req.display) { displayReqInfo(req); }
+
                 if (!req.mig)
 		{
                     uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
@@ -357,7 +362,8 @@ class FCFSController : public BaseController
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
-            req_latency = singleWriteLatency;
+            // Program-and-verify scheme.
+            req_latency = singleWriteLatency + singleReadLatency;
         }
         else
         {
