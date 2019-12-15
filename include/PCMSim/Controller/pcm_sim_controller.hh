@@ -193,7 +193,6 @@ class FCFSController : public BaseController
         int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
         num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]++;
 
-        req.display = true;
         req.queue_arrival = clk;	
         req.OrderID = queue.size(); // To track back-logging.
 	queue.push_back(req);
