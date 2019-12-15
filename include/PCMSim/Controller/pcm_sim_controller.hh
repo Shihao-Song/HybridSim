@@ -15,7 +15,7 @@
 #include <memory>
 
 // TODO, improvements
-// (1) There has to be two queues, one for read and one for write, the reason is that turning
+// There has to be two queues, one for read and one for write, the reason is that turning
 // around the direction of the memory bus when alternating between reads and writes requires 
 // additional latenty.
 namespace PCMSim
@@ -38,6 +38,7 @@ class BaseController
     const unsigned num_of_banks; // per rank
 
     // One for read and one for write
+    // This is a per-bank record on how many reads and writes left to a bank.
     std::vector<std::vector<int>> num_reqs_to_banks[2];
 
   protected:
@@ -47,6 +48,7 @@ class BaseController
     uint64_t total_waiting_time = 0;
     uint64_t finished_requests = 0;
 
+  // TODO, we should not have this any more.
   protected:
     bool offline_req_analysis_mode = false;
     std::ofstream *offline_req_ana_output;
@@ -152,9 +154,14 @@ class BaseController
 class FCFSController : public BaseController
 {
   protected:
-    std::list<Request> r_w_q;
-    const int max = 64; // Max size of r_w_q
+    const int max = 32; // Max size of each queue
+    std::list<Request> readq;
+    std::list<Request> writeq;
 
+    bool write_mode = false; // whether write requests should be prioritized over reads
+    float wr_high_watermark = 0.8f; // threshold for switching to write mode
+    float wr_low_watermark = 0.2f; // threshold for switching back to read mode
+    
     std::deque<Request> r_w_pending_queue;
 
   protected:
@@ -169,12 +176,13 @@ class FCFSController : public BaseController
 
     int pendingRequests() override 
     {
-        return r_w_q.size() + r_w_pending_queue.size();
+        return readq.size() + writeq.size() + r_w_pending_queue.size();
     }
     
     bool enqueue(Request& req) override
     {
-        if (r_w_q.size() == max)
+        auto queue = getQueue(req);
+        if (queue.size() == max)
         {
             // Queue is full
             return false;
@@ -186,8 +194,8 @@ class FCFSController : public BaseController
 
         if (req.display) { displayReqInfo(req); }
         req.queue_arrival = clk;	
-        req.OrderID = r_w_q.size(); // To track back-logging.
-	r_w_q.push_back(req);
+        req.OrderID = queue.size(); // To track back-logging.
+	queue.push_back(req);
         
         return true;
     }
@@ -197,19 +205,34 @@ class FCFSController : public BaseController
         clk++;
         channel->update(clk);
 
+        // 1. Serve pending requests
         servePendingAccesses();
 
-        if (auto [scheduled, scheduled_req] = getHead();
+        // 2. Determine write/read mode
+        if (!write_mode) {
+            // yes -- write queue is almost full or read queue is empty
+            if (writeq.size() > int(wr_high_watermark * max) || readq.size() == 0)
+                write_mode = true;
+        }
+        else {
+            // no -- write queue is almost empty and read queue is not empty
+            if (writeq.size() < int(wr_low_watermark * max) && readq.size() != 0)
+                write_mode = false;
+        }
+
+        // 3. Schedule the request
+        auto& queue = !write_mode ? readq : writeq;
+        if (auto [scheduled, scheduled_req] = getHead(queue);
             scheduled)
         {
             channelAccess(scheduled_req);
             scheduled_req->commuToMMU();
 
             r_w_pending_queue.push_back(std::move(*scheduled_req));
-            r_w_q.erase(scheduled_req);
+            queue.erase(scheduled_req);
 
             // Update back-logging information.
-            for (auto &waiting_req : r_w_q)
+            for (auto &waiting_req : queue)
             {
                 --waiting_req.OrderID;
             }
@@ -217,6 +240,23 @@ class FCFSController : public BaseController
     }
 
   protected:
+    std::list<Request>& getQueue(auto req)
+    {
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            return readq;
+        }
+        else if (req.req_type == Request::Request_Type::WRITE)
+        {
+            return writeq;
+        }
+        else
+        {
+            std::cerr << "Un-supported request type. " << std::endl;
+            exit(0);
+        }
+    }
+
     void servePendingAccesses()
     {
         if (!r_w_pending_queue.size())
@@ -287,20 +327,20 @@ class FCFSController : public BaseController
         }
     }
 
-    virtual std::pair<bool,std::list<Request>::iterator> getHead()
+    virtual std::pair<bool,std::list<Request>::iterator> getHead(std::list<Request>& queue)
     {
-        if (r_w_q.size() == 0)
+        if (queue.size() == 0)
         {
             // Queue is empty, nothing to be scheduled.
-            return std::make_pair(false, r_w_q.end());
+            return std::make_pair(false, queue.end());
         }
 
-        auto req = r_w_q.begin();
+        auto req = queue.begin();
         if (issueable(req))
         {
             return std::make_pair(true, req);
         }
-        return std::make_pair(false, r_w_q.end());
+        return std::make_pair(false, queue.end());
     }
     
     virtual void channelAccess(std::list<Request>::iterator& scheduled_req)
@@ -346,22 +386,22 @@ class FRFCFSController : public FCFSController
     {}
 
   protected:
-    std::pair<bool,std::list<Request>::iterator> getHead() override
+    std::pair<bool,std::list<Request>::iterator> getHead(std::list<Request>& queue) override
     {
-        if (r_w_q.size() == 0)
+        if (queue.size() == 0)
         {
             // Queue is empty, nothing to be scheduled.
-            return std::make_pair(false, r_w_q.end());
+            return std::make_pair(false, queue.end());
         }
 
-        for (auto iter = r_w_q.begin(); iter != r_w_q.end(); ++iter)
+        for (auto iter = queue.begin(); iter != queue.end(); ++iter)
         {
             if (issueable(iter))
             {
                 return std::make_pair(true, iter);
             }
         }
-        return std::make_pair(false, r_w_q.end());
+        return std::make_pair(false, queue.end());
     }
 };
 }

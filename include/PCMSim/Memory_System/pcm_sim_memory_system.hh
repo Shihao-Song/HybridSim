@@ -8,7 +8,6 @@
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
-#include "PCMSim/CP_Aware_Controller/laser.hh"
 
 #include <functional>
 #include <iostream>
@@ -150,6 +149,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
         }
     }
 
+    // TODO, print all necessary information to stats file.
+    /*
     void offlineReqAnalysis(std::string &dir) override
     {
         offline_req_analysis_mode = true;
@@ -179,6 +180,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
             }
         }
     }
+    */
 
     void registerStats(Simulator::Stats &stats) override
     {
@@ -229,7 +231,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
             stats.registerStats(waiting_info);
             stats.registerStats(access_latency);
         }
-
+        /*
         if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value ||
                       std::is_same<LAS_PCM_Static, PCMController>::value ||
                       std::is_same<LAS_PCM_Controller, PCMController>::value ||
@@ -269,7 +271,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
                 stats.registerStats(prin);
             }
         }
-
+        */
         if constexpr (std::is_same<CPAwareController, PCMController>::value)
         {
             for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
@@ -361,11 +363,13 @@ class PCMSimMemorySystem : public Simulator::MemObject
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
+/*
 typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Static> LASPCM_Static_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LAS_PCM_Base> LASPCM_Base_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LASER_Controller> LASER_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<LASER_2_Controller> LASER_2_PCMSimMemorySystem;
+*/
 
 class PCMSimMemorySystemFactory
 {
@@ -397,7 +401,7 @@ class PCMSimMemorySystemFactory
                                 return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
                             };
 
-	
+        /*
         pcm_factories["LASER-2"] = [](Config &pcm_cfg)
                           {
                               return std::make_unique<LASER_2_PCMSimMemorySystem>(pcm_cfg);
@@ -449,7 +453,7 @@ class PCMSimMemorySystemFactory
                 return std::make_unique<LASPCM_Static_PCMSimMemorySystem>(dram_cfg, pcm_cfg);
             };
 
- 
+        */
     }
 
     auto createPCMMemorySystem(Config &pcm_cfg)
