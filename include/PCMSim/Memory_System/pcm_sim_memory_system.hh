@@ -8,6 +8,7 @@
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
 #include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
+#include "PCMSim/CP_Aware_Controller/laser.hh"
 
 #include <functional>
 #include <iostream>

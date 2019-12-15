@@ -25,20 +25,23 @@ class LASER : public FCFSController
         // status table keeps track of charge pump status, e.g., which pump is ON.
         // For example, to serve a read request, a read charge pump has to be charged.
         sTab.resize(num_of_ranks);
-        // aging table keeps track of how many clock cycles a bank have worked.
-        aTab.resize(num_of_ranks);
+        // working table keeps track of how many clock cycles a bank have worked.
+        wTab.resize(num_of_ranks);
         // idle table keeps track of how many clock cycles a bank have stayed idle.
         iTab.resize(num_of_ranks);
-        // record table keeps track of the number of requests have been served by 
-        // the bank; the table also records when the pumps charge and discharge.
+        // request table keeps track of the number of requests have been served by 
+        // the bank.
         rTab.resize(num_of_ranks);
+        // charge pump table keeps track of when pumps charge/discharge.
+        cpTab.resize(num_of_ranks);
 
         for (int i = 0; i < num_of_ranks; i++)
         {
             sTab[i].resize(num_of_banks);
-            aTab[i].resize(num_of_banks);
+            wTab[i].resize(num_of_banks);
             iTab[i].resize(num_of_banks);
             rTab[i].resize(num_of_banks);
+            cpTab[i].resize(num_of_banks);
 
             for (int j = 0; j < num_of_banks; j++)
             {
@@ -48,7 +51,7 @@ class LASER : public FCFSController
                 sTab[i][j].cur_busy_cp = CP_Type::MAX;
 
                 // Initialize aging record
-                aTab[i][j].aging = 0;
+                wTab[i][j].working = 0;
 
                 // Initialize idle record
                 iTab[i][j].idle = 0; // Only keep one idle tick per bank.
@@ -68,18 +71,34 @@ class LASER : public FCFSController
         tableUpdate();
         dischargeOpenBanks();
 
+        // 1. Serve pending requests
         servePendingAccesses();
 
-        if (auto [scheduled, scheduled_req] = getHead();
+        // 2. Determine write/read mode
+        if (!write_mode) {
+            // yes -- write queue is almost full or read queue is empty
+            if (writeq.size() > int(wr_high_watermark * max) || readq.size() == 0)
+                write_mode = true;
+        }
+        else {
+            // no -- write queue is almost empty and read queue is not empty
+            if (writeq.size() < int(wr_low_watermark * max) && readq.size() != 0)
+                write_mode = false;
+        }
+
+        // 3. Schedule the request
+        auto& queue = !write_mode ? readq : writeq;
+        if (auto [scheduled, scheduled_req] = getHead(queue);
             scheduled)
         {
             channelAccess(scheduled_req);
+            scheduled_req->commuToMMU();
 
             r_w_pending_queue.push_back(std::move(*scheduled_req));
-            r_w_q.erase(scheduled_req);
+            queue.erase(scheduled_req);
 
             // Update back-logging information.
-            for (auto &waiting_req : r_w_q)
+            for (auto &waiting_req : queue)
             {
                 --waiting_req.OrderID;
             }
@@ -87,36 +106,37 @@ class LASER : public FCFSController
     }
 
   protected:
-    std::pair<bool,std::list<Request>::iterator> getHead() override
+    std::pair<bool,std::list<Request>::iterator> getHead(std::list<Request>& queue) override
     {
-        if (r_w_q.size() == 0)
+        if (queue.size() == 0)
         {
             // Queue is empty, nothing to be scheduled.
-            return std::make_pair(false, r_w_q.end());
+            return std::make_pair(false, queue.end());
         }
 
         if constexpr (std::is_same<CP_STATIC, Scheduler>::value)
         {
-            auto req = r_w_q.begin();
+            auto req = queue.begin();
             if (issueable(req))
             {
                 return std::make_pair(true, req);
             }
-            return std::make_pair(false, r_w_q.end());
+            return std::make_pair(false, queue.end());
         }
         
         if constexpr (std::is_same<LASER_1, Scheduler>::value ||
                       std::is_same<LASER_2, Scheduler>::value)
         {
-            // Step one: make sure the oldest request is not waiting too long. 
-            auto oldest_req = r_w_q.begin();
-            if (oldest_req->OrderID <= back_logging_threshold)
+            // Step one: make sure the oldest read request is not waiting too long. 
+            auto oldest_req = queue.begin();
+            if (oldest_req->OrderID <= back_logging_threshold && 
+                write_mode == false)
             {
                 if (issueable(oldest_req))
                 {
                     return std::make_pair(true, oldest_req);
                 }
-                return std::make_pair(false, r_w_q.end());
+                return std::make_pair(false, queue.end());
             }
 
             // Step two: find an open-bank. 
@@ -126,8 +146,8 @@ class LASER : public FCFSController
             // (3) If there are more than one bank obeys (1) and (2), select the bank
             // that stays idle for the longest.
             int most_idle = -1;
-            auto most_idle_req = r_w_q.begin();
-            for (auto q_iter = r_w_q.begin(); q_iter != r_w_q.end(); q_iter++)
+            auto most_idle_req = queue.begin();
+            for (auto q_iter = queue.begin(); q_iter != queue.end(); q_iter++)
             {
                 int target_rank = (q_iter->addr_vec)[int(Config::Decoding::Rank)];
                 int target_bank = (q_iter->addr_vec)[int(Config::Decoding::Bank)];
@@ -160,6 +180,7 @@ class LASER : public FCFSController
 
                 if (q_iter->req_type == Request::Request_Type::WRITE)
                 {
+                    // When serving a write request, both pumps have to be ON.
                     if (sTab[target_rank][target_bank].cp_status == CP_Status::BOTH_ON)
                     {
                         // issueable() tells if the bank is free or not
@@ -189,12 +210,12 @@ class LASER : public FCFSController
                 return std::make_pair(true, most_idle_req);
             }
 
-            auto req = r_w_q.begin();
+            auto req = queue.begin();
             if (issueable(req))
             {
                 return std::make_pair(true, req);
             }
-            return std::make_pair(false, r_w_q.end());
+            return std::make_pair(false, queue.end());
         }
     }
 
@@ -218,10 +239,9 @@ class LASER : public FCFSController
                 // dominates the preparation time.
                 charging_latency = nclks_wcp;
 
-                
-                rTab[target_rank][target_bank].write_cp_begin_charging = clk;
-                rTab[target_rank][target_bank].write_cp_end_charging = clk + 
-                                                                       charging_latency;
+                cpTab[target_rank][target_bank].write_cp_begin_charging = clk;
+                cpTab[target_rank][target_bank].write_cp_end_charging = clk + 
+                                                                        charging_latency;
             }
             // Both pumps has to be on at this stage.
             assert(sTab[target_rank][target_bank].cp_status == CP_Status::BOTH_ON);
@@ -241,8 +261,8 @@ class LASER : public FCFSController
                     charging_latency = nclks_rcp;
 
                     // Record charging time
-                    rTab[target_rank][target_bank].read_cp_begin_charging = clk;
-                    rTab[target_rank][target_bank].read_cp_end_charging = clk + 
+                    cpTab[target_rank][target_bank].read_cp_begin_charging = clk;
+                    cpTab[target_rank][target_bank].read_cp_end_charging = clk + 
                                                                         charging_latency;
                 }
             }
@@ -261,8 +281,8 @@ class LASER : public FCFSController
 
                     charging_latency = nclks_wcp;
 
-                    rTab[target_rank][target_bank].write_cp_begin_charging = clk;
-                    rTab[target_rank][target_bank].write_cp_end_charging = clk + 
+                    cpTab[target_rank][target_bank].write_cp_begin_charging = clk;
+                    cpTab[target_rank][target_bank].write_cp_end_charging = clk + 
                                                                          charging_latency;
                 }
                 // If only the read charge pump is ON, turn on the write charge pump.
@@ -273,8 +293,8 @@ class LASER : public FCFSController
 
                     charging_latency = nclks_wcp;
 
-                    rTab[target_rank][target_bank].write_cp_begin_charging = clk;
-                    rTab[target_rank][target_bank].write_cp_end_charging = clk + 
+                    cpTab[target_rank][target_bank].write_cp_begin_charging = clk;
+                    cpTab[target_rank][target_bank].write_cp_end_charging = clk + 
                                                                            charging_latency;
                 }
             }
@@ -315,7 +335,7 @@ class LASER : public FCFSController
     }
 
   protected:
-    const int back_logging_threshold = -16;
+    const int back_logging_threshold = -8; // Only for critical reads
     
     // Charge pump status for each bank (two charge pumps per bank).
     enum class CP_Status : int
@@ -338,12 +358,12 @@ class LASER : public FCFSController
     // One record for each bank
     std::vector<std::vector<Status_Entry>> sTab;
 
-    struct Aging_Entry
+    struct Working_Entry
     {
-        Tick aging;
+        Tick working;
     };
     // One record for each bank
-    std::vector<std::vector<Aging_Entry>> aTab;
+    std::vector<std::vector<Aging_Entry>> wTab;
 
     struct Idle_Entry
     {
@@ -352,18 +372,22 @@ class LASER : public FCFSController
     // One record for each bank
     std::vector<std::vector<Idle_Entry>> iTab;
 
-    struct Access_Record
+    struct Request_Record
+    {
+        unsigned num_of_reads;
+        unsigned num_of_writes;
+    };
+    std::vector<std::vector<Request_Record>> rTab; // request table
+
+    struct CP_Record
     {
         Tick read_cp_begin_charging;
         Tick read_cp_end_charging;
 
         Tick write_cp_begin_charging;
         Tick write_cp_end_charging;
-
-        unsigned num_of_reads;
-        unsigned num_of_writes;
     };
-    std::vector<std::vector<Access_Record>> rTab; // request table
+    std::vector<std::vector<CP_Record>> cpTab; // charge pump table
 
     void tableUpdate()
     {
@@ -377,7 +401,7 @@ class LASER : public FCFSController
                 {
                     if(!channel->isBankFree(i,j))
                     {
-                        ++aTab[i][j].aging;
+                        ++wTab[i][j].working;
                     }
                     else
                     {
@@ -433,20 +457,14 @@ class LASER : public FCFSController
             }
         }
 
-        // TODO, need to think through.
-        // When in write mode, there should be no discharging/charging latencies.
-        // For example, write pump discharges while verifying;
-        // read pump discharges while programming.
-        // When in read mode, the discharging/charging latency is in critical path.
+        // TODO, need to think through this.
+        // Write charge pump has no discharging latencies in any situations.
         if constexpr (std::is_same<LASER_2, Scheduler>::value)
         {
             for (int i = 0; i < num_of_ranks; i++)
             {
                 for (int j = 0; j < num_of_banks; j++)
                 {
-                    // When in write mode.
-                    // When in read mode.
-
                     if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
                         sTab[i][j].cp_status == CP_Status::WCP_ON ||
                         sTab[i][j].cp_status == CP_Status::BOTH_ON)
