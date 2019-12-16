@@ -73,8 +73,23 @@ class Config
 
     enum class Decoding : int
     {
+        // TODO, Partition and Tile also have some effect, please do more research on how to
+        // better introduce Partition and Tile into address mapping. Or maybe some architectural
+        // techniques.
         // Address mapping: bank-interleaving
         Partition, Tile, Row, Col, Rank, Bank, Channel, Cache_Line, MAX
+
+        // The tile is defined as the smallest array unit comprising of PCM cells.
+        // Each tile requires its own decoding structures, an n-well ring, dummy elements at 
+        // the array borders, and possibly a local amplifer to enhance the cell signal before 
+        // sending it to a global sense amplifier.
+
+        // A partition (a group of tiles) is the portion of the array that will change its bias 
+        // when switching operations. For example, a given partition will change its bias when 
+        // prepared for the write operation, while all the remaining cells will stay in read 
+        // bias.
+        // A partition has its own dedicated peripheral circuits, like switches, 
+        // voltage regulators, fixed borders between adjacent partitions.
 
         // Why I don't consider row-buffer hits.
         // In DRAM, you can read the entire row into the row buffer, thus priorizing row buffer 
