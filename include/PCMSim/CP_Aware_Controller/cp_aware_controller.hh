@@ -155,13 +155,11 @@ class CPAwareController : public FRFCFSController
                 // exit(0);
 
                 req_latency = 
-                    latency_lookaside_buffer[int(Req_Type::READ)][stage_id] + 
                     latency_lookaside_buffer[int(Req_Type::WRITE)][stage_id];
             }
             else
             {
                 req_latency =
-                    latency_lookaside_buffer[int(Req_Type::READ)][1] + 
                     latency_lookaside_buffer[int(Req_Type::WRITE)][1];
             }
 

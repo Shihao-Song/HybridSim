@@ -313,9 +313,7 @@ class LASER : public FCFSController
         }
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
-            // Program-and-verify.
             req_latency += singleWriteLatency;
-            req_latency += singleReadLatency;
         }
         else
         {
@@ -457,16 +455,37 @@ class LASER : public FCFSController
             }
         }
 
-        // TODO, need to think through this.
-        // Write charge pump has no discharging latencies in any situations.
+        // Write charge pump has no discharging latency in any situations.
+        // Also, write charge pumps can be pre-charged before switching operation mode.
+        // Read charge pump has no discharging latency only in write mode.
         if constexpr (std::is_same<LASER_2, Scheduler>::value)
         {
             for (int i = 0; i < num_of_ranks; i++)
             {
                 for (int j = 0; j < num_of_banks; j++)
                 {
+                    // Discharge write charge pump
+                    if (sTab[i][j].cp_status == CP_Status::BOTH_ON)
+                    {
+                        unsigned total_idle = iTab[i][j].idle;
+
+                        unsigned num_of_reads_done = rTab[i][j].num_of_reads;
+                        unsigned num_of_writes_done = rTab[i][j].num_of_writes;
+
+                        double ps_aging = 1.82 * (double)num_of_reads_done +
+                                          580.95 * (double)num_of_writes_done +
+                                          0.03 * (double)total_idle;
+
+                        // If aging exceeds or no more writes to this bank.
+                        if (ps_aging > 1000.0 || 
+                            num_reqs_to_banks[int(Request::Request_Type::WRITE)][i][j] == 0)
+                        {
+                            dischargeSingleCP(CP_Type::WCP, i, j);
+                        }
+	            }
+
+                    // Discharge read charge pumps
                     if (sTab[i][j].cp_status == CP_Status::RCP_ON ||
-                        sTab[i][j].cp_status == CP_Status::WCP_ON ||
                         sTab[i][j].cp_status == CP_Status::BOTH_ON)
                     {
                         unsigned total_idle = iTab[i][j].idle;
@@ -474,13 +493,10 @@ class LASER : public FCFSController
                         unsigned num_of_reads_done = rTab[i][j].num_of_reads;
                         unsigned num_of_writes_done = rTab[i][j].num_of_writes;
 
-                        double ps_aging = 1.82 * (double)num_of_reads_done + 
-                                          580.95 * (double)num_of_writes_done +
-                                          0.03 * (double)total_idle;
-
                         double sa_aging = 59.63 * (double)num_of_reads_done +
                                           5.22 * (double)num_of_writes_done +
                                           0.03 * (double)total_idle;
+                        
 
                         // Discharge write charge pump
                         if ((ps_aging > 1000.0 && rTab[i][j].num_of_writes > 0))
@@ -553,21 +569,6 @@ class LASER : public FCFSController
                                 dischargeSingleBank(i, j);
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        if constexpr (std::is_same<BASE, Scheduler>::value)
-	{
-            for (int i = 0; i < num_of_ranks; i++)
-            {
-                for (int j = 0; j < num_of_banks; j++)
-                {
-                    if (sTab[i][j].cp_status == CP_Status::BOTH_ON)
-                    {
-                        // BASE discharges read charge for every request
-                        dischargeSingleBank(i, j);
                     }
                 }
             }
@@ -858,14 +859,14 @@ class LASER : public FCFSController
 
   // Stats
   public:
-    // std::vector<std::vector<Tick>> total_charging;
-    Tick total_idle = 0;
-    double total_max_aging = 0.0;
-    Tick total_discharge = 0;
+    uint64_t stats_total_read_charge_pump_on_nclks = 0;
+    uint64_t stats_total_write_charge_pump_on_nclks = 0;
+    uint64_t stats_total_idle_nclks = 0;
+    uint64_t stats_total_discharge_num = 0;
 
-    double total_ps_aging = 0.0;
-    double total_vl_aging = 0.0;
-    double total_sa_aging = 0.0;
+    double stats_total_ps_aging = 0.0;
+    double stats_total_vl_aging = 0.0;
+    double stats_total_sa_aging = 0.0;
 };
 
 typedef LASPCM<FCFS,LASER_2> LASER_2_Controller;
