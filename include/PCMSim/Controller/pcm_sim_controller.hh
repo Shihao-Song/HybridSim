@@ -362,7 +362,7 @@ class FCFSController : public BaseController
         else if (scheduled_req->req_type == Request::Request_Type::WRITE)
         {
             // Program-and-verify scheme.
-            req_latency = singleWriteLatency + singleReadLatency;
+            req_latency = singleWriteLatency;
         }
         else
         {
