@@ -111,7 +111,6 @@ class SingleNode : public MMU
         //           << free_frame_pool.size() << "\n\n";
     }
 
-    // Default: randomly map a virtual page to DRAM or PCM (segment is not considered)
     void va2pa(Request &req) override
     {
         int core_id = req.core_id;
@@ -131,10 +130,10 @@ class SingleNode : public MMU
         else
         {
             
-            auto &free_frames = free_fast_access_frame_pool;
+            auto &free_frames = free_slow_access_frame_pool;
             if (free_frames.size() == 0)
             {
-                free_frames = free_slow_access_frame_pool;
+                free_frames = free_fast_access_frame_pool;
             }
 
             auto &used_frames = used_frame_pool;
