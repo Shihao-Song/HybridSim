@@ -209,10 +209,11 @@ class Hybrid : public MMU
                 // std::cout << "Mapped to PCM \n";
             }
 
-            auto &free_frames = free_fast_access_frame_pool_by_technology[chosen_technology];
+            // TODO, this should be random as well.
+            auto &free_frames = free_slow_access_frame_pool_by_technology[chosen_technology];
             if (free_frames.size() == 0)
             {
-                free_frames = free_slow_access_frame_pool_by_technology[chosen_technology];
+                free_frames = free_fast_access_frame_pool_by_technology[chosen_technology];
             }
 
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
