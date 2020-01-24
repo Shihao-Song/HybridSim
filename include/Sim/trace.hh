@@ -161,9 +161,8 @@ class Trace
 	else
         {
             std::cerr << line << "\n";
-            // std::cerr << "Unsupported Instruction Type \n";
-            // exit(0);
-            inst.opr = Instruction::Operation::EXE;
+            std::cerr << "Unsupported Instruction Type \n";
+            exit(0);
         }
 
         ++instruction_index;
