@@ -146,6 +146,15 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         std::cout << "Number of sets: " << num_sets << "\n";
     }
 
+    void incluInval(Addr addr) override
+    {
+        Addr blk_aligned_addr = blkAlign(addr);
+
+        SetWayBlk *blk = findBlock(blk_aligned_addr);
+
+        if (blk != nullptr) { invalidate(blk); }
+    }
+
     /*
     bool writeback(uint64_t page_id) override
     {
@@ -216,11 +225,11 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         if (wb_required)
         {
             assert(victim->isDirty());
-            victim_addr = regenerateAddr(victim);
         }
 
         if (victim->isValid())
         {
+            victim_addr = regenerateAddr(victim);
             invalidate(victim);
         }
 

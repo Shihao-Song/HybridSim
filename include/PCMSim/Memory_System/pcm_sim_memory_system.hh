@@ -18,8 +18,8 @@
 
 namespace PCMSim
 {
-// Since the main focus is PCM, the DRAM controller is simply a Tiered-Latency FR-FCFS PCM controller with 
-// different timings.
+// Since the main focus is PCM, the DRAM controller is simply a Tiered-Latency 
+// FR-FCFS PCM controller with different timings.
 template<typename PCMController>
 class PCMSimMemorySystem : public Simulator::MemObject
 {
@@ -29,13 +29,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
     std::vector<int> pcm_memory_addr_decoding_bits;
     std::vector<int> dram_memory_addr_decoding_bits;
-
-  private:
-    bool offline_req_analysis_mode = false;
-    std::ofstream offline_req_ana_output;
-
-    bool offline_cp_analysis_mode = false;
-    std::ofstream offline_cp_ana_output;
 
   public:
     typedef uint64_t Addr;
@@ -49,25 +42,19 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         // A PCM-Only System
         init(pcm_cfg);
+
+        on_chip = false;
     }
 
     PCMSimMemorySystem(Config &dram_cfg, Config &pcm_cfg) : Simulator::MemObject()
     {
         init(dram_cfg, pcm_cfg);
+
+        on_chip = false;
     }
 
     ~PCMSimMemorySystem()
-    {
-        if (offline_req_analysis_mode)
-        {
-            offline_req_ana_output.close();
-        }
-
-        if (offline_cp_analysis_mode)
-        {
-            offline_cp_ana_output.close();
-        }
-    }
+    {}
 
     int pendingRequests() override
     {
@@ -148,39 +135,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
             dram_controller->reInitialize();
         }
     }
-
-    // TODO, print all necessary information to stats file.
-    /*
-    void offlineReqAnalysis(std::string &dir) override
-    {
-        offline_req_analysis_mode = true;
-
-        std::string req_file = dir + "/req_info.csv";
-        offline_req_ana_output.open(req_file);
-
-        for (auto &pcm_controller : pcm_controllers)
-        {
-            pcm_controller->offlineReqAnalysis(&offline_req_ana_output);
-        }
-
-        if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value || 
-                      std::is_same<LAS_PCM_Static, PCMController>::value ||
-                      std::is_same<LAS_PCM_Controller, PCMController>::value ||
-                      std::is_same<LASER_Controller, PCMController>::value ||
-                      std::is_same<LASER_2_Controller, PCMController>::value)
-        {
-	    offline_cp_analysis_mode = true;
-
-            std::string cp_file = dir + "/cp_info.csv";
-            offline_cp_ana_output.open(cp_file);
-
-            for (auto &pcm_controller : pcm_controllers)
-            {
-                pcm_controller->offlineCPAnalysis(&offline_cp_ana_output);
-            }
-        }
-    }
-    */
 
     void registerStats(Simulator::Stats &stats) override
     {
@@ -408,6 +362,11 @@ class PCMSimMemorySystemFactory
                                 return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
                             };
 
+        hybrid_factories["CP-AWARE"] = [](Config &dram_cfg, Config &pcm_cfg)
+                          {
+                              return std::make_unique<CP_Aware_PCMSimMemorySystem>(dram_cfg,
+                                                                                   pcm_cfg);
+                          };
         /*
         pcm_factories["LASER-2"] = [](Config &pcm_cfg)
                           {

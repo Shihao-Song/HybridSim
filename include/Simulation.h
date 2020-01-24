@@ -41,7 +41,6 @@ struct ParseArgsRet
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
-    std::string offline_request_analysis_dir;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -73,11 +72,11 @@ auto createMemObject(Config &cfg,
     {
         if (mem_type == Memories::L1_I_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg, LLC);
         }
         else if (mem_type == Memories::L1_D_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg);
+            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg, LLC);
         }
         else if (mem_type == Memories::L2_CACHE)
         {
@@ -109,7 +108,6 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> cpu_traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
-    std::string offline_request_analysis_dir = "N/A";
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
@@ -124,10 +122,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instructions per phase (Optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
-                        "Stats output file")
-        ("offline_request_analysis_dir",
-            po::value<std::string>(&offline_request_analysis_dir),
-            "Offline request analysis directory");
+                        "Stats output file");
 
     po::variables_map vm;
 
@@ -155,8 +150,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         pcm_cfg_file,
                         cpu_traces,
                         num_instrs_per_phase,
-                        stats_output,
-                        offline_request_analysis_dir};
+                        stats_output};
 }
 
 // Function to test cache behavior.

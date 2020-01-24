@@ -70,7 +70,7 @@ class Cache : public Simulator::MemObject
         req.core_id = core_id;
         req.eip = eip;
         req.setMMUCommuFunct(mmu_commu);
-
+        
 	if (next_level->send(req))
         {
             ++num_loads;
@@ -91,25 +91,35 @@ class Cache : public Simulator::MemObject
         auto [core_id, eip, mmu_commu] = mshr_queue->retriMMUCommu(addr);
         // if (is_entry_modified)
         // { 
-        //     std::cout << level_name << " " << addr << " is dirty. \n";
+        //      std::cout << level_name << " " << addr << " is dirty. \n";
         // }
         // else
         // {
         //     std::cout << level_name << " " << addr << " is clean. \n";
         // }
         mshr_queue->deAllocate(addr, true);
-        if (auto [wb_required, wb_addr] = tags->insertBlock(addr, is_entry_modified, clk);
-            wb_required)
+        auto [wb_required, victim_addr] = tags->insertBlock(addr, is_entry_modified, clk);
+        if (wb_required)
         {
-            wb_queue->allocate(wb_addr, clk);
+            wb_queue->allocate(victim_addr, clk);
 
             auto [wb_core_id, wb_eip, wb_mmu_commu] = tags->retriMMUCommu(addr);
             // Record to wb_queue.
-            wb_queue->recordMMUCommu(wb_addr,
+            wb_queue->recordMMUCommu(victim_addr,
                                      wb_core_id,
                                      wb_eip,
                                      wb_mmu_commu);
         }
+        if (victim_addr != ((Addr) - 1) && inclusive)
+        {
+            // std::cout << clk << ": " << level_name 
+            //           << " Evicted address " << victim_addr << "\n";
+
+            // For an inclusive cache, all upper layers of cache should invalidate this 
+            // victim address.
+            for (auto &prev_level : prev_levels) { prev_level->incluInval(victim_addr); }
+        }
+
         // Need to record new MMU call-back information.
         tags->recordMMUCommu(addr,
                              core_id,
@@ -152,7 +162,7 @@ class Cache : public Simulator::MemObject
             }
         }
         else
-	{    
+	{
             Request req(addr, Request::Request_Type::WRITE_BACK);
 
             auto [core_id, eip, mmu_commu] = wb_queue->retriMMUCommu(addr);
@@ -169,6 +179,17 @@ class Cache : public Simulator::MemObject
     }
 
     bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
+
+    void incluInval(uint64_t addr) override
+    {
+        // std::cout << clk << ": " << level_name 
+        //           << " (inclu) invalidaing addr " << addr << "\n";
+        tags->incluInval(addr);
+
+        // Our prev levels should be invalidated as well.
+        for (auto &prev_level : prev_levels)
+        { prev_level->incluInval(addr); }
+    }
 
   protected:
     auto nclksToTickNextLevel(auto &cfg)
@@ -216,6 +237,10 @@ class Cache : public Simulator::MemObject
         auto [write_back_entry_ready, write_back_addr] = wb_queue->getEntry(clk);
         auto [mshr_entry_ready, mshr_req_addr] = mshr_queue->getEntry(clk);
 
+        // We serve write-backs when (1) write-back queue is full or 
+        //                           (2) mshr queue is empty.
+        // This is similar to the memory controller because reads (loads) are in the 
+        // critical path.
 	if (write_back_entry_ready && wb_queue->isFull() ||
             !mshr_entry_ready && wb_queue->numEntries())
         {
@@ -250,7 +275,9 @@ class Cache : public Simulator::MemObject
           num_misses(0),
           num_loads(0),
           num_evicts(0)
-    {}
+    {
+        on_chip = true; // All caches are on-chip
+    }
 
     int pendingRequests() override
     {
@@ -322,17 +349,24 @@ class Cache : public Simulator::MemObject
                 if (!wb_queue->isFull())
                 {
                     // A write-back from higher level must be a dirty block.
-                    if (auto [wb_required, wb_addr] = tags->insertBlock(aligned_addr,
+                    auto [wb_required, victim_addr] = tags->insertBlock(aligned_addr,
                                                                         true,
                                                                         clk);
-                        wb_required)
+                    if (wb_required)
                     {
-                        wb_queue->allocate(wb_addr, clk);
+                        wb_queue->allocate(victim_addr, clk);
                         // Retrive MMU call-back information of evicted.
                         auto [core_id, eip, mmu_commu] = tags->retriMMUCommu(aligned_addr);
                         // Record to wb_queue.
-                        wb_queue->recordMMUCommu(wb_addr, core_id, eip, mmu_commu);
+                        wb_queue->recordMMUCommu(victim_addr, core_id, eip, mmu_commu);
                     }
+
+                    if (victim_addr != ((Addr) - 1) && inclusive)
+                    {
+                        for (auto &prev_level : prev_levels)
+                        { prev_level->incluInval(victim_addr); }
+                    }
+
                     // Need to record new MMU call-back information.
                     tags->recordMMUCommu(aligned_addr,
                                          req.core_id,
@@ -356,8 +390,8 @@ class Cache : public Simulator::MemObject
                                                              clk + tag_lookup_latency);
                         hit_in_mshr_queue)
                     {
-                    //     std::cout << "Address " << aligned_addr 
-                    //               << " is hit in MSRH. \n";
+                         // std::cout << clk << ": Address " << aligned_addr 
+                         //           << " is hit in MSRH. \n";
                         ++num_hits;
                         // Notify MMU that there is a hit
                         req.commuToMMU();
@@ -376,8 +410,8 @@ class Cache : public Simulator::MemObject
 
                     if (req.req_type == Request::Request_Type::WRITE)
                     {
-                    //     std::cout << "Address " << aligned_addr
-                    //               << " write arequest is detected.\n";
+                         // std::cout << "Address " << aligned_addr
+                         //           << " write arequest is detected.\n";
                        
                         mshr_queue->setEntryModified(aligned_addr);
                     }
@@ -389,6 +423,7 @@ class Cache : public Simulator::MemObject
                 }
                 return false;
             }
+            /*
             else if constexpr(std::is_same<WriteOnly, Mode>::value)
             {
                 if (!blocked())
@@ -441,35 +476,37 @@ class Cache : public Simulator::MemObject
                 }
                 return false;
             }
+            */
         }
     }
 
     void tick() override
     {
+	clk++;
+
 	servePendings();
 
         if (boundary)
         {
             // TODO, delete assert in the future.
-            assert(level == Config::Cache_Level::L1D);
-            clk++;
+            // assert(level == Config::Cache_Level::L1D);
+            // clk++;
             return;
         }
         // TODO, delete assert in the future.
-        assert(int(level) > int(Config::Cache_Level::L1D));
+        // assert(int(level) > int(Config::Cache_Level::L1D));
         if (arbitrator)
         {
             // TODO, delete assert in the future.
-            assert(level == Config::Cache_Level::L2);
+            // assert(level == Config::Cache_Level::L2);
+            // TODO, there should be a better arbitration mechanism.
             selected_client = (selected_client + 1) % num_clients;
         }
 
         if (clk % nclks_to_tick_next_level == 0)
         {
             next_level->tick();
-        }
-        
-	clk++;
+        }        
     }
 
     void reInitialize() override

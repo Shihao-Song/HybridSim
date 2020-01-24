@@ -48,11 +48,6 @@ class BaseController
     uint64_t total_waiting_time = 0;
     uint64_t finished_requests = 0;
 
-  // TODO, we should not have this any more.
-  protected:
-    bool offline_req_analysis_mode = false;
-    std::ofstream *offline_req_ana_output;
-
   public:  
 
     BaseController(int _id, Config &cfg) : id(_id)
@@ -97,12 +92,6 @@ class BaseController
 
         // Re-initialize channel as well
         channel->reInitialize();
-    }
-
-    virtual void offlineReqAnalysis(std::ofstream *out)
-    {
-        offline_req_analysis_mode = true;
-        offline_req_ana_output = out;
     }
 
      // Some Proxy functions
@@ -267,30 +256,27 @@ class FCFSController : public BaseController
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
-            if (offline_req_analysis_mode)
+            /*
+            if (req.req_type == Request::Request_Type::READ)
             {
-                if (req.req_type == Request::Request_Type::READ)
-                {
-                    *offline_req_ana_output << "R,";
-                }
-                else
-                {
-                    *offline_req_ana_output << "W,";
-                }
-
-                unsigned uni_bank_id = req.addr_vec[int(Config::Decoding::Channel)] *
-                                       num_of_ranks * num_of_banks +
-                                       req.addr_vec[int(Config::Decoding::Rank)] *
-                                       num_of_banks +
-                                       req.addr_vec[int(Config::Decoding::Bank)];
-                *offline_req_ana_output << uni_bank_id << ","
-                    // << req.addr_vec[int(Config::Decoding::Row)] << ","
-                    << req.queue_arrival << ","
-                    << req.begin_exe << ","
-                    << req.end_exe << "\n";
-		*offline_req_ana_output << std::flush;
+                std::cout << "R,";
+            }
+            else
+            {
+                std::cout << "W,";
             }
 
+            unsigned uni_bank_id = req.addr_vec[int(Config::Decoding::Channel)] *
+                                   num_of_ranks * num_of_banks +
+                                   req.addr_vec[int(Config::Decoding::Rank)] *
+                                   num_of_banks +
+                                   req.addr_vec[int(Config::Decoding::Bank)];
+            std::cout << uni_bank_id << ","
+                      // << req.addr_vec[int(Config::Decoding::Row)] << ","
+                      << req.queue_arrival << ","
+                      << req.begin_exe << ","
+                      << req.end_exe << "\n";
+            */
             if (req.callback)
             {
                 if (req.callback(req.addr))

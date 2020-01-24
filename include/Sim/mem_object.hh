@@ -27,6 +27,7 @@ class MemObject
     virtual bool send(Request &req) = 0;
     virtual void tick() {}
     virtual void setNextLevel(MemObject *_next_level) { next_level = _next_level; }
+    virtual void setPrevLevel(MemObject *_prev_level) { prev_levels.push_back(_prev_level); }
 
     virtual void setId(int _id)
     {
@@ -49,6 +50,9 @@ class MemObject
     // Re-initialize cache
     virtual void reInitialize() {}
 
+    // Inclusive invalidation
+    virtual void incluInval(uint64_t addr) {} 
+
     // Do we want to extract memory traces from this mem_object?
     virtual void setTraceOutput(const char* file)
     {
@@ -56,16 +60,25 @@ class MemObject
         mem_trace.open(file);
     }
 
-    virtual void offlineReqAnalysis(std::string &file) {}
-
     // Write-back all the physical address belong to the given page_id.
     // virtual bool writeback(uint64_t page_id) = 0;
-
     void setMMU(System::MMU *_mmu) { mmu = _mmu; }
+
+    bool isOnChip() const { return on_chip; }
+
+    void setInclusive() { inclusive = true; }
+    bool isInclusive() const { return inclusive; }
+
+  protected:
+    bool on_chip = false;
+    bool inclusive = false; // Is the mem object inclusive?
+
   protected:
     System::MMU *mmu; // Give mem object access to MMU
 
     MemObject *next_level;
+
+    std::vector<MemObject*> prev_levels;
 
     int id = -1;
 
@@ -77,6 +90,7 @@ class MemObject
 
     bool mem_trace_extr_mode = false;
     std::ofstream mem_trace;
+
 };
 }
 

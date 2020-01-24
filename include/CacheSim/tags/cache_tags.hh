@@ -59,6 +59,8 @@ class Tags
 
     // virtual bool writeback(uint64_t page_id) = 0;
 
+    virtual void incluInval(Addr) {}
+
   protected:
 
     // Initialize tag

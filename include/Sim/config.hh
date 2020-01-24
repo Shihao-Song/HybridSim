@@ -60,7 +60,6 @@ class Config
     unsigned num_of_ranks;
     unsigned num_of_channels;
 
-//  public:
     Config(const std::string &cfg_file);
 
     void parse(const std::string &fname);

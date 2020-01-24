@@ -316,7 +316,8 @@ class Processor
     };
 
   public:
-    Processor(std::vector<std::string> trace_lists,
+    Processor(float on_chip_frequency, float off_chip_frequency,
+              std::vector<std::string> trace_lists,
               MemObject *_shared_m_obj) : cycles(0), shared_m_obj(_shared_m_obj)
     {
         unsigned num_of_cores = trace_lists.size();
@@ -326,6 +327,9 @@ class Processor
                       << trace_lists[i] << "\n";
             cores.emplace_back(new Core(i, trace_lists[i]));
         }
+
+        if (shared_m_obj->isOnChip()) { nclks_to_tick_shared = 1; }
+        else { nclks_to_tick_shared = on_chip_frequency / off_chip_frequency; }
     }
 
     void setDCache(int core_id, MemObject *d_cache)
@@ -397,8 +401,11 @@ class Processor
         }
         if (cycles % 1000000 == 0) { std::cout << "\n"; }
 
-        // Tick the shared cache
-        shared_m_obj->tick();
+        if (cycles % nclks_to_tick_shared == 0)
+        {
+            // Tick the shared
+            shared_m_obj->tick();
+        }
 
         // If all the instructions are drained, there is no need to proceed.
         bool all_drained = true;
@@ -473,6 +480,8 @@ class Processor
     MMU *mmu;
     std::vector<std::unique_ptr<Core>> cores;
     MemObject *shared_m_obj;
+
+    unsigned nclks_to_tick_shared;
 };
 }
 
