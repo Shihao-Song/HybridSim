@@ -199,6 +199,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     // Collecting Stats
     Stats stats;
 
+    processor->registerStats(stats);
+
     for (auto &L1D : L1Ds)
     {
         L1D->registerStats(stats);

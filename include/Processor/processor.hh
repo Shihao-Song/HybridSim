@@ -170,6 +170,17 @@ class Processor
                     inserted++;
                     more_insts = trace.getInstruction(cur_inst);
                 }
+                else if (cur_inst.opr == Instruction::Operation::BRANCH)
+                {
+                    // TODO, if there is a branch misprediction, stall the processor
+                    // for 15 clock cycles (a typical misprediction penalty).
+                    // std::cout << cur_inst.eip << " " << cur_inst.taken << "\n";
+
+                    cur_inst.ready_to_commit = true;
+                    window.insert(cur_inst);
+                    inserted++;
+                    more_insts = trace.getInstruction(cur_inst);
+                }
                 else
                 {
                     Request req; 
@@ -286,6 +297,14 @@ class Processor
         uint64_t numStores() { return num_stores; }
 
 	bool instrDrained() { return !more_insts; }
+
+        void registerStats(Simulator::Stats &stats)
+        {
+            std::string registeree_name = "Core-" + std::to_string(core_id);
+            stats.registerStats(registeree_name +
+                            ": Number of instructions = " + std::to_string(retired));
+        }
+
       private:
         MMU *mmu;
 
@@ -472,6 +491,11 @@ class Processor
             num_loads += core->numLoads();
         }
         return num_loads;
+    }
+
+    void registerStats(Simulator::Stats &stats)
+    {
+        for (auto &core : cores) { core->registerStats(stats); }
     }
 
   private:

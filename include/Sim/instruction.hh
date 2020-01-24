@@ -15,6 +15,7 @@ class Instruction
 
     enum class Operation : int
     {
+        BRANCH,
         LOAD,
         STORE,
         EXE,
@@ -24,6 +25,8 @@ class Instruction
     Addr eip;
     Addr target_vaddr; // Target address to load or store (virtual address)
     Addr target_paddr; // Target address to load or store (physical address)
+
+    bool taken; // If the branch is taken.
 
     uint64_t size; // Size of data to be loaded or stored, 
                    // we are not utilizing this field currently.

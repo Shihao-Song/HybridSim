@@ -368,6 +368,7 @@ class Cache : public Simulator::MemObject
                 // We need to make sure that the write-back queue is not full.
                 if (!wb_queue->isFull())
                 {
+                    ++num_misses;
                     recordAccess(req);
 
                     // A write-back from higher level must be a dirty block.
@@ -558,13 +559,12 @@ class Cache : public Simulator::MemObject
     void registerStats(Simulator::Stats &stats) override
     {
         std::string registeree_name = level_name;
-        /*
+
         if (id != -1)
         {
             registeree_name = "Core-" + std::to_string(id) + "-" + 
                               registeree_name;
         }
-        */
 
         stats.registerStats(registeree_name +
                             ": Number of accesses = " + std::to_string(accesses));
@@ -580,7 +580,7 @@ class Cache : public Simulator::MemObject
 
         double hit_ratio = double(num_hits) / (double(num_hits) + double(num_misses));
         stats.registerStats(registeree_name + 
-                            ": Hit ratio = " + std::to_string(hit_ratio));
+                            ": Hit ratio = " + std::to_string(hit_ratio * 100) + "%");
 
         stats.registerStats(registeree_name +
                             ": Number of loads = " + std::to_string(num_loads));        

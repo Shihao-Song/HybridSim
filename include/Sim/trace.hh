@@ -54,6 +54,18 @@ class Trace
             return true;
         }
 
+	if (pending_branch_opr != Instruction::Operation::MAX)
+        {
+            inst.eip = pending_branch_pc;
+            inst.opr = pending_branch_opr;
+            inst.taken = pending_branch_real_taken;
+
+            pending_branch_opr = Instruction::Operation::MAX; // Re-initialize
+            ++instruction_index;
+//            std::cout << "M\n";
+            return true;
+        }
+
         // if (instruction_index >= 100000000) { trace_file_expr.close(); return false; }
         
         // if (profiling_stage && instruction_index >= profiling_limit)
@@ -86,7 +98,7 @@ class Trace
         }
         assert(tokens.size());
         
-        if (tokens.size() == 4)
+        if (tokens.size() == 4 && tokens[2] != "B")
         {
             pending_exes = std::stoul(tokens[0]);
 
@@ -106,7 +118,26 @@ class Trace
             inst.opr = Instruction::Operation::EXE;
             --pending_exes;
         }
-        else
+        else if (tokens.size() == 4 && tokens[2] == "B")
+        {
+            pending_exes = std::stoul(tokens[0]);
+
+            pending_branch_pc = std::stoull(tokens[1]);
+            pending_branch_opr = Instruction::Operation::BRANCH;
+            pending_branch_real_taken = std::stoul(tokens[3]);
+
+            // Return with an EXE instruction
+//            std::cout << "E\n";
+            inst.opr = Instruction::Operation::EXE;
+            --pending_exes;
+        }
+        else if (tokens.size() == 3 && tokens[1] == "B")
+        {
+            inst.eip = std::stoull(tokens[0]);
+            inst.opr = Instruction::Operation::BRANCH;
+            inst.taken = std::stoul(tokens[2]);
+        }
+        else if (tokens.size() == 3 && tokens[1] != "B")
         {
             inst.eip = std::stoull(tokens[0]);
             
@@ -120,12 +151,21 @@ class Trace
             }
             else
             {
+                std::cerr << line << "\n";
                 std::cerr << "Unsupported Instruction Type \n";
                 exit(0);
             }
             inst.target_vaddr = std::stoull(tokens[2]);
 //            std::cout << "M\n";
         }
+	else
+        {
+            std::cerr << line << "\n";
+            // std::cerr << "Unsupported Instruction Type \n";
+            // exit(0);
+            inst.opr = Instruction::Operation::EXE;
+        }
+
         ++instruction_index;
         return true;
     }
@@ -196,6 +236,10 @@ class Trace
     Addr pending_mem_opr_pc;
     Instruction::Operation pending_mem_opr = Instruction::Operation::MAX;
     Addr pending_mem_vaddr;
+
+    Addr pending_branch_pc;
+    Instruction::Operation pending_branch_opr = Instruction::Operation::MAX;
+    bool pending_branch_real_taken;
 
     uint64_t instruction_index = 0;
 
