@@ -176,28 +176,6 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
         L3s.push_back(std::move(L3));
     }
 
-    /*
-    // Create L2
-    std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, Memories::L2_CACHE, isLLC));
-    L2->setNextLevel(DRAM_PCM.get());
-    L2->setArbitrator(num_of_cores);
-
-    // Create Processor
-    std::vector<std::unique_ptr<MemObject>> L1_D_all;
-    for (int i = 0; i < num_of_cores; i++)
-    {
-        // Create L1-D
-        std::unique_ptr<MemObject> L1_D(createMemObject(pcm_cfg,
-                                                        Memories::L1_D_CACHE,
-                                                        isNonLLC));
-        L1_D->setId(i);
-        L1_D->setBoundaryMemObject();
-        L1_D->setNextLevel(L2.get());
-
-        L1_D_all.push_back(std::move(L1_D));
-    }
-    */
-
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, dram_cfg, pcm_cfg));
@@ -205,7 +183,6 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     DRAM_PCM->setMMU(mmu.get());
 
     // Create Processor
-    // TODO, mem_object should have a field to indicate it's on-chip or off-chip. 
     std::unique_ptr<Processor> processor(new Processor(pcm_cfg.on_chip_frequency,
                                                        pcm_cfg.off_chip_frequency,
                                                        trace_lists, DRAM_PCM.get()));
@@ -219,20 +196,25 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     std::cout << "\nSimulation Stage (Hybrid DRAM-PCM system)...\n\n";
     runCPUTrace(processor.get());
 
-    /*
     // Collecting Stats
     Stats stats;
 
-    for (auto &L1_D : L1_D_all)
+    for (auto &L1D : L1Ds)
     {
-        L1_D->registerStats(stats);
+        L1D->registerStats(stats);
     }
-    L2->registerStats(stats);
+    for (auto &L2 : L2s)
+    {
+        L2->registerStats(stats);
+    }
+    for (auto &L3 : L3s)
+    {
+        L3->registerStats(stats);
+    }
+
     mmu->registerStats(stats);
-    DRAM_PCM->registerStats(stats);
-    stats.registerStats("Execution Time (cycles) = " + 
+    stats.registerStats("Execution Time (CPU cycles) = " + 
                         std::to_string(processor->exeTime()));
     stats.outputStats(stats_output_file);
-    */
 }
 

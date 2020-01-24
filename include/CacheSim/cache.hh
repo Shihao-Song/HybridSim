@@ -254,7 +254,23 @@ class Cache : public Simulator::MemObject
         }
     }
 
+    void recordAccess(Request &req)
+    {
+        accesses++;
+        if (req.req_type == Request::Request_Type::READ)
+        {
+            read_accesses++;
+        }
+        else
+        {
+            write_accesses++;
+        }
+    }
+
   protected:
+    uint64_t accesses = 0;
+    uint64_t read_accesses = 0;
+    uint64_t write_accesses = 0;
     uint64_t num_hits;
     uint64_t num_misses;
     uint64_t num_loads;
@@ -313,6 +329,8 @@ class Cache : public Simulator::MemObject
                                        clk);
             hit)
         {
+            recordAccess(req);
+
             req.begin_exe = clk;
             req.end_exe = clk + tag_lookup_latency;
             pending_commits.push_back(req);
@@ -330,6 +348,8 @@ class Cache : public Simulator::MemObject
             // if the request is a STORE, it can simply re-write the entry.
             if (wb_queue->isInQueue(aligned_addr))
             {
+                recordAccess(req);
+
                 ++num_hits;
                 // Notify MMU that there is a hit
                 req.commuToMMU();
@@ -348,6 +368,8 @@ class Cache : public Simulator::MemObject
                 // We need to make sure that the write-back queue is not full.
                 if (!wb_queue->isFull())
                 {
+                    recordAccess(req);
+
                     // A write-back from higher level must be a dirty block.
                     auto [wb_required, victim_addr] = tags->insertBlock(aligned_addr,
                                                                         true,
@@ -383,6 +405,8 @@ class Cache : public Simulator::MemObject
             {
                 if (!blocked())
                 {
+                    recordAccess(req);
+
                     assert(!mshr_queue->isFull());
                     assert(!wb_queue->isFull());
 
@@ -514,6 +538,10 @@ class Cache : public Simulator::MemObject
         clk = 0;
         tags->reInitialize();
 
+	accesses = 0;
+        read_accesses = 0;
+        write_accesses = 0;
+
         num_hits = 0;
         num_misses = 0;
         num_loads = 0;
@@ -530,11 +558,20 @@ class Cache : public Simulator::MemObject
     void registerStats(Simulator::Stats &stats) override
     {
         std::string registeree_name = level_name;
+        /*
         if (id != -1)
         {
             registeree_name = "Core-" + std::to_string(id) + "-" + 
                               registeree_name;
         }
+        */
+
+        stats.registerStats(registeree_name +
+                            ": Number of accesses = " + std::to_string(accesses));
+        stats.registerStats(registeree_name +
+                            ": Number of read accesses = " + std::to_string(read_accesses));
+        stats.registerStats(registeree_name +
+                            ": Number of write accesses = " + std::to_string(write_accesses));
 
         stats.registerStats(registeree_name +
                             ": Number of hits = " + std::to_string(num_hits));
@@ -546,9 +583,9 @@ class Cache : public Simulator::MemObject
                             ": Hit ratio = " + std::to_string(hit_ratio));
 
         stats.registerStats(registeree_name +
-                            ": Number of Loads = " + std::to_string(num_loads));        
+                            ": Number of loads = " + std::to_string(num_loads));        
         stats.registerStats(registeree_name +
-                            ": Number of Evictions = " + std::to_string(num_evicts));
+                            ": Number of evictions = " + std::to_string(num_evicts));
     }
 
     /*
