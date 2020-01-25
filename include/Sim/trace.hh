@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -32,47 +33,13 @@ class Trace
         inst.ready_to_commit = false;
         inst.already_translated = false;
 
-        // Drain all the pending exes and pending mem_ops
-        if (pending_exes > 0)
+        if (pending_instrs.size())
         {
-            inst.opr = Instruction::Operation::EXE;
-            --pending_exes;
+            pending_instrs[0]->makeInstr(inst);
+            pending_instrs.pop_front();
 
-            ++instruction_index;
-//            std::cout << "E\n";
             return true;
         }
-        if (pending_mem_opr != Instruction::Operation::MAX)
-        {
-            inst.eip = pending_mem_opr_pc;
-            inst.opr = pending_mem_opr;
-            inst.target_vaddr = pending_mem_vaddr;
-
-            pending_mem_opr = Instruction::Operation::MAX; // Re-initialize
-            ++instruction_index;
-//            std::cout << "M\n";
-            return true;
-        }
-
-	if (pending_branch_opr != Instruction::Operation::MAX)
-        {
-            inst.eip = pending_branch_pc;
-            inst.opr = pending_branch_opr;
-            inst.taken = pending_branch_real_taken;
-
-            pending_branch_opr = Instruction::Operation::MAX; // Re-initialize
-            ++instruction_index;
-//            std::cout << "M\n";
-            return true;
-        }
-
-        // if (instruction_index >= 100000000) { trace_file_expr.close(); return false; }
-        
-        // if (profiling_stage && instruction_index >= profiling_limit)
-        // {
-        //    profiling_stage = false;
-        //    return false;
-        // }
 
         std::string line;
         getline(trace_file_expr, line);
@@ -87,6 +54,8 @@ class Trace
 //            trace_file_expr.clear();
 //            trace_file_expr.seekg(0, std::ios::beg);
 //            getline(trace_file_expr, line);
+            // TODO, to support multiple runs, we'd better have a way to re-assign
+            // address space for the application.
         }
 
         std::stringstream line_stream(line);
@@ -96,67 +65,73 @@ class Trace
         {
             tokens.push_back(intermidiate);
         }
-        assert(tokens.size());
-        
-        if (tokens.size() == 4 && tokens[2] != "B")
+        assert(tokens.size() == 5);
+
+        unsigned thread_id = std::stoul(tokens[0]);
+        unsigned num_exes = std::stoul(tokens[1]);
+        Addr pc = std::stoull(tokens[2]);
+        while (num_exes)
         {
-            pending_exes = std::stoul(tokens[0]);
+            auto instr = std::make_unique<ExeInstrInfo>();
+            instr->thread_id = thread_id;
+            pending_instrs.push_back(std::move(instr));
 
-            pending_mem_opr_pc = std::stoull(tokens[1]);
-            if (tokens[2] == "L")
-            {
-                pending_mem_opr = Instruction::Operation::LOAD;
-            }
-            else if (tokens[2] == "S")
-            {
-                pending_mem_opr = Instruction::Operation::STORE;
-            }
-            pending_mem_vaddr = std::stoul(tokens[3]);
-
-            // Return with an EXE instruction
-//            std::cout << "E\n";
-            inst.opr = Instruction::Operation::EXE;
-            --pending_exes;
+            --num_exes;
         }
-        else if (tokens.size() == 4 && tokens[2] == "B")
-        {
-            pending_exes = std::stoul(tokens[0]);
 
-            pending_branch_pc = std::stoull(tokens[1]);
-            pending_branch_opr = Instruction::Operation::BRANCH;
-            pending_branch_real_taken = std::stoul(tokens[3]);
+	if (tokens[3] == "B")
+        {
+            bool taken = std::stoul(tokens[4]);
+            if (pending_instrs.size())
+            {
+                auto instr = std::make_unique<BranchInstrInfo>();
+                instr->thread_id = thread_id;
+                instr->eip = pc;
+                instr->taken = taken;
 
-            // Return with an EXE instruction
-//            std::cout << "E\n";
-            inst.opr = Instruction::Operation::EXE;
-            --pending_exes;
-        }
-        else if (tokens.size() == 3 && tokens[1] == "B")
-        {
-            inst.eip = std::stoull(tokens[0]);
-            inst.opr = Instruction::Operation::BRANCH;
-            inst.taken = std::stoul(tokens[2]);
-        }
-        else if (tokens.size() == 3 && tokens[1] != "B")
-        {
-            inst.eip = std::stoull(tokens[0]);
-            
-            if (tokens[1] == "L")
-            {
-                inst.opr = Instruction::Operation::LOAD;
-            }
-            else if (tokens[1] == "S")
-            {
-                inst.opr = Instruction::Operation::STORE;
+                pending_instrs.push_back(std::move(instr));
+
+                inst.thread_id = thread_id;
+                inst.opr = Instruction::Operation::EXE;
+                pending_instrs.pop_front();
             }
             else
             {
-                std::cerr << line << "\n";
-                std::cerr << "Unsupported Instruction Type \n";
-                exit(0);
+                inst.thread_id = thread_id;
+                inst.eip = pc;
+                inst.opr = Instruction::Operation::BRANCH;
+                inst.taken = taken;
             }
-            inst.target_vaddr = std::stoull(tokens[2]);
-//            std::cout << "M\n";
+        }
+        else if (tokens[3] == "S" || tokens[3] == "L")
+        {
+            Addr v_addr = std::stoull(tokens[4]);
+
+            Instruction::Operation opr;
+            if (tokens[3] == "S") { opr = Instruction::Operation::STORE; }
+            else if (tokens[3] == "L") { opr = Instruction::Operation::LOAD; }
+
+            if (pending_instrs.size())
+            {
+                auto instr = std::make_unique<MemInstrInfo>();
+                instr->thread_id = thread_id;
+                instr->eip = pc;
+                instr->opr = opr;
+                instr->v_addr = v_addr;
+
+                pending_instrs.push_back(std::move(instr));
+
+                inst.thread_id = thread_id;
+                inst.opr = Instruction::Operation::EXE;
+                pending_instrs.pop_front();
+            }
+            else
+            {
+                inst.thread_id = thread_id;
+                inst.eip = pc;
+                inst.opr = opr;
+                inst.target_vaddr = v_addr;
+            }
         }
 	else
         {
@@ -165,7 +140,6 @@ class Trace
             exit(0);
         }
 
-        ++instruction_index;
         return true;
     }
 
@@ -223,24 +197,60 @@ class Trace
 
     void reStartTrace()
     {
-        instruction_index = 0;
-
         trace_file_expr.open(trace_name);
         assert(trace_file_expr.good());
     }
 
   private:
-    unsigned pending_exes = 0;
+    struct InstrInfo
+    {
+        unsigned thread_id;
 
-    Addr pending_mem_opr_pc;
-    Instruction::Operation pending_mem_opr = Instruction::Operation::MAX;
-    Addr pending_mem_vaddr;
+        virtual void makeInstr(Instruction& instr) {}
+    };
 
-    Addr pending_branch_pc;
-    Instruction::Operation pending_branch_opr = Instruction::Operation::MAX;
-    bool pending_branch_real_taken;
+    struct BranchInstrInfo : public InstrInfo
+    {
+        const Instruction::Operation opr = Instruction::Operation::BRANCH;
 
-    uint64_t instruction_index = 0;
+        Addr eip; // PC of the branch
+        bool taken; // Real direction of the branch
+
+        void makeInstr(Instruction& instr) override
+        {
+            instr.thread_id = thread_id;
+            instr.opr = opr;
+            instr.eip = eip;
+            instr.taken = taken;
+        }
+    };
+    struct MemInstrInfo : public InstrInfo
+    {
+        Instruction::Operation opr = Instruction::Operation::MAX; // To be assigned 
+
+        Addr eip;
+        Addr v_addr; // virtual (target) address.
+	
+        void makeInstr(Instruction& instr) override
+        {
+            instr.thread_id = thread_id;
+            instr.opr = opr;
+            instr.eip = eip;
+            instr.target_vaddr = v_addr;
+        }
+
+    };
+    struct ExeInstrInfo : public InstrInfo
+    {
+        const Instruction::Operation opr = Instruction::Operation::EXE;
+
+        void makeInstr(Instruction &instr) override
+        {
+            instr.thread_id = thread_id;
+            instr.opr = opr;
+        }
+    };
+    std::deque<std::unique_ptr<InstrInfo>> pending_instrs;
 
     std::string trace_name;
     std::ifstream trace_file_expr;

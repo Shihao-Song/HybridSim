@@ -20,7 +20,7 @@ class Instruction
         STORE,
         EXE,
         MAX	
-    }opr;
+    }opr = Operation::MAX;
 
     Addr eip;
     Addr target_vaddr; // Target address to load or store (virtual address)
@@ -33,6 +33,9 @@ class Instruction
 
     bool ready_to_commit = false;
     bool already_translated = false;
+
+    unsigned thread_id; // From the trace file
+    unsigned process_id; // TODO, assigned by our simulator.
 };
 }
 

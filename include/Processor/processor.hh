@@ -165,37 +165,45 @@ class Processor
             {
                 if (cur_inst.opr == Instruction::Operation::EXE)
                 {
+                    // std::cout << cur_inst.thread_id << " E\n";
+
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
+                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
                 }
                 else if (cur_inst.opr == Instruction::Operation::BRANCH)
                 {
                     // TODO, if there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
-                    // std::cout << cur_inst.eip << " " << cur_inst.taken << "\n";
+                    // std::cout << cur_inst.thread_id << " " 
+                    //           << cur_inst.eip << " B " << cur_inst.taken << "\n";
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
+                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
                 }
-                else
+                else if (cur_inst.opr == Instruction::Operation::LOAD || 
+                         cur_inst.opr == Instruction::Operation::STORE)
                 {
                     Request req; 
-                    // if (retired > 50000000) { req.half_way = true; }
-                    // if (retired > 100000000) { req.half_way = true; }
 
+                    // std::cout << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
+                        // std::cout << " L ";
                         req.req_type = Request::Request_Type::READ;
                         req.callback = window.commit();
                     }
                     else if (cur_inst.opr == Instruction::Operation::STORE)
                     {
+                        // std::cout << " S ";
                         req.req_type = Request::Request_Type::WRITE;
                     }
+                    // std::cout << cur_inst.target_vaddr << "\n";
 
                     req.core_id = core_id;
                     req.eip = cur_inst.eip;
@@ -228,6 +236,7 @@ class Processor
                         }
                         window.insert(cur_inst);
                         inserted++;
+                        cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                         more_insts = trace.getInstruction(cur_inst);
                     }
                     else
@@ -235,6 +244,11 @@ class Processor
                         cur_inst.already_translated = true;
                         break;
                     }
+                }
+                else
+                {
+                    std::cerr << "Unsupported Instruction Type \n";
+                    exit(0);
                 }
             }
         }
