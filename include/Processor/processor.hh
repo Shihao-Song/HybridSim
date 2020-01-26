@@ -1,6 +1,7 @@
 #ifndef __PROCESSOR_HH__
 #define __PROCESSOR_HH__
 
+#include "Processor/Branch_Predictor/branch_predictor.hh"
 #include "Sim/instruction.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
