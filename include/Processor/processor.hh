@@ -1,7 +1,7 @@
 #ifndef __PROCESSOR_HH__
 #define __PROCESSOR_HH__
 
-#include "Processor/Branch_Predictor/branch_predictor.hh"
+#include "Processor/Branch_Predictor/branch_predictor_factory.hh"
 #include "Sim/instruction.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
@@ -103,7 +103,8 @@ class Processor
     {
       public:
         Core(int _id, std::string trace_file)
-            : trace(trace_file),
+            : bp(createBP("2-bit-local")),
+              trace(trace_file),
               cycles(0),
               core_id(_id)
         {
@@ -178,14 +179,23 @@ class Processor
                 {
                     // TODO, if there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
-                    // std::cout << cur_inst.thread_id << " " 
-                    //           << cur_inst.eip << " B " << cur_inst.taken << "\n";
-
+                    std::cout << cur_inst.thread_id << " " 
+                              << cur_inst.eip << " B " << cur_inst.taken << "\n";
+                    if (bp->predict(cur_inst))
+		    {
+                        std::cout << "Correct!\n";
+                    }
+                    else
+                    {
+                        std::cout << "In-correct!\n";
+                    }
+                    std::cout << "\n";
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
+
                 }
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
@@ -321,6 +331,7 @@ class Processor
         }
 
       private:
+        std::unique_ptr<Branch_Predictor> bp;
         MMU *mmu;
 
         Trace trace;
