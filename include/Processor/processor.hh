@@ -179,6 +179,8 @@ class Processor
                 {
                     // TODO, if there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
+                    bp->predict(cur_inst);
+                    /*
                     std::cout << cur_inst.thread_id << " " 
                               << cur_inst.eip << " B " << cur_inst.taken << "\n";
                     if (bp->predict(cur_inst))
@@ -190,6 +192,7 @@ class Processor
                         std::cout << "In-correct!\n";
                     }
                     std::cout << "\n";
+                    */
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
@@ -328,6 +331,12 @@ class Processor
             std::string registeree_name = "Core-" + std::to_string(core_id);
             stats.registerStats(registeree_name +
                             ": Number of instructions = " + std::to_string(retired));
+            stats.registerStats(registeree_name +
+                            "-BP: Number of correct predictions = " + 
+                            std::to_string(bp->getCorPreds()));
+            stats.registerStats(registeree_name +
+                            "-BP: Number of in-correct predictions = " +
+                            std::to_string(bp->getInCorPreds()));
         }
 
       private:

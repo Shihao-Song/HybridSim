@@ -11,8 +11,7 @@ class Two_Bit_Local : public Branch_Predictor
 {
   protected:
     // Followings are from GEM5
-    // const unsigned localPredictorSize = 2048;
-    const unsigned localPredictorSize = 1;
+    const unsigned localPredictorSize = 2048;
     const unsigned localCounterBits = 2;
 
     unsigned index_mask;
@@ -45,11 +44,21 @@ class Two_Bit_Local : public Branch_Predictor
             local_counters[local_predictor_idx]--;
         }
 
-        std::cout << local_predictor_idx << " -> "
-                  << int(counter_val) << " : " 
-                  << int(local_counters[local_predictor_idx]) << "\n";
+        // std::cout << local_predictor_idx << " -> "
+        //           << int(counter_val) << " : " 
+        //           << int(local_counters[local_predictor_idx]) << "\n";
         // (3) Return back the correctness of the prediction
-        return instr.taken == pred;
+        // return instr.taken == pred;
+        if (instr.taken == pred)
+        {
+            correct_preds++;
+            return true; // Indicate a correct prediction.
+        }
+        else
+        {
+            incorrect_preds++;
+            return false; // Indicate an in-correct prediction.
+        }
     }
 
   protected:

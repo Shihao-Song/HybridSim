@@ -17,6 +17,9 @@ class Branch_Predictor
     typedef Simulator::Instruction Instruction;
     virtual bool predict(Instruction &instr) = 0;
 
+    uint64_t getCorPreds() { return correct_preds; }
+    uint64_t getInCorPreds() { return incorrect_preds; }
+
   protected:
     typedef uint64_t Addr;
 
