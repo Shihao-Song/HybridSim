@@ -103,7 +103,7 @@ class Processor
     {
       public:
         Core(int _id, std::string trace_file)
-            : bp(createBP("2-bit-local")),
+            : bp(createBP("tournament")),
               trace(trace_file),
               cycles(0),
               core_id(_id)
@@ -144,6 +144,10 @@ class Processor
 
             d_cache->tick();
 
+            // Absorb all the misprediction penalty
+            while (mispred_penalty)
+            { mispred_penalty--; return; }
+
             int num_window_done = window.retire();
             retired += num_window_done;
             if (phase_enabled) { in_phase_tracking += num_window_done; };
@@ -161,7 +165,7 @@ class Processor
             {
                 if (in_phase_tracking >= num_instrs_per_phase) { phase_end = true; return; }
             }
-
+            
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
@@ -179,7 +183,10 @@ class Processor
                 {
                     // TODO, if there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
-                    bp->predict(cur_inst);
+                    if (!bp->predict(cur_inst))
+                    {
+                        mispred_penalty = 15;
+                    }
                     /*
                     std::cout << cur_inst.thread_id << " " 
                               << cur_inst.eip << " B " << cur_inst.taken << "\n";
@@ -341,6 +348,8 @@ class Processor
 
       private:
         std::unique_ptr<Branch_Predictor> bp;
+        unsigned mispred_penalty = 0;
+
         MMU *mmu;
 
         Trace trace;
@@ -453,7 +462,7 @@ class Processor
         {
             core->tick();
         }
-        if (cycles % 1000000 == 0) { std::cout << "\n"; }
+        // if (cycles % 1000000 == 0) { std::cout << "\n"; }
 
         if (cycles % nclks_to_tick_shared == 0)
         {
