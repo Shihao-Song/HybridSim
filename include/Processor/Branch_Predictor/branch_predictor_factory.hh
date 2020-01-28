@@ -3,15 +3,17 @@
 
 #include "Processor/Branch_Predictor/2bit_local.hh"
 #include "Processor/Branch_Predictor/tournament.hh"
+#include "Processor/Branch_Predictor/tage.hh"
 
 #include <memory>
 #include <string>
 
 namespace CoreSystem
 {
+// TODO, add (1) bi-mod predictor and (2) perceptron predictor
 std::unique_ptr<Branch_Predictor> createBP(std::string type)
 {
-    if (type == "2-bit-local")
+    if (type == "2-bit-local") // TODO, change name to Local Branch Predictor
     {
         return std::make_unique<Two_Bit_Local>();
     }
