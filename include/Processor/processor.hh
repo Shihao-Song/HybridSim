@@ -103,7 +103,7 @@ class Processor
     {
       public:
         Core(int _id, std::string trace_file)
-            : bp(createBP("tage")),
+            : bp(createBP("tournament")),
               trace(trace_file),
               cycles(0),
               core_id(_id)
@@ -206,10 +206,21 @@ class Processor
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
 
+                    // TODO, to get the correct target.
+
+                    if (mispred_penalty) { break; }
+
                 }
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
+                    cur_inst.ready_to_commit = true;
+                    window.insert(cur_inst);
+                    inserted++;
+                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
+                    more_insts = trace.getInstruction(cur_inst);
+
+                    /*
                     Request req; 
 
                     // std::cout << cur_inst.thread_id << " " << cur_inst.eip;
@@ -265,6 +276,7 @@ class Processor
                         cur_inst.already_translated = true;
                         break;
                     }
+                    */
                 }
                 else
                 {

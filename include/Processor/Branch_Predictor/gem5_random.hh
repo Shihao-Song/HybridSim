@@ -51,6 +51,6 @@ class Random
     }
 };
 
-extern Random random_mt;
+// extern Random random_mt;
 
 #endif // __BASE_RANDOM_HH__

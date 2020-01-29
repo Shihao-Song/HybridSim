@@ -25,9 +25,8 @@ class Tournament : public Two_Bit_Local
     std::vector<Sat_Counter> choice_counters;
 
     unsigned history_register_mask; // The number of bits used in one global history register
-    std::unordered_map<unsigned,unsigned> history_registers; // We maintain one 
-                                                             // history register
-                                                             // for each thread.
+    std::vector<unsigned> history_registers;
+ 
     // Thresholds
     const unsigned local_threshold;
     const unsigned global_threshold;
@@ -52,18 +51,15 @@ class Tournament : public Two_Bit_Local
 
         // Initialize history register mask
         history_register_mask = globalPredictorSize - 1;
+
+        history_registers.resize(1, 0);
     }
 
     bool predict(Instruction &instr) override
     {
         // Step one, we maintain the content of the history register for each thread,
         // make sure the thread's history register is present.
-        unsigned t_id = instr.thread_id;
-        if (auto his_iter = history_registers.find(t_id);
-                his_iter == history_registers.end())
-        {
-            history_registers.insert({t_id, 0});
-        }
+        unsigned t_id = 0;
 
         // Step two, get local prediction.
         unsigned local_hist_tab_idx = calcLocHistIdx(instr.eip);

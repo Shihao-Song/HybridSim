@@ -264,24 +264,51 @@ class TAGE : public Branch_Predictor
         tableIndices = new int [nHistoryTables+1];
         tableTags = new int [nHistoryTables+1];
         initialized = true;
+
+        /*
+        // Make sure all parameters are correct.
+        std::cout << nHistoryTables << "\n";
+        std::cout << minHist << "\n";
+        std::cout << maxHist << "\n";
+        for (auto &item : tagTableTagWidths) { std::cout << item << ", "; }
+        std::cout << "\n";
+        for (auto &item : logTagTableSizes) { std::cout << item << ", "; }
+        std::cout << "\n";
+        std::cout << logRatioBiModalHystEntries << "\n";
+        std::cout << tagTableCounterBits << "\n";
+        std::cout << tagTableUBits << "\n";
+        std::cout << histBufferSize << "\n";
+        std::cout << pathHistBits << "\n";
+        std::cout << logUResetPeriod << "\n";
+        std::cout << numUseAltOnNa << "\n";
+        std::cout << initialTCounterValue << "\n";
+        std::cout << useAltOnNaBits << "\n";
+        std::cout << maxNumAlloc << "\n";
+        for (auto item : noSkip) { std::cout << item << ", "; }
+        std::cout << "\n";
+        exit(0);
+        */
     }
 
+    Random random_mt;
     bool predict(Instruction &instr) override
     {
         // Step one, perform TAGE prediction
         unsigned tid = 0; // TODO, we only consider one hardware thread for now.
         Addr branch_pc = instr.eip;
 
-        std::unique_ptr<BranchInfo> bi;
-        bool final_prediction = tagePredict(tid, branch_pc, bi.get());
+        BranchInfo *bi = new BranchInfo(nHistoryTables);
+        // std::cout << "TAGE predicting...\n";
+        bool final_prediction = tagePredict(tid, branch_pc, bi);
 
         // Step two, update.
         int nrand = random_mt.random<int>() & 3;
         // updateStats(instr.taken, bi.get());
-        condBranchUpdate(tid, branch_pc, instr.taken, bi.get(), nrand, bi->tagePred);
+        condBranchUpdate(tid, branch_pc, instr.taken, bi, nrand, bi->tagePred);
 
-        updateHistories(tid, branch_pc, instr.taken, bi.get(), false);
+        updateHistories(tid, branch_pc, instr.taken, bi, false);
 
+        delete bi;
         if (final_prediction == instr.taken)
         {
             correct_preds++;
@@ -437,7 +464,7 @@ class TAGE : public Branch_Predictor
             (shiftedPc >> ((int) abs(logTagTableSizes[bank] - bank) + 1)) ^
             threadHistory[tid].computeIndices[bank].comp ^
             F(threadHistory[tid].pathHist, hlen, bank);
-
+        // std::cout << "Index calculation is done.\n";
         return (index & ((ULL(1) << (logTagTableSizes[bank])) - 1));
     }
 
@@ -448,6 +475,7 @@ class TAGE : public Branch_Predictor
                   threadHistory[tid].computeTags[0][bank].comp ^
                   (threadHistory[tid].computeTags[1][bank].comp << 1);
 
+        // std::cout << "Tage calculation is done.\n";
         return (tag & ((ULL(1) << tagTableTagWidths[bank]) - 1));
     }
 
@@ -462,6 +490,7 @@ class TAGE : public Branch_Predictor
             tableTags[i] = gtag(tid, branch_pc, i);
             bi->tableTags[i] = tableTags[i];
         }
+        // std::cout << "Indicies and Tags calculations have been finished.\n";
     }
 
     int bindex(Addr pc_in) const
