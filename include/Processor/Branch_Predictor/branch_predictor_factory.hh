@@ -4,6 +4,7 @@
 #include "Processor/Branch_Predictor/2bit_local.hh"
 #include "Processor/Branch_Predictor/tournament.hh"
 #include "Processor/Branch_Predictor/tage.hh"
+#include "Processor/Branch_Predictor/loop_predictor.hh"
 
 #include <memory>
 #include <string>
