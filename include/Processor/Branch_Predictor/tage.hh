@@ -2,6 +2,7 @@
 #define __TAGE_HH__
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
+#include "Processor/Branch_Predictor/gem5_random.hh"
 
 #include <vector>
 
@@ -18,7 +19,7 @@ class TAGE : public Branch_Predictor
         int8_t ctr;
         uint16_t tag;
         uint8_t u;
-        TageEntry() : ctr(0), tag(0), u(0) { }
+        TageEntry() : ctr(0), tag(0), u(0) {}
     };
 
     // Folded History Table - compressed history
@@ -150,6 +151,8 @@ class TAGE : public Branch_Predictor
     typedef unsigned ThreadID;
     typedef uint64_t ULL;
 
+    const unsigned numHWThreads = 1;
+
     // logRatioBiModalHystEntries, "Exploiting Bias in the Hysteresis Bit of 2-bit Saturating Counters in Branch Predictors" allows a hysteresis bit is shared among N prediction bits.
     const unsigned logRatioBiModalHystEntries = 2;
     // nHistoryTables, number of history tables. TODO, confirm this is the tagged tables.
@@ -219,7 +222,8 @@ class TAGE : public Branch_Predictor
 
         useAltPredForNewlyAllocated.resize(numUseAltOnNa, 0);
 
-        threadHistory.resize(1); // TODO, 1 hw thread.
+        threadHistory.resize(numHWThreads); // TODO, 1 hw thread.
+        assert(threadHistory.size() == 1);
         for (auto& history : threadHistory) 
         {
             history.pathHist = 0;
@@ -265,9 +269,29 @@ class TAGE : public Branch_Predictor
     bool predict(Instruction &instr) override
     {
         // Step one, perform TAGE prediction
-        unsigned tid = instr.thread_id;
+        unsigned tid = 0; // TODO, we only consider one hardware thread for now.
         Addr branch_pc = instr.eip;
-        
+
+        std::unique_ptr<BranchInfo> bi;
+        bool final_prediction = tagePredict(tid, branch_pc, bi.get());
+
+        // Step two, update.
+        int nrand = random_mt.random<int>() & 3;
+        // updateStats(instr.taken, bi.get());
+        condBranchUpdate(tid, branch_pc, instr.taken, bi.get(), nrand, bi->tagePred);
+
+        updateHistories(tid, branch_pc, instr.taken, bi.get(), false);
+
+        if (final_prediction == instr.taken)
+        {
+            correct_preds++;
+            return true;
+        }
+        else
+        {
+            incorrect_preds++;
+            return false;
+        }
     }
 
     // For detailed information, read "A PPM-like, tag-based branch predictor"
@@ -310,11 +334,12 @@ class TAGE : public Branch_Predictor
             if (bi->altBank > 0) {
                 bi->altTaken =
                     gtable[bi->altBank][tableIndices[bi->altBank]].ctr >= 0;
-                extraAltCalc(bi);
+                extraAltCalc(bi); // Not used in Base TAGE implementation.
             }else {
                 bi->altTaken = getBimodePred(pc, bi);
             }
 
+            // TODO, understand this flow.
             bi->longestMatchPred =
                 gtable[bi->hitBank][tableIndices[bi->hitBank]].ctr >= 0;
             bi->pseudoNewAlloc =
@@ -345,7 +370,7 @@ class TAGE : public Branch_Predictor
 
         bi->branchPC = branch_pc;
         bi->condBranch = true;
-        return pred_taken;	
+        return pred_taken;
     }
 
   protected:
@@ -443,6 +468,320 @@ class TAGE : public Branch_Predictor
     {
         return ((pc_in >> instShiftAmt) & ((ULL(1) << (logTagTableSizes[0])) - 1));
     }
+
+    void extraAltCalc(BranchInfo* bi)
+    {
+        // do nothing. This is only used in some derived classes
+        return;
+    }
+
+    bool getBimodePred(Addr pc, BranchInfo* bi) const
+    {
+        return btablePrediction[bi->bimodalIndex];
+    }
+
+    unsigned getUseAltIdx(BranchInfo* bi, Addr branch_pc)
+    {
+        // There is only 1 counter on the base TAGE implementation
+        return 0;
+    }
+
+    void adjustAlloc(bool & alloc, bool taken, bool pred_taken)
+    {
+        // Nothing for this base class implementation
+        return;
+    }
+
+    // Up-down saturating counter
+    template<typename T> void ctrUpdate(T & ctr, bool taken, int nbits)
+    {
+        assert(nbits <= sizeof(T) << 3);
+        if (taken) {
+            if (ctr < ((1 << (nbits - 1)) - 1))
+                ctr++;
+        } else {
+            if (ctr > -(1 << (nbits - 1)))
+                ctr--;
+        }
+    }
+
+    void resetUctr(uint8_t & u)
+    {
+        u >>= 1;
+    }
+
+    void handleUReset()
+    {
+        //periodic reset of u: reset is not complete but bit by bit
+        if ((tCounter & ((ULL(1) << logUResetPeriod) - 1)) == 0) {
+            // reset least significant bit
+            // most significant bit becomes least significant bit
+            for (int i = 1; i <= nHistoryTables; i++) {
+                for (int j = 0; j < (ULL(1) << logTagTableSizes[i]); j++) {
+                    resetUctr(gtable[i][j].u);
+                }
+            }
+        }
+    }
+
+    void handleAllocAndUReset(bool alloc, bool taken, BranchInfo* bi,
+                          int nrand)
+    {
+        if (alloc) {
+            // is there some "unuseful" entry to allocate
+            uint8_t min = 1;
+            for (int i = nHistoryTables; i > bi->hitBank; i--) {
+                if (gtable[i][bi->tableIndices[i]].u < min) {
+                    min = gtable[i][bi->tableIndices[i]].u;
+                }
+            }
+
+            // we allocate an entry with a longer history
+            // to  avoid ping-pong, we do not choose systematically the next
+            // entry, but among the 3 next entries
+            int Y = nrand &
+                ((ULL(1) << (nHistoryTables - bi->hitBank - 1)) - 1);
+            int X = bi->hitBank + 1;
+            if (Y & 1) {
+                X++;
+                if (Y & 2)
+                    X++;
+            }
+            // No entry available, forces one to be available
+            if (min > 0) {
+                gtable[X][bi->tableIndices[X]].u = 0;
+            }
+
+            //Allocate entries
+            unsigned numAllocated = 0;
+            for (int i = X; i <= nHistoryTables; i++) {
+                if ((gtable[i][bi->tableIndices[i]].u == 0)) {
+                    gtable[i][bi->tableIndices[i]].tag = bi->tableTags[i];
+                    gtable[i][bi->tableIndices[i]].ctr = (taken) ? 0 : -1;
+                    ++numAllocated;
+                    if (numAllocated == maxNumAlloc) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        tCounter++;
+
+        handleUReset();
+    }
+
+    void unsignedCtrUpdate(uint8_t & ctr, bool up, unsigned nbits)
+    {
+        assert(nbits <= sizeof(uint8_t) << 3);
+        if (up) {
+            if (ctr < ((1 << nbits) - 1))
+                ctr++;
+        } else {
+            if (ctr)
+                ctr--;
+        }
+    }
+
+    // Update the bimodal predictor: a hysteresis bit is shared among N prediction
+    // bits (N = 2 ^ logRatioBiModalHystEntries)
+    void baseUpdate(Addr pc, bool taken, BranchInfo* bi)
+    {
+        int inter = (btablePrediction[bi->bimodalIndex] << 1)
+            + btableHysteresis[bi->bimodalIndex >> logRatioBiModalHystEntries];
+        if (taken) {
+            if (inter < 3)
+                inter++;
+        } else if (inter > 0) {
+            inter--;
+        }
+        const bool pred = inter >> 1;
+        const bool hyst = inter & 1;
+        btablePrediction[bi->bimodalIndex] = pred;
+        btableHysteresis[bi->bimodalIndex >> logRatioBiModalHystEntries] = hyst;
+    }
+
+    void handleTAGEUpdate(Addr branch_pc, bool taken, BranchInfo* bi)
+    {
+        if (bi->hitBank > 0) {
+            ctrUpdate(gtable[bi->hitBank][bi->hitBankIndex].ctr, taken,
+                      tagTableCounterBits);
+            // if the provider entry is not certified to be useful also update
+            // the alternate prediction
+            if (gtable[bi->hitBank][bi->hitBankIndex].u == 0) {
+                if (bi->altBank > 0) {
+                    ctrUpdate(gtable[bi->altBank][bi->altBankIndex].ctr, taken,
+                              tagTableCounterBits);
+                }
+                if (bi->altBank == 0) {
+                    baseUpdate(branch_pc, taken, bi);
+                }
+            }
+
+            // update the u counter
+            if (bi->tagePred != bi->altTaken) {
+                unsignedCtrUpdate(gtable[bi->hitBank][bi->hitBankIndex].u,
+                                  bi->tagePred == taken, tagTableUBits);
+            }
+        } else {
+            baseUpdate(branch_pc, taken, bi);
+        }
+    }
+
+    void condBranchUpdate(ThreadID tid, Addr branch_pc, bool taken,
+        BranchInfo* bi, int nrand, bool pred, bool preAdjustAlloc = false)
+    {
+        // TAGE UPDATE
+        // try to allocate a  new entries only if prediction was wrong
+        bool alloc = (bi->tagePred != taken) && (bi->hitBank < nHistoryTables);
+
+        if (preAdjustAlloc)
+        {
+            adjustAlloc(alloc, taken, pred);
+        }
+
+        if (bi->hitBank > 0) {
+            // Manage the selection between longest matching and alternate
+            // matching for "pseudo"-newly allocated longest matching entry
+            bool PseudoNewAlloc = bi->pseudoNewAlloc;
+            // an entry is considered as newly allocated if its prediction
+            // counter is weak
+            if (PseudoNewAlloc) {
+                if (bi->longestMatchPred == taken) {
+                    alloc = false;
+                }
+                // if it was delivering the correct prediction, no need to
+                // allocate new entry even if the overall prediction was false
+                if (bi->longestMatchPred != bi->altTaken) {
+                    ctrUpdate(
+                        useAltPredForNewlyAllocated[getUseAltIdx(bi, branch_pc)],
+                        bi->altTaken == taken, useAltOnNaBits);
+                }
+            }
+        }
+
+        if (!preAdjustAlloc) {
+            adjustAlloc(alloc, taken, pred);
+        }
+
+        handleAllocAndUReset(alloc, taken, bi, nrand);
+
+        handleTAGEUpdate(branch_pc, taken, bi);
+    }
+
+    // shifting the global history:  we manage the history in a big table in order
+    // to reduce simulation time
+    void updateGHist(uint8_t * &h, bool dir, uint8_t * tab, int &pt)
+    {
+        if (pt == 0) {
+             // Copy beginning of globalHistoryBuffer to end, such that
+             // the last maxHist outcomes are still reachable
+             // through pt[0 .. maxHist - 1].
+             for (int i = 0; i < maxHist; i++)
+                 tab[histBufferSize - maxHist + i] = tab[i];
+             pt =  histBufferSize - maxHist;
+             h = &tab[pt];
+        }
+        pt--;
+        h--;
+        h[0] = (dir) ? 1 : 0;
+    }
+
+    void updateHistories(ThreadID tid, Addr branch_pc, bool taken,
+                         BranchInfo* bi, bool speculative)
+    {
+        if (speculative != speculativeHistUpdate) {
+            return;
+        }
+        ThreadHistory& tHist = threadHistory[tid];
+        //  UPDATE HISTORIES
+        bool pathbit = ((branch_pc >> instShiftAmt) & 1);
+        //on a squash, return pointers to this and recompute indices.
+        //update user history
+        updateGHist(tHist.gHist, taken, tHist.globalHistory, tHist.ptGhist);
+        tHist.pathHist = (tHist.pathHist << 1) + pathbit;
+        tHist.pathHist = (tHist.pathHist & ((ULL(1) << pathHistBits) - 1));
+
+        if (speculative) {
+            bi->ptGhist = tHist.ptGhist;
+            bi->pathHist = tHist.pathHist;
+        }
+
+        //prepare next index and tag computations for user branchs
+        for (int i = 1; i <= nHistoryTables; i++)
+        {
+            if (speculative) {
+                bi->ci[i]  = tHist.computeIndices[i].comp;
+                bi->ct0[i] = tHist.computeTags[0][i].comp;
+                bi->ct1[i] = tHist.computeTags[1][i].comp;
+            }
+            tHist.computeIndices[i].update(tHist.gHist);
+            tHist.computeTags[0][i].update(tHist.gHist);
+            tHist.computeTags[1][i].update(tHist.gHist);
+        }
+        assert(threadHistory[tid].gHist ==
+                &threadHistory[tid].globalHistory[threadHistory[tid].ptGhist]);
+    }
+
+    /*
+    uint64_t tageLongestMatchProviderCorrect = 0;
+    uint64_t tageAltMatchProviderCorrect = 0;
+    uint64_t bimodalAltMatchProviderCorrect = 0;
+    uint64_t tageBimodalProviderCorrect = 0;
+    uint64_t tageLongestMatchProviderWrong = 0;
+    uint64_t tageAltMatchProviderWrong = 0;
+    uint64_t bimodalAltMatchProviderWrong = 0;
+    uint64_t tageBimodalProviderWrong = 0;
+    uint64_t tageAltMatchProviderWouldHaveHit = 0;
+    uint64_t tageLongestMatchProviderWouldHaveHit = 0;
+
+    Stats::Vector tageLongestMatchProvider;
+    Stats::Vector tageAltMatchProvider;
+    void updateStats(bool taken, BranchInfo* bi)
+    {
+        if (taken == bi->tagePred) {
+            // correct prediction
+            switch (bi->provider) {
+            case BIMODAL_ONLY: tageBimodalProviderCorrect++; break;
+            case TAGE_LONGEST_MATCH: tageLongestMatchProviderCorrect++; break;
+            case BIMODAL_ALT_MATCH: bimodalAltMatchProviderCorrect++; break;
+            case TAGE_ALT_MATCH: tageAltMatchProviderCorrect++; break;
+            }
+        } else {
+            // wrong prediction
+            switch (bi->provider) {
+              case BIMODAL_ONLY: tageBimodalProviderWrong++; break;
+              case TAGE_LONGEST_MATCH:
+                tageLongestMatchProviderWrong++;
+                if (bi->altTaken == taken) {
+                    tageAltMatchProviderWouldHaveHit++;
+                }
+                break;
+              case BIMODAL_ALT_MATCH:
+                bimodalAltMatchProviderWrong++;
+                break;
+              case TAGE_ALT_MATCH:
+                tageAltMatchProviderWrong++;
+                break;
+            }
+
+            switch (bi->provider) {
+              case BIMODAL_ALT_MATCH:
+              case TAGE_ALT_MATCH:
+                if (bi->longestMatchPred == taken) {
+                    tageLongestMatchProviderWouldHaveHit++;
+                }
+            }
+        }
+        switch (bi->provider) {
+          case TAGE_LONGEST_MATCH:
+          case TAGE_ALT_MATCH:
+            tageLongestMatchProvider[bi->hitBank]++;
+            tageAltMatchProvider[bi->altBank]++;
+            break;
+        }
+    }
+    */
 };
 }
 

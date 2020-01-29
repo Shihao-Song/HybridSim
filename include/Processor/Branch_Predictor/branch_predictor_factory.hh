@@ -21,6 +21,10 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
     {
         return std::make_unique<Tournament>();
     }
+    else if (type == "tage")
+    {
+        return std::make_unique<TAGE>();
+    }
     else
     {
         std::cerr << "Unsupported Branch Predictor Type." << std::endl;
