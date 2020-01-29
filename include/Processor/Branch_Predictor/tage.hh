@@ -219,7 +219,7 @@ class TAGE : public Branch_Predictor
 
         useAltPredForNewlyAllocated.resize(numUseAltOnNa, 0);
 
-        threadHistory.resize(1); // 1 hw thread
+        threadHistory.resize(1); // TODO, 1 hw thread.
         for (auto& history : threadHistory) 
         {
             history.pathHist = 0;
@@ -293,7 +293,59 @@ class TAGE : public Branch_Predictor
                 bi->hitBankIndex = tableIndices[bi->hitBank];
                 break;
             }
-        }	
+        }
+
+        //Look for the alternate bank
+        for (int i = bi->hitBank - 1; i > 0; i--) {
+            if (noSkip[i] &&
+                gtable[i][tableIndices[i]].tag == tableTags[i]) {
+                bi->altBank = i;
+                bi->altBankIndex = tableIndices[bi->altBank];
+                break;
+            }
+        }
+
+        //computes the prediction and the alternate prediction
+        if (bi->hitBank > 0) {
+            if (bi->altBank > 0) {
+                bi->altTaken =
+                    gtable[bi->altBank][tableIndices[bi->altBank]].ctr >= 0;
+                extraAltCalc(bi);
+            }else {
+                bi->altTaken = getBimodePred(pc, bi);
+            }
+
+            bi->longestMatchPred =
+                gtable[bi->hitBank][tableIndices[bi->hitBank]].ctr >= 0;
+            bi->pseudoNewAlloc =
+                abs(2 * gtable[bi->hitBank][bi->hitBankIndex].ctr + 1) <= 1;
+
+            //if the entry is recognized as a newly allocated entry and
+            //useAltPredForNewlyAllocated is positive use the alternate
+            //prediction
+            if ((useAltPredForNewlyAllocated[getUseAltIdx(bi, branch_pc)] < 0)
+                || ! bi->pseudoNewAlloc) {
+                bi->tagePred = bi->longestMatchPred;
+                bi->provider = TAGE_LONGEST_MATCH;
+            } else {
+                bi->tagePred = bi->altTaken;
+                bi->provider = bi->altBank ? TAGE_ALT_MATCH
+                                           : BIMODAL_ALT_MATCH;
+            }
+        } else {
+            bi->altTaken = getBimodePred(pc, bi);
+            bi->tagePred = bi->altTaken;
+            bi->longestMatchPred = bi->altTaken;
+            bi->provider = BIMODAL_ONLY;
+        }
+
+        //end TAGE prediction
+
+        pred_taken = (bi->tagePred);
+
+        bi->branchPC = branch_pc;
+        bi->condBranch = true;
+        return pred_taken;	
     }
 
   protected:
