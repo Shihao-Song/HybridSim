@@ -7,6 +7,7 @@ namespace CoreSystem
 {
 class LoopPredictor : public Branch_Predictor
 {
+  public:
     LoopPredictor()
         : confidenceThreshold((1 << loopTableConfidenceBits) - 1),
           loopTagMask((1 << loopTableTagBits) - 1),
@@ -22,6 +23,12 @@ class LoopPredictor : public Branch_Predictor
     assert(logSizeLoopPred >= logLoopTableAssoc);
 
     ltable = new LoopEntry[ULL(1) << logSizeLoopPred];
+    }
+
+    bool predict(Instruction &instr) override
+    {
+        std::cerr << "We don't use LoopPredictor as a standalone predictor.\n";
+        exit(0);
     }
 
   protected:

@@ -4,7 +4,7 @@
 #include "Processor/Branch_Predictor/2bit_local.hh"
 #include "Processor/Branch_Predictor/tournament.hh"
 #include "Processor/Branch_Predictor/tage.hh"
-#include "Processor/Branch_Predictor/loop_predictor.hh"
+#include "Processor/Branch_Predictor/ltage.hh"
 
 #include <memory>
 #include <string>
@@ -14,7 +14,7 @@ namespace CoreSystem
 // TODO, add (1) bi-mod predictor and (2) perceptron predictor
 std::unique_ptr<Branch_Predictor> createBP(std::string type)
 {
-    if (type == "2-bit-local") // TODO, change name to Local Branch Predictor
+    if (type == "2-bit-local") // This is just a bimodal predictor.
     {
         return std::make_unique<Two_Bit_Local>();
     }
@@ -25,6 +25,10 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
     else if (type == "tage")
     {
         return std::make_unique<TAGE>();
+    }
+    else if (type == "ltage")
+    {
+        return std::make_unique<LTAGE>();
     }
     else
     {
