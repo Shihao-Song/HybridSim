@@ -5,7 +5,7 @@
 #include "Processor/Branch_Predictor/tournament.hh"
 #include "Processor/Branch_Predictor/tage.hh"
 #include "Processor/Branch_Predictor/ltage.hh"
-// #include "Processor/Branch_Predictor/statistical_corrector.hh"
+#include "Processor/Branch_Predictor/statistical_corrector.hh"
 
 #include <memory>
 #include <string>
