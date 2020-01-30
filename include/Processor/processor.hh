@@ -181,12 +181,10 @@ class Processor
                 }
                 else if (cur_inst.opr == Instruction::Operation::BRANCH)
                 {
-                    // TODO, if there is a branch misprediction, stall the processor
-                    // for 15 clock cycles (a typical misprediction penalty).
-                    if (!bp->predict(cur_inst))
-                    {
-                        mispred_penalty = 15;
-                    }
+                    Instruction branch_instr;
+                    branch_instr.thread_id = 0;
+                    branch_instr.eip = cur_inst.eip;
+                    branch_instr.taken = cur_inst.taken;
                     /*
                     std::cout << cur_inst.thread_id << " " 
                               << cur_inst.eip << " B " << cur_inst.taken << "\n";
@@ -205,21 +203,45 @@ class Processor
                     inserted++;
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
+                    branch_instr.branch_target = cur_inst.eip;
+                    /*
+                    std::cout << branch_instr.thread_id << " " 
+                              << branch_instr.eip << " B " 
+                              << branch_instr.taken << " "
+                              << branch_instr.branch_target << "\n";
+                    */
 
-                    // TODO, to get the correct target.
-
-                    if (mispred_penalty) { break; }
-
+                    // TODO, if there is a branch misprediction, stall the processor
+                    // for 15 clock cycles (a typical misprediction penalty).
+                    if (!bp->predict(branch_instr))
+                    {
+                        mispred_penalty = 15;
+                        break;
+                    }
                 }
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
+                    /*
+                    std::cout << cur_inst.thread_id << " " << cur_inst.eip;
+                    if (cur_inst.opr == Instruction::Operation::LOAD)
+                    {
+                        std::cout << " L ";
+                    }
+                    else if (cur_inst.opr == Instruction::Operation::STORE)
+                    {
+                        std::cout << " S ";
+                    }
+                    std::cout << cur_inst.target_vaddr << "\n";
+                    */
+
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
 
+                    
                     /*
                     Request req; 
 

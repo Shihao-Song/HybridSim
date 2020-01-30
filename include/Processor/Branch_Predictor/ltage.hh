@@ -14,9 +14,9 @@ class LTAGE : public TAGE
    LoopPredictor *loopPredictor;
 
   public:
-    LTAGE()
+    LTAGE(LTAGEParams *p) : TAGE(p->tage)
     {
-        loopPredictor = new LoopPredictor;
+        loopPredictor = new LoopPredictor(p->lp);
     }
 
     // more provider types

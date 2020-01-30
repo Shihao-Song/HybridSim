@@ -74,6 +74,7 @@ class Trace
         {
             auto instr = std::make_unique<ExeInstrInfo>();
             instr->thread_id = thread_id;
+            instr->eip = pc;
             pending_instrs.push_back(std::move(instr));
 
             --num_exes;
@@ -93,6 +94,7 @@ class Trace
 
                 inst.thread_id = thread_id;
                 inst.opr = Instruction::Operation::EXE;
+                inst.eip = pc;
                 pending_instrs.pop_front();
             }
             else
@@ -123,6 +125,7 @@ class Trace
 
                 inst.thread_id = thread_id;
                 inst.opr = Instruction::Operation::EXE;
+                inst.eip = pc;
                 pending_instrs.pop_front();
             }
             else
@@ -243,11 +246,13 @@ class Trace
     struct ExeInstrInfo : public InstrInfo
     {
         const Instruction::Operation opr = Instruction::Operation::EXE;
-
+        Addr eip;
+       
         void makeInstr(Instruction &instr) override
         {
             instr.thread_id = thread_id;
             instr.opr = opr;
+            instr.eip = eip;
         }
     };
     std::deque<std::unique_ptr<InstrInfo>> pending_instrs;

@@ -3,6 +3,7 @@
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
 #include "Processor/Branch_Predictor/gem5_random.hh"
+#include "Processor/Branch_Predictor/params.hh"
 
 #include <vector>
 
@@ -151,24 +152,24 @@ class TAGE : public Branch_Predictor
     typedef unsigned ThreadID;
     typedef uint64_t ULL;
 
-    const unsigned numHWThreads = 1;
+    const unsigned numHWThreads;
 
     // logRatioBiModalHystEntries, "Exploiting Bias in the Hysteresis Bit of 2-bit Saturating Counters in Branch Predictors" allows a hysteresis bit is shared among N prediction bits.
-    const unsigned logRatioBiModalHystEntries = 2;
+    const unsigned logRatioBiModalHystEntries;
     // nHistoryTables, number of history tables. TODO, confirm this is the tagged tables.
-    const unsigned nHistoryTables = 7;
+    const unsigned nHistoryTables;
     // tagTableCounterBits. TODO, confirm this is the prediction bits.
-    const unsigned tagTableCounterBits = 3;
-    const unsigned tagTableUBits = 2; // TODO, should be the useful bits
-    const unsigned histBufferSize = 2097152; // TODO, what is this.
-    const unsigned minHist = 5;
-    const unsigned maxHist = 130;
-    const unsigned pathHistBits = 16; // TODO, what is this.
+    const unsigned tagTableCounterBits;
+    const unsigned tagTableUBits; // TODO, should be the useful bits
+    const unsigned histBufferSize; // TODO, what is this.
+    const unsigned minHist;
+    const unsigned maxHist;
+    const unsigned pathHistBits; // TODO, what is this.
 
     // Tag size in TAGE tag tables
-    std::vector<unsigned> tagTableTagWidths = {0, 9, 9, 10, 10, 11, 11, 12};
+    std::vector<unsigned> tagTableTagWidths;
     // Log2 of TAGE table sizes
-    std::vector<int> logTagTableSizes = {13, 9, 9, 9, 9, 9, 9, 9};
+    std::vector<int> logTagTableSizes;
 
     std::vector<bool> btablePrediction;
     std::vector<bool> btableHysteresis;
@@ -183,23 +184,42 @@ class TAGE : public Branch_Predictor
     std::vector<int8_t> useAltPredForNewlyAllocated;
     int64_t tCounter;
     // Log period in number of branches to reset TAGE useful counters
-    uint64_t logUResetPeriod = 18;
-    int64_t initialTCounterValue = 0; // TODO
-    unsigned numUseAltOnNa = 1; // TODO
-    unsigned useAltOnNaBits = 4; // TODO
-    unsigned maxNumAlloc = 1; // Max number of TAGE entries allocted on mispredict
+    uint64_t logUResetPeriod;
+    int64_t initialTCounterValue; // TODO
+    unsigned numUseAltOnNa; // TODO
+    unsigned useAltOnNaBits; // TODO
+    unsigned maxNumAlloc; // Max number of TAGE entries allocted on mispredict
 
     // Tells which tables are active
     // (for the base TAGE implementation all are active)
     // Some other classes use this for handling associativity
     std::vector<bool> noSkip;
 
-    const bool speculativeHistUpdate = true; // TODO
+    const bool speculativeHistUpdate; // TODO
 
     bool initialized = 0;
 
   public:
-    TAGE()
+    TAGE(TAGEParams *p):
+     numHWThreads(p->numHWThreads),
+     logRatioBiModalHystEntries(p->logRatioBiModalHystEntries),
+     nHistoryTables(p->nHistoryTables),
+     tagTableCounterBits(p->tagTableCounterBits),
+     tagTableUBits(p->tagTableUBits),
+     histBufferSize(p->histBufferSize),
+     minHist(p->minHist),
+     maxHist(p->maxHist),
+     pathHistBits(p->pathHistBits),
+     tagTableTagWidths(p->tagTableTagWidths),
+     logTagTableSizes(p->logTagTableSizes),
+     logUResetPeriod(p->logUResetPeriod),
+     initialTCounterValue(p->initialTCounterValue),
+     numUseAltOnNa(p->numUseAltOnNa),
+     useAltOnNaBits(p->useAltOnNaBits),
+     maxNumAlloc(p->maxNumAlloc),
+     noSkip(p->noSkip),
+     speculativeHistUpdate(p->speculativeHistUpdate),
+     initialized(false)
     {
         // Enable all the tables
         noSkip.resize(nHistoryTables + 1, true);
@@ -215,7 +235,7 @@ class TAGE : public Branch_Predictor
 
         // initialize the counter to half of the period
         assert(logUResetPeriod != 0);
-        initialTCounterValue = (1 << 17);
+        // initialTCounterValue = (1 << 17);
         tCounter = initialTCounterValue;
 
         assert(histBufferSize > maxHist * 2);

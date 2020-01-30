@@ -2,18 +2,33 @@
 #define __LOOP_PREDICTOR_HH__
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
+#include "Processor/Branch_Predictor/params.hh"
 
 namespace CoreSystem
 {
 class LoopPredictor : public Branch_Predictor
 {
   public:
-    LoopPredictor()
-        : confidenceThreshold((1 << loopTableConfidenceBits) - 1),
+    LoopPredictor(LPParams *p)
+        : logSizeLoopPred(p->logSizeLoopPred),
+          loopTableAgeBits(p->loopTableAgeBits),
+          loopTableConfidenceBits(p->loopTableConfidenceBits),
+          loopTableTagBits(p->loopTableTagBits),
+          loopTableIterBits(p->loopTableIterBits),
+          logLoopTableAssoc(p->logLoopTableAssoc),
+          confidenceThreshold((1 << loopTableConfidenceBits) - 1),
           loopTagMask((1 << loopTableTagBits) - 1),
           loopNumIterMask((1 << loopTableIterBits) - 1),
           loopSetMask((1 << (logSizeLoopPred - logLoopTableAssoc)) - 1),
-          loopUseCounter(-1)
+          loopUseCounter(-1),
+          withLoopBits(p->withLoopBits),
+          useDirectionBit(p->useDirectionBit),
+          useSpeculation(p->useSpeculation),
+          useHashing(p->useHashing),
+          restrictAllocation(p->restrictAllocation),
+          initialLoopIter(p->initialLoopIter),
+          initialLoopAge(p->initialLoopAge),
+          optionalAgeReset(p->optionalAgeReset)
     {
     assert(initialLoopAge <= ((1 << loopTableAgeBits) - 1));
 
@@ -23,6 +38,24 @@ class LoopPredictor : public Branch_Predictor
     assert(logSizeLoopPred >= logLoopTableAssoc);
 
     ltable = new LoopEntry[ULL(1) << logSizeLoopPred];
+
+    /*
+    std::cout << logSizeLoopPred << "\n";
+    std::cout << withLoopBits << "\n";
+    std::cout << loopTableAgeBits << "\n";
+    std::cout << loopTableConfidenceBits << "\n";
+    std::cout << loopTableTagBits << "\n";
+    std::cout << loopTableIterBits << "\n";
+    std::cout << logLoopTableAssoc << "\n";
+    std::cout << useSpeculation << "\n";
+    std::cout << useHashing << "\n";
+    std::cout << useDirectionBit << "\n";
+    std::cout << restrictAllocation << "\n";
+    std::cout << initialLoopIter << "\n";
+    std::cout << initialLoopAge << "\n";
+    std::cout << optionalAgeReset << "\n";
+    exit(0);
+    */
     }
 
     bool predict(Instruction &instr) override
@@ -37,12 +70,12 @@ class LoopPredictor : public Branch_Predictor
     typedef unsigned ThreadID;
     typedef uint64_t ULL;
 
-    const unsigned logSizeLoopPred = 8;
-    const unsigned loopTableAgeBits = 8;
-    const unsigned loopTableConfidenceBits = 2;
-    const unsigned loopTableTagBits = 14;
-    const unsigned loopTableIterBits = 14;
-    const unsigned logLoopTableAssoc = 2;
+    const unsigned logSizeLoopPred;
+    const unsigned loopTableAgeBits;
+    const unsigned loopTableConfidenceBits;
+    const unsigned loopTableTagBits;
+    const unsigned loopTableIterBits;
+    const unsigned logLoopTableAssoc;
     const uint8_t confidenceThreshold;
     const uint16_t loopTagMask;
     const uint16_t loopNumIterMask;
@@ -67,15 +100,15 @@ class LoopPredictor : public Branch_Predictor
     LoopEntry *ltable;
 
     int8_t loopUseCounter;
-    unsigned withLoopBits = 7;
+    unsigned withLoopBits;
 
-    const bool useDirectionBit = false;
-    const bool useSpeculation = false;
-    const bool useHashing = false;
-    const bool restrictAllocation = false;
-    const unsigned initialLoopIter = 1;
-    const unsigned initialLoopAge = 255;
-    const bool optionalAgeReset = true;
+    const bool useDirectionBit;
+    const bool useSpeculation;
+    const bool useHashing;
+    const bool restrictAllocation;
+    const unsigned initialLoopIter;
+    const unsigned initialLoopAge;
+    const bool optionalAgeReset;
 
     /**
      * Updates an unsigned counter based on up/down parameter

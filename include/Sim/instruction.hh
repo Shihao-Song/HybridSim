@@ -27,6 +27,7 @@ class Instruction
     Addr target_paddr; // Target address to load or store (physical address)
 
     bool taken; // If the branch is taken.
+    Addr branch_target; // The resolved branch target.
 
     uint64_t size; // Size of data to be loaded or stored, 
                    // we are not utilizing this field currently.
