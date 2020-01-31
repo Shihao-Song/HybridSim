@@ -216,7 +216,8 @@ class Processor
                     if (!bp->predict(branch_instr))
                     {
                         mispred_penalty = 15;
-                        break;
+                        break; // No new instruction should be issued before penalty
+                               // is completely resolved.
                     }
                 }
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 

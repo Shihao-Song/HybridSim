@@ -221,6 +221,33 @@ class TAGE : public Branch_Predictor
      speculativeHistUpdate(p->speculativeHistUpdate),
      initialized(false)
     {
+        /*
+        // Make sure all parameters are correct.
+        std::cout << nHistoryTables << "\n";
+        std::cout << minHist << "\n";
+        std::cout << maxHist << "\n";
+        for (auto &item : tagTableTagWidths) { std::cout << item << ", "; }
+        std::cout << "\n";
+        for (auto &item : logTagTableSizes) { std::cout << item << ", "; }
+        std::cout << "\n";
+        std::cout << logRatioBiModalHystEntries << "\n";
+        std::cout << tagTableCounterBits << "\n";
+        std::cout << tagTableUBits << "\n";
+        std::cout << histBufferSize << "\n";
+        std::cout << pathHistBits << "\n";
+        std::cout << logUResetPeriod << "\n";
+        std::cout << numUseAltOnNa << "\n";
+        std::cout << initialTCounterValue << "\n";
+        std::cout << useAltOnNaBits << "\n";
+        std::cout << maxNumAlloc << "\n";
+        for (auto item : noSkip) { std::cout << item << ", "; }
+        std::cout << "\n";
+        exit(0);
+        */
+    }
+
+    virtual void init()
+    {
         // Enable all the tables
         noSkip.resize(nHistoryTables + 1, true);
 
@@ -284,30 +311,6 @@ class TAGE : public Branch_Predictor
         tableIndices = new int [nHistoryTables+1];
         tableTags = new int [nHistoryTables+1];
         initialized = true;
-
-        /*
-        // Make sure all parameters are correct.
-        std::cout << nHistoryTables << "\n";
-        std::cout << minHist << "\n";
-        std::cout << maxHist << "\n";
-        for (auto &item : tagTableTagWidths) { std::cout << item << ", "; }
-        std::cout << "\n";
-        for (auto &item : logTagTableSizes) { std::cout << item << ", "; }
-        std::cout << "\n";
-        std::cout << logRatioBiModalHystEntries << "\n";
-        std::cout << tagTableCounterBits << "\n";
-        std::cout << tagTableUBits << "\n";
-        std::cout << histBufferSize << "\n";
-        std::cout << pathHistBits << "\n";
-        std::cout << logUResetPeriod << "\n";
-        std::cout << numUseAltOnNa << "\n";
-        std::cout << initialTCounterValue << "\n";
-        std::cout << useAltOnNaBits << "\n";
-        std::cout << maxNumAlloc << "\n";
-        for (auto item : noSkip) { std::cout << item << ", "; }
-        std::cout << "\n";
-        exit(0);
-        */
     }
 
     Random random_mt;
@@ -771,66 +774,6 @@ class TAGE : public Branch_Predictor
         assert(threadHistory[tid].gHist ==
                 &threadHistory[tid].globalHistory[threadHistory[tid].ptGhist]);
     }
-
-    /*
-    uint64_t tageLongestMatchProviderCorrect = 0;
-    uint64_t tageAltMatchProviderCorrect = 0;
-    uint64_t bimodalAltMatchProviderCorrect = 0;
-    uint64_t tageBimodalProviderCorrect = 0;
-    uint64_t tageLongestMatchProviderWrong = 0;
-    uint64_t tageAltMatchProviderWrong = 0;
-    uint64_t bimodalAltMatchProviderWrong = 0;
-    uint64_t tageBimodalProviderWrong = 0;
-    uint64_t tageAltMatchProviderWouldHaveHit = 0;
-    uint64_t tageLongestMatchProviderWouldHaveHit = 0;
-
-    Stats::Vector tageLongestMatchProvider;
-    Stats::Vector tageAltMatchProvider;
-    void updateStats(bool taken, BranchInfo* bi)
-    {
-        if (taken == bi->tagePred) {
-            // correct prediction
-            switch (bi->provider) {
-            case BIMODAL_ONLY: tageBimodalProviderCorrect++; break;
-            case TAGE_LONGEST_MATCH: tageLongestMatchProviderCorrect++; break;
-            case BIMODAL_ALT_MATCH: bimodalAltMatchProviderCorrect++; break;
-            case TAGE_ALT_MATCH: tageAltMatchProviderCorrect++; break;
-            }
-        } else {
-            // wrong prediction
-            switch (bi->provider) {
-              case BIMODAL_ONLY: tageBimodalProviderWrong++; break;
-              case TAGE_LONGEST_MATCH:
-                tageLongestMatchProviderWrong++;
-                if (bi->altTaken == taken) {
-                    tageAltMatchProviderWouldHaveHit++;
-                }
-                break;
-              case BIMODAL_ALT_MATCH:
-                bimodalAltMatchProviderWrong++;
-                break;
-              case TAGE_ALT_MATCH:
-                tageAltMatchProviderWrong++;
-                break;
-            }
-
-            switch (bi->provider) {
-              case BIMODAL_ALT_MATCH:
-              case TAGE_ALT_MATCH:
-                if (bi->longestMatchPred == taken) {
-                    tageLongestMatchProviderWouldHaveHit++;
-                }
-            }
-        }
-        switch (bi->provider) {
-          case TAGE_LONGEST_MATCH:
-          case TAGE_ALT_MATCH:
-            tageLongestMatchProvider[bi->hitBank]++;
-            tageAltMatchProvider[bi->altBank]++;
-            break;
-        }
-    }
-    */
 };
 }
 

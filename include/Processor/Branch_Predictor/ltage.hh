@@ -19,6 +19,12 @@ class LTAGE : public TAGE
         loopPredictor = new LoopPredictor(p->lp);
     }
 
+    void init() override
+    {
+        loopPredictor->init(); // Initialize loop predictor
+        TAGE::init();
+    }
+
     // more provider types
     enum {
         LOOP = TAGE::LAST_TAGE_PROVIDER_TYPE + 1,

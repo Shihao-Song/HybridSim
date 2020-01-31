@@ -30,15 +30,6 @@ class LoopPredictor : public Branch_Predictor
           initialLoopAge(p->initialLoopAge),
           optionalAgeReset(p->optionalAgeReset)
     {
-    assert(initialLoopAge <= ((1 << loopTableAgeBits) - 1));
-
-    assert(loopTableTagBits <= 16);
-    assert(loopTableIterBits <= 16);
-
-    assert(logSizeLoopPred >= logLoopTableAssoc);
-
-    ltable = new LoopEntry[ULL(1) << logSizeLoopPred];
-
     /*
     std::cout << logSizeLoopPred << "\n";
     std::cout << withLoopBits << "\n";
@@ -56,6 +47,19 @@ class LoopPredictor : public Branch_Predictor
     std::cout << optionalAgeReset << "\n";
     exit(0);
     */
+    }
+
+    virtual void init()
+    {
+    assert(initialLoopAge <= ((1 << loopTableAgeBits) - 1));
+
+    assert(loopTableTagBits <= 16);
+    assert(loopTableIterBits <= 16);
+
+    assert(logSizeLoopPred >= logLoopTableAssoc);
+
+    ltable = new LoopEntry[ULL(1) << logSizeLoopPred];
+
     }
 
     bool predict(Instruction &instr) override
@@ -431,7 +435,7 @@ class LoopPredictor : public Branch_Predictor
     return ltable[index].confidence == confidenceThreshold;
     }
     
-    virtual bool optionalAgeInc() const
+    virtual bool optionalAgeInc()
     {
         return false;
     }
@@ -448,8 +452,6 @@ class LoopPredictor : public Branch_Predictor
 
     void squash(ThreadID tid, BranchInfo *bi);
 
-
-
     virtual BranchInfo *makeBranchInfo();
 
     int8_t getLoopUseCounter() const
@@ -465,6 +467,33 @@ class LoopPredictor : public Branch_Predictor
 
     size_t getSizeInBits() const;
     */
+};
+
+class TAGE_SC_L_LoopPredictor : public LoopPredictor
+{
+  public:
+    TAGE_SC_L_LoopPredictor(TAGE_SC_L_LoopPredictorParams *p)
+      : LoopPredictor(p)
+    {}
+
+    bool calcConf(int index) const override
+    {
+    return LoopPredictor::calcConf(index) ||
+           (ltable[index].confidence * ltable[index].numIter > 128);
+    }
+
+    bool optionalAgeInc() override
+    {
+    return (random_mt.random<int>() & 7) == 0;
+    }
+};
+
+class TAGE_SC_L_64KB_LoopPredictor : public TAGE_SC_L_LoopPredictor
+{
+  public:
+    TAGE_SC_L_64KB_LoopPredictor(TAGE_SC_L_64KB_LoopPredictorParams *p) : 
+        TAGE_SC_L_LoopPredictor(p)
+    {}
 };
 
 }

@@ -38,6 +38,61 @@ struct TAGEParams : public Params
     bool speculativeHistUpdate = true;
 };
 
+struct TAGE_SC_L_TAGEParams : public TAGEParams
+{
+    unsigned logTagTableSize;
+
+    unsigned shortTagsTageFactor;
+
+    unsigned longTagsTageFactor;
+
+    unsigned shortTagsSize = 8;
+
+    unsigned longTagsSize;
+
+    unsigned firstLongTagTable;
+
+    bool truncatePathHist = true;
+
+    TAGE_SC_L_TAGEParams()
+    {
+    tagTableTagWidths = {0};
+    numUseAltOnNa = 16;
+    pathHistBits = 27;
+    maxNumAlloc = 2;
+    logUResetPeriod = 10;
+    initialTCounterValue = 1 << 9;
+    useAltOnNaBits = 5;
+    speculativeHistUpdate = false;
+    }
+};
+
+struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
+{
+    TAGE_SC_L_TAGE_64KBParams()
+    {
+    nHistoryTables = 36;
+
+    minHist = 6;
+    maxHist = 3000;
+
+    tagTableUBits = 1;
+
+    logTagTableSizes = {13};
+
+    noSkip = {0,0,1,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,
+                1,1,1,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1};
+
+    logTagTableSize = 10;
+    shortTagsTageFactor = 10;
+    longTagsTageFactor = 20;
+
+    longTagsSize = 12;
+
+    firstLongTagTable = 13;
+    }
+};
+
 struct LPParams : public Params
 {
     unsigned logSizeLoopPred = 8;
@@ -59,6 +114,32 @@ struct LPParams : public Params
     unsigned initialLoopIter = 1;
     unsigned initialLoopAge = 255;
     bool optionalAgeReset = true;
+};
+
+struct TAGE_SC_L_LoopPredictorParams : public LPParams
+{
+    TAGE_SC_L_LoopPredictorParams()
+    {
+    loopTableAgeBits = 4;
+    loopTableConfidenceBits = 4;
+    loopTableTagBits = 10;
+    loopTableIterBits = 10;
+    useSpeculation = false;
+    useHashing = true;
+    useDirectionBit = true;
+    restrictAllocation = true;
+    initialLoopIter = 0;
+    initialLoopAge = 7;
+    optionalAgeReset = false;
+    }
+};
+
+struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
+{
+    TAGE_SC_L_64KB_LoopPredictorParams()
+    {
+    logSizeLoopPred = 5;
+    }
 };
 
 struct LTAGEParams

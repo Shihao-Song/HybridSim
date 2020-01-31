@@ -5,6 +5,8 @@
 #include "Processor/Branch_Predictor/tournament.hh"
 #include "Processor/Branch_Predictor/tage.hh"
 #include "Processor/Branch_Predictor/ltage.hh"
+
+#include "Processor/Branch_Predictor/loop_predictor.hh"
 #include "Processor/Branch_Predictor/statistical_corrector.hh"
 
 #include <memory>
@@ -26,7 +28,9 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
     else if (type == "tage")
     {
         std::unique_ptr<TAGEParams> p = std::make_unique<TAGEParams>();
-        return std::make_unique<TAGE>(p.get());
+        auto tage = std::make_unique<TAGE>(p.get());
+        tage->init();
+        return tage;
     }
     else if (type == "ltage")
     {
@@ -36,7 +40,9 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
         ltage_params->tage = tage_params.get();
         ltage_params->lp = lp_params.get();
 
-        return std::make_unique<LTAGE>(ltage_params.get());
+        auto ltage = std::make_unique<LTAGE>(ltage_params.get());
+        ltage->init();
+        return ltage;
     }
     else
     {

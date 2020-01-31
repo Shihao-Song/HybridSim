@@ -203,7 +203,7 @@ class StatisticalCorrector : public Branch_Predictor
     biasSK.resize(1 << logBias);
     biasBank.resize(1 << logBias);
 
-    init();
+    // init();
     }
 
     virtual BranchInfo *makeBranchInfo()
@@ -671,6 +671,5 @@ class TAGE_SC_L_64KB_StatisticalCorrector : public StatisticalCorrector
             igehl, inb, logInb, wi, bi);
     }
 };
-
 }
-#endif//__CPU_PRED_STATISTICAL_CORRECTOR_HH
+#endif
