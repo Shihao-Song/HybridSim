@@ -466,5 +466,6 @@ class LoopPredictor : public Branch_Predictor
     size_t getSizeInBits() const;
     */
 };
+
 }
 #endif//__CPU_PRED_LOOP_PREDICTOR_HH__
