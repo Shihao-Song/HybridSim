@@ -14,6 +14,8 @@
 #include "PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "Processor/processor.hh"
 
+#include "Sim/trace_probe.hh"
+
 #define isLLC 1
 #define isNonLLC 0
 
@@ -41,6 +43,7 @@ struct ParseArgsRet
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
+    std::string trace_output_file;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -108,6 +111,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> cpu_traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
+    std::string trace_output_file = "N/A";
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
@@ -122,7 +126,9 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instructions per phase (Optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
-                        "Stats output file");
+                        "Stats output file")
+        ("trace_output", po::value<std::string>(&trace_output_file),
+                         "Trace output file (Optional)");
 
     po::variables_map vm;
 
@@ -150,7 +156,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         pcm_cfg_file,
                         cpu_traces,
                         num_instrs_per_phase,
-                        stats_output};
+                        stats_output,
+                        trace_output_file};
 }
 
 // Function to test cache behavior.

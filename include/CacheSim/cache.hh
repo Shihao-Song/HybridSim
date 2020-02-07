@@ -60,8 +60,9 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
-        // std::cout << clk << ": " << level_name << " is sending an MSHR request for "
-        //           << "addr " << addr << "\n";
+        //std::cout << clk << ": " << "Core-" << id << "-"
+        //          << level_name << " is sending an MSHR request for "
+        //          << "addr " << addr << "\n";
 
         Request req(addr, Request::Request_Type::READ,
                     [this](Addr _addr){ return this->mshrComplete(_addr); });
@@ -80,8 +81,9 @@ class Cache : public Simulator::MemObject
 
     bool mshrComplete(Addr addr)
     {
-        // std::cout << clk << ": " << level_name << " is receiving an MSHR answer for "
-        //           << "addr " << addr << "\n";
+        //std::cout << clk << ": " << "Core-" << id << "-" 
+        //          << level_name << " is receiving an MSHR answer for "
+        //          << "addr " << addr << "\n";
 
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
@@ -313,6 +315,8 @@ class Cache : public Simulator::MemObject
 
     bool send(Request &req) override
     {
+        // TODO, let's re-think the design.
+        /*
         if (arbitrator)
         {
             assert(req.core_id != -1);
@@ -321,6 +325,7 @@ class Cache : public Simulator::MemObject
                 return false;
             }
         }
+        */
 
         // Step one, check whether it is a hit or not
         if (auto [hit, aligned_addr] = tags->accessBlock(req.addr,
@@ -518,15 +523,17 @@ class Cache : public Simulator::MemObject
             // clk++;
             return;
         }
+
+        // TODO, re-think the design of arbitration.
         // TODO, delete assert in the future.
         // assert(int(level) > int(Config::Cache_Level::L1D));
-        if (arbitrator)
-        {
+        // if (arbitrator)
+        // {
             // TODO, delete assert in the future.
             // assert(level == Config::Cache_Level::L2);
             // TODO, there should be a better arbitration mechanism.
-            selected_client = (selected_client + 1) % num_clients;
-        }
+        //     selected_client = (selected_client + 1) % num_clients;
+        // }
 
         if (clk % nclks_to_tick_next_level == 0)
         {

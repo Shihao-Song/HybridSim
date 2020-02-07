@@ -53,6 +53,7 @@ class SingleNode : public MMU
     std::vector<Addr> free_frame_pool;
     
     // A pool of free fast-access physical pages.
+    // TODO, only considered PCM here.
     const unsigned NUM_FAST_ACCESS_ROWS = 512;
     std::vector<Addr> free_fast_access_frame_pool;
 
@@ -101,14 +102,17 @@ class SingleNode : public MMU
         std::shuffle(std::begin(free_slow_access_frame_pool),
                      std::end(free_slow_access_frame_pool), rng);
 
+        /*
         std::shuffle(std::begin(free_frame_pool),
                      std::end(free_frame_pool), rng);
-        // std::cout << "Number of fast-access pages: "
-        //           << free_fast_access_frame_pool.size() << "\n";
-        // std::cout << "Number of slow-access pages: "
-        //           << free_slow_access_frame_pool.size() << "\n";
-        // std::cout << "Total number of pages: "
-        //           << free_frame_pool.size() << "\n\n";
+        std::cout << "Number of fast-access pages: "
+                  << free_fast_access_frame_pool.size() << "\n";
+        std::cout << "Number of slow-access pages: "
+                  << free_slow_access_frame_pool.size() << "\n";
+        std::cout << "Total number of pages: "
+                  << free_frame_pool.size() << "\n\n";
+        exit(0);
+        */
     }
 
     void va2pa(Request &req) override
