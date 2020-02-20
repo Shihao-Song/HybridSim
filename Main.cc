@@ -182,7 +182,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
         L2->setPrevLevel(L1_D.get());
         L3->setPrevLevel(L2.get());
 
-        L3->setInclusive();
+        L3->setInclusive(); // L3 is inclusive (to L2 and L1-D)
 
         L1Ds.push_back(std::move(L1_D));
         L2s.push_back(std::move(L2));

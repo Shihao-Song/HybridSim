@@ -169,9 +169,26 @@ class Processor
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
-                if (cur_inst.opr == Instruction::Operation::EXE)
+                if (pending_bra_accesses.size() > 0)
                 {
-                    // std::cout << cur_inst.thread_id << " E\n";
+                    Instruction &branch_instr = pending_bra_accesses[0];
+                    if (branch_instr.thread_id == cur_inst.thread_id)
+                    {
+                         branch_instr.branch_target = cur_inst.eip;
+
+                         // std::cout << branch_instr.thread_id << " "
+                         //           << branch_instr.eip << " B "
+                         //           << branch_instr.branch_target
+                         //           << " (Accessed)\n";
+
+                         pending_bra_accesses.pop_front();
+                    }
+                }
+
+		if (cur_inst.opr == Instruction::Operation::EXE)
+                {
+                    // std::cout << cur_inst.thread_id << " "
+                    //           << cur_inst.eip << " E\n";
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -182,20 +199,34 @@ class Processor
                 else if (cur_inst.opr == Instruction::Operation::BRANCH)
                 {
                     Instruction branch_instr;
-                    branch_instr.thread_id = 0;
+                    branch_instr.opr = Instruction::Operation::BRANCH;
+                    branch_instr.thread_id = cur_inst.thread_id;
                     branch_instr.eip = cur_inst.eip;
                     branch_instr.taken = cur_inst.taken;
                     
-                    cur_inst.ready_to_commit = true;
-                    window.insert(cur_inst);
-                    inserted++;
-                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
-                    branch_instr.branch_target = cur_inst.eip;
 
-                    // TODO, disable the branch predictor for now.
+                    branch_instr.branch_target = cur_inst.eip;
+                    branch_instr.ready_to_commit = true;
+                    window.insert(branch_instr);
+                    inserted++;
+
+                    // std::cout << branch_instr.thread_id << " "
+                    //           << branch_instr.eip << " B "
+                    //           << branch_instr.branch_target;
+ 
+                    // TODO, we may have to pend the branch instruction. This is because 
+                    // cur_inst may not have the same the thread_id as the branch_instr.
+                    if (cur_inst.thread_id != branch_instr.thread_id)
+                    {
+                    //     std::cout << " (Pending Access)\n";
+                        pending_bra_accesses.push_back(branch_instr);
+                        break;
+                    }
+                    // std::cout << " (Accessed)\n";
+
                     /*
-                    // TODO, if there is a branch misprediction, stall the processor
+                    // If there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
                     if (!bp->predict(branch_instr))
                     {
@@ -219,9 +250,7 @@ class Processor
                         std::cout << " S ";
                     }
                     std::cout << cur_inst.target_vaddr << "\n";
-                    */
 
-                    /*
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
@@ -363,6 +392,8 @@ class Processor
 
       private:
         std::unique_ptr<Branch_Predictor> bp;
+
+        std::deque<Instruction> pending_bra_accesses;
         unsigned mispred_penalty = 0;
 
         MMU *mmu;
