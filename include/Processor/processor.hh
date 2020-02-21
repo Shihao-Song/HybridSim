@@ -9,6 +9,8 @@
 
 #include "System/mmu.hh"
 
+#include <algorithm>
+#include <list>
 #include <memory>
 #include <deque>
 #include <unordered_map>
@@ -171,24 +173,30 @@ class Processor
             {
                 if (pending_bra_accesses.size() > 0)
                 {
-                    Instruction &branch_instr = pending_bra_accesses[0];
-                    if (branch_instr.thread_id == cur_inst.thread_id)
+                    auto iter = pending_bra_accesses.begin();
+                    while (iter != pending_bra_accesses.end())
                     {
-                         branch_instr.branch_target = cur_inst.eip;
+                        auto branch_instr = iter;
+                        iter++; // Proceed to the next iterator
 
-                         // std::cout << branch_instr.thread_id << " "
-                         //           << branch_instr.eip << " B "
-                         //           << branch_instr.branch_target
-                         //           << " (Accessed)\n";
+                        if (branch_instr->thread_id == cur_inst.thread_id)
+                        {
+                            branch_instr->branch_target = cur_inst.eip;
 
-                         pending_bra_accesses.pop_front();
+                            std::cout << branch_instr->thread_id << " "
+                                      << branch_instr->eip << " B "
+                                      << branch_instr->branch_target
+                                      << " (Accessed)\n";
+
+                            pending_bra_accesses.erase(branch_instr);
+                        }
                     }
                 }
 
 		if (cur_inst.opr == Instruction::Operation::EXE)
                 {
-                    // std::cout << cur_inst.thread_id << " "
-                    //           << cur_inst.eip << " E\n";
+                    std::cout << cur_inst.thread_id << " "
+                              << cur_inst.eip << " E\n";
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -211,19 +219,27 @@ class Processor
                     window.insert(branch_instr);
                     inserted++;
 
-                    // std::cout << branch_instr.thread_id << " "
-                    //           << branch_instr.eip << " B "
-                    //           << branch_instr.branch_target;
+                    std::cout << branch_instr.thread_id << " "
+                              << branch_instr.eip << " B "
+                              << branch_instr.branch_target;
  
                     // TODO, we may have to pend the branch instruction. This is because 
                     // cur_inst may not have the same the thread_id as the branch_instr.
                     if (cur_inst.thread_id != branch_instr.thread_id)
                     {
-                    //     std::cout << " (Pending Access)\n";
+                        std::cout << " (Pending Access)\n";
+                        auto check(std::find_if(std::begin(pending_bra_accesses), 
+                                                std::end(pending_bra_accesses),
+                                                [&](const auto &branch)
+                                                {
+                                                    return branch.thread_id == 
+                                                           branch_instr.thread_id;
+                                                }));
+                        assert(check == pending_bra_accesses.end());
                         pending_bra_accesses.push_back(branch_instr);
                         break;
                     }
-                    // std::cout << " (Accessed)\n";
+                    std::cout << " (Accessed)\n";
 
                     /*
                     // If there is a branch misprediction, stall the processor
@@ -239,7 +255,6 @@ class Processor
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
-                    /*
                     std::cout << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
@@ -256,8 +271,8 @@ class Processor
                     inserted++;
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
-                    */
-                    
+
+                    /*
                     Request req; 
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -309,6 +324,7 @@ class Processor
                         cur_inst.already_translated = true;
                         break;
                     }
+                    */
                 }
                 else
                 {
@@ -393,7 +409,7 @@ class Processor
       private:
         std::unique_ptr<Branch_Predictor> bp;
 
-        std::deque<Instruction> pending_bra_accesses;
+        std::list<Instruction> pending_bra_accesses;
         unsigned mispred_penalty = 0;
 
         MMU *mmu;
