@@ -16,6 +16,8 @@ class Branch_Predictor
     typedef uint64_t Addr;
     static const Addr MaxAddr = (Addr) - 1;
 
+    typedef uint64_t ULL;
+
   public:
     Branch_Predictor() {}
 

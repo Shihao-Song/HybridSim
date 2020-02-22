@@ -9,6 +9,8 @@
 // #include "Processor/Branch_Predictor/loop_predictor.hh"
 // #include "Processor/Branch_Predictor/statistical_corrector.hh"
 
+#include "Processor/Branch_Predictor/TAGE/tage_base.hh"
+
 #include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron_64KB.hh"
 
 #include <memory>

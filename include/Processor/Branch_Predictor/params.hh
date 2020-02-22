@@ -6,13 +6,11 @@
 
 namespace CoreSystem
 {
-struct Params
+struct TAGEBaseParams
 {
-    unsigned numHWThreads = 1;
-};
+    unsigned instShiftAmt = 2;
+    unsigned numThreads = 1;
 
-struct TAGEParams : public Params
-{
     unsigned nHistoryTables = 7;
     unsigned minHist = 5;
     unsigned maxHist = 130;
@@ -38,7 +36,7 @@ struct TAGEParams : public Params
 
     bool speculativeHistUpdate = true;
 };
-
+/*
 struct TAGE_SC_L_TAGEParams : public TAGEParams
 {
     unsigned logTagTableSize;
@@ -226,6 +224,7 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
         iWeightInitValue = 7;
     }
 };
+*/
 
 struct MultiperspectivePerceptronParams
 {
