@@ -228,7 +228,49 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
 
 struct MultiperspectivePerceptronParams
 {
+    int num_filter_entries;
+    int num_local_histories;
+    int local_history_length = 11;
+    int block_size = 21;
+    int pcshift = -10;
+    int threshold = 1;
+    int bias0 = -5;
+    int bias1 = 5;
+    int biasmostly0 = -1;
+    int biasmostly1 = 1;
+    int nbest = 20;
+    int tunebits = 24;
+    int hshift = -6;
+    uint64_t imli_mask1;
+    uint64_t imli_mask4;
+    uint64_t recencypos_mask;
+    float fudge = 0.245;
+    int n_sign_bits = 2;
+    int pcbit = 2;
+    int decay = 0;
+    int record_mask = 191;
+    bool hash_taken = false;
+    bool tuneonly = true;
+    int extra_rounds = 1;
+    int speed = 9;
+    int initial_theta = 10;
+    int budgetbits;
+    bool speculative_update = false;
+    int initial_ghist_length = 1;
+    bool ignore_path_size = false;
+};
 
+struct MultiperspectivePerceptron64KBParams : public MultiperspectivePerceptronParams
+{
+    MultiperspectivePerceptron64KBParams()
+    {
+        budgetbits = 65536 * 8 + 2048;
+        num_local_histories = 510;
+        num_filter_entries = 18025;
+        imli_mask1 = 0xc1000;
+        imli_mask4 = 0x80008000;
+        recencypos_mask = 0x100000090;
+    }
 };
 
 }
