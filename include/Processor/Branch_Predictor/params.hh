@@ -6,6 +6,8 @@
 
 namespace CoreSystem
 {
+class TAGEBase;
+
 struct TAGEBaseParams
 {
     unsigned instShiftAmt = 2;
@@ -36,6 +38,12 @@ struct TAGEBaseParams
 
     bool speculativeHistUpdate = true;
 };
+
+struct TAGEParams
+{
+    TAGEBase *tage; 
+};
+
 /*
 struct TAGE_SC_L_TAGEParams : public TAGEParams
 {

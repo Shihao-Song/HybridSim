@@ -106,7 +106,8 @@ class Processor
       public:
         Core(int _id, std::string trace_file)
             // : bp(createBP("MultiperspectivePerceptron")),
-              : bp(createBP("tournament")),
+            // : bp(createBP("tournament")),
+            : bp(createBP("tage")),
               trace(trace_file),
               cycles(0),
               core_id(_id)

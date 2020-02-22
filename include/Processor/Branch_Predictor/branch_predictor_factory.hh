@@ -3,13 +3,8 @@
 
 #include "Processor/Branch_Predictor/2bit_local.hh"
 #include "Processor/Branch_Predictor/tournament.hh"
-// #include "Processor/Branch_Predictor/tage.hh"
-// #include "Processor/Branch_Predictor/ltage.hh"
 
-// #include "Processor/Branch_Predictor/loop_predictor.hh"
-// #include "Processor/Branch_Predictor/statistical_corrector.hh"
-
-#include "Processor/Branch_Predictor/TAGE/tage_base.hh"
+#include "Processor/Branch_Predictor/TAGE/tage.hh"
 
 #include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron_64KB.hh"
 
@@ -18,7 +13,6 @@
 
 namespace CoreSystem
 {
-// TODO, add (1) bi-mod predictor and (2) perceptron predictor
 std::unique_ptr<Branch_Predictor> createBP(std::string type)
 {
     if (type == "2-bit-local") // This is just a bimodal predictor.
@@ -29,13 +23,19 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
     {
         return std::make_unique<Tournament>();
     }
-/*    else if (type == "tage")
+    else if (type == "tage")
     {
-        std::unique_ptr<TAGEParams> p = std::make_unique<TAGEParams>();
-        auto tage = std::make_unique<TAGE>(p.get());
-        tage->init();
+        auto tage_base_params = std::make_unique<TAGEBaseParams>();
+        auto tage_params = std::make_unique<TAGEParams>();
+
+        auto tage_base = new TAGEBase(tage_base_params.get());
+        tage_base->init();
+        tage_params->tage = tage_base;
+
+        auto tage = std::make_unique<TAGE>(tage_params.get());
         return tage;
     }
+    /*
     else if (type == "ltage")
     {
         std::unique_ptr<TAGEParams> tage_params = std::make_unique<TAGEParams>();

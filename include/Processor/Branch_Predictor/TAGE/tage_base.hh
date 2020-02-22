@@ -53,6 +53,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <iostream>
 #include <vector>
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
@@ -65,6 +66,8 @@ class TAGEBase : public Branch_Predictor
 {
   public:
     TAGEBase(const TAGEBaseParams *p);
+    bool predict(Instruction &instr) override
+    { std::cerr << "Fatal: not supported." << std::endl; exit(0); }
     void init() override;
 
   protected:
