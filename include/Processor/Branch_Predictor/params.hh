@@ -226,6 +226,11 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
     }
 };
 
+struct MultiperspectivePerceptronParams
+{
+
+};
+
 }
 
 #endif
