@@ -47,6 +47,14 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
         return ltage;
     }
     */
+    else if (type == "MultiperspectivePerceptron")
+    {
+        auto mpp_params = std::make_unique<MultiperspectivePerceptron64KBParams>();
+        auto mpp = std::make_unique<MultiperspectivePerceptron64KB>(mpp_params.get());
+        mpp->init();
+
+        return mpp;
+    }
     else
     {
         std::cerr << "Unsupported Branch Predictor Type." << std::endl;

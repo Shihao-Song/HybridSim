@@ -43,6 +43,7 @@
 #include <array>
 #include <cassert>
 #include <cstring>
+#include <iostream>
 #include <vector>
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"

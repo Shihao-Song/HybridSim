@@ -543,7 +543,28 @@ MultiperspectivePerceptron::train(ThreadID tid, MPPBranchInfo &bi, bool taken)
 bool
 MultiperspectivePerceptron::predict(Instruction &instr)
 {
+    ThreadID tid = 0;
+    Addr branch_pc = instr.eip;
+    Addr branch_target = instr.branch_target;
 
+    // std::cerr << instr.thread_id << " " << branch_pc << " " << branch_target << std::endl;
+    // return true;
+
+    void *history = nullptr;
+    bool final_pred = lookup(tid, branch_pc, history);
+
+    update(tid, branch_pc, instr.taken, history, false, branch_target);
+
+    if (instr.taken == final_pred)
+    {
+        correct_preds++;
+        return true; // Indicate a correct prediction.
+    }
+    else
+    {
+        incorrect_preds++;
+        return false; // Indicate an in-correct prediction.
+    }
 }
 
 bool
@@ -596,15 +617,15 @@ MultiperspectivePerceptron::update(ThreadID tid, Addr instPC, bool taken,
     assert(bp_history);
     MPPBranchInfo *bi = static_cast<MPPBranchInfo*>(bp_history);
     assert(corrTarget != MaxAddr);
-    if (squashed) {
+    // if (squashed) {
         //delete bi;
-        return;
-    }
+    //     return;
+    // }
 
-    if (bi->isUnconditional()) {
-        delete bi;
-        return;
-    }
+    // if (bi->isUnconditional()) {
+    //     delete bi;
+    //     return;
+    // }
 
     bool do_train = true;
 

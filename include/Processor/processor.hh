@@ -105,7 +105,7 @@ class Processor
     {
       public:
         Core(int _id, std::string trace_file)
-            : bp(createBP("ltage")),
+            : bp(createBP("MultiperspectivePerceptron")),
               trace(trace_file),
               cycles(0),
               core_id(_id)
@@ -171,6 +171,7 @@ class Processor
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
+                bool pending_bra_stall = false;
                 if (pending_bra_accesses.size() > 0)
                 {
                     auto iter = pending_bra_accesses.begin();
@@ -183,20 +184,23 @@ class Processor
                         {
                             branch_instr->branch_target = cur_inst.eip;
 
-                            std::cout << branch_instr->thread_id << " "
-                                      << branch_instr->eip << " B "
-                                      << branch_instr->branch_target
-                                      << " (Accessed)\n";
+                            // std::cout << branch_instr->thread_id << " "
+                            //           << branch_instr->eip << " B "
+                            //           << branch_instr->branch_target
+                            //           << " (Accessed)\n";
+                            bool wrong_pred = !bp->predict(*branch_instr);
 
                             pending_bra_accesses.erase(branch_instr);
+                            if (wrong_pred) { pending_bra_stall = true; break; }
                         }
                     }
                 }
+                if (pending_bra_stall) { mispred_penalty = 15; break; }
 
 		if (cur_inst.opr == Instruction::Operation::EXE)
                 {
-                    std::cout << cur_inst.thread_id << " "
-                              << cur_inst.eip << " E\n";
+                    // std::cout << cur_inst.thread_id << " "
+                    //           << cur_inst.eip << " E\n";
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -219,15 +223,15 @@ class Processor
                     window.insert(branch_instr);
                     inserted++;
 
-                    std::cout << branch_instr.thread_id << " "
-                              << branch_instr.eip << " B "
-                              << branch_instr.branch_target;
+                    // std::cout << branch_instr.thread_id << " "
+                    //           << branch_instr.eip << " B "
+                    //           << branch_instr.branch_target;
  
                     // TODO, we may have to pend the branch instruction. This is because 
                     // cur_inst may not have the same the thread_id as the branch_instr.
                     if (cur_inst.thread_id != branch_instr.thread_id)
                     {
-                        std::cout << " (Pending Access)\n";
+                        // std::cout << " (Pending Access)\n";
                         auto check(std::find_if(std::begin(pending_bra_accesses), 
                                                 std::end(pending_bra_accesses),
                                                 [&](const auto &branch)
@@ -239,9 +243,8 @@ class Processor
                         pending_bra_accesses.push_back(branch_instr);
                         break;
                     }
-                    std::cout << " (Accessed)\n";
+                    // std::cout << " (Accessed)\n";
 
-                    /*
                     // If there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
                     if (!bp->predict(branch_instr))
@@ -250,11 +253,11 @@ class Processor
                         break; // No new instruction should be issued before penalty
                                // is completely resolved.
                     }
-                    */
                 }
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
+                    /*
                     std::cout << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
@@ -265,7 +268,7 @@ class Processor
                         std::cout << " S ";
                     }
                     std::cout << cur_inst.target_vaddr << "\n";
-
+                    */
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
