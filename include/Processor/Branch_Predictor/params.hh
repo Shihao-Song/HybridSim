@@ -2,13 +2,16 @@
 #define __PARAMS_HH__
 
 #include <cstdint>
+#include <memory>
 #include <vector>
+
+#include "Processor/Branch_Predictor/TAGE/tage_base.hh"
 
 namespace CoreSystem
 {
-class TAGEBase;
+struct Params{};
 
-struct TAGEBaseParams
+struct TAGEBaseParams : public Params
 {
     unsigned instShiftAmt = 2;
     unsigned numThreads = 1;
@@ -39,9 +42,9 @@ struct TAGEBaseParams
     bool speculativeHistUpdate = true;
 };
 
-struct TAGEParams
+struct TAGEParams : public Params
 {
-    TAGEBase *tage; 
+    std::unique_ptr<TAGEBase> tage; 
 };
 
 /*
@@ -234,7 +237,7 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
 };
 */
 
-struct MultiperspectivePerceptronParams
+struct MultiperspectivePerceptronParams : public Params
 {
     int numThreads = 1;
     int num_filter_entries;

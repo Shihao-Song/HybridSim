@@ -58,10 +58,11 @@
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
 #include "Processor/Branch_Predictor/gem5_random.hh"
-#include "Processor/Branch_Predictor/params.hh"
+// #include "Processor/Branch_Predictor/params.hh"
 
 namespace CoreSystem
 {
+class TAGEBaseParams;
 class TAGEBase : public Branch_Predictor
 {
   public:

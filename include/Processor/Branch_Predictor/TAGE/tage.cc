@@ -39,10 +39,11 @@
  */
 
 #include "Processor/Branch_Predictor/TAGE/tage.hh"
+#include "Processor/Branch_Predictor/params.hh"
 
 namespace CoreSystem
 {
-TAGE::TAGE(const TAGEParams *params) : Branch_Predictor(), tage(params->tage)
+TAGE::TAGE(const TAGEParams *params) : Branch_Predictor(), tage(params->tage.get())
 {
 }
 

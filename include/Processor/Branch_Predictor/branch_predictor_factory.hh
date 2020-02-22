@@ -8,11 +8,15 @@
 
 #include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron_64KB.hh"
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace CoreSystem
 {
+// TODO, think of a smarter to manage the parameters.
+std::vector<std::unique_ptr<Params>> params;
 std::unique_ptr<Branch_Predictor> createBP(std::string type)
 {
     if (type == "2-bit-local") // This is just a bimodal predictor.
@@ -26,13 +30,16 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
     else if (type == "tage")
     {
         auto tage_base_params = std::make_unique<TAGEBaseParams>();
-        auto tage_params = std::make_unique<TAGEParams>();
-
-        auto tage_base = new TAGEBase(tage_base_params.get());
+        auto tage_base = std::make_unique<TAGEBase>(tage_base_params.get());
         tage_base->init();
-        tage_params->tage = tage_base;
+
+        auto tage_params = std::make_unique<TAGEParams>();
+        tage_params->tage = std::move(tage_base);
 
         auto tage = std::make_unique<TAGE>(tage_params.get());
+
+        params.push_back(std::move(tage_base_params));
+        params.push_back(std::move(tage_params));
         return tage;
     }
     /*
@@ -55,6 +62,7 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
         auto mpp = std::make_unique<MultiperspectivePerceptron64KB>(mpp_params.get());
         mpp->init();
 
+        params.push_back(std::move(mpp_params));
         return mpp;
     }
     else

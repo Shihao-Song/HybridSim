@@ -57,6 +57,7 @@
 
 namespace CoreSystem
 {
+class TAGEParams;
 class TAGE: public Branch_Predictor
 {
   protected:
@@ -80,7 +81,7 @@ class TAGE: public Branch_Predictor
   public:
 
     TAGE(const TAGEParams *params);
-    ~TAGE() { delete tage; }
+    // ~TAGE() { delete tage; }
 
     bool predict(Instruction &instr) override;
 
