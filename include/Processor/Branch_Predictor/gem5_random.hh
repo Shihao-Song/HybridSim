@@ -7,7 +7,6 @@
 
 class Random
 {
-
   private:
 
     std::mt19937_64 gen;
@@ -51,6 +50,6 @@ class Random
     }
 };
 
-// extern Random random_mt;
-
+// Random random_mt;
+// static Random random_mt;
 #endif // __BASE_RANDOM_HH__

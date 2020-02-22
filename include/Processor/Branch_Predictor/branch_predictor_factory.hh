@@ -3,13 +3,13 @@
 
 #include "Processor/Branch_Predictor/2bit_local.hh"
 #include "Processor/Branch_Predictor/tournament.hh"
-#include "Processor/Branch_Predictor/tage.hh"
-#include "Processor/Branch_Predictor/ltage.hh"
+// #include "Processor/Branch_Predictor/tage.hh"
+// #include "Processor/Branch_Predictor/ltage.hh"
 
-#include "Processor/Branch_Predictor/loop_predictor.hh"
-#include "Processor/Branch_Predictor/statistical_corrector.hh"
+// #include "Processor/Branch_Predictor/loop_predictor.hh"
+// #include "Processor/Branch_Predictor/statistical_corrector.hh"
 
-#include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron.hh"
+#include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron_64KB.hh"
 
 #include <memory>
 #include <string>
@@ -27,7 +27,7 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
     {
         return std::make_unique<Tournament>();
     }
-    else if (type == "tage")
+/*    else if (type == "tage")
     {
         std::unique_ptr<TAGEParams> p = std::make_unique<TAGEParams>();
         auto tage = std::make_unique<TAGE>(p.get());
@@ -46,6 +46,7 @@ std::unique_ptr<Branch_Predictor> createBP(std::string type)
         ltage->init();
         return ltage;
     }
+    */
     else
     {
         std::cerr << "Unsupported Branch Predictor Type." << std::endl;

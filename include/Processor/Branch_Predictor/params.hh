@@ -1,6 +1,7 @@
 #ifndef __PARAMS_HH__
 #define __PARAMS_HH__
 
+#include <cstdint>
 #include <vector>
 
 namespace CoreSystem
@@ -228,6 +229,7 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
 
 struct MultiperspectivePerceptronParams
 {
+    int numThreads = 1;
     int num_filter_entries;
     int num_local_histories;
     int local_history_length = 11;

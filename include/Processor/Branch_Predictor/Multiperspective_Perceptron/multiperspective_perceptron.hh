@@ -39,10 +39,14 @@
 #ifndef __CPU_PRED_MULTIPERSPECTIVE_PERCEPTRON_HH__
 #define __CPU_PRED_MULTIPERSPECTIVE_PERCEPTRON_HH__
 
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cstring>
 #include <vector>
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
+#include "Processor/Branch_Predictor/gem5_random.hh"
 #include "Processor/Branch_Predictor/params.hh"
 
 namespace CoreSystem
@@ -50,7 +54,10 @@ namespace CoreSystem
 class MultiperspectivePerceptron : public Branch_Predictor
 {
   protected:
-    typedef unsigned ThreadID;
+    const MultiperspectivePerceptronParams *mpp_params;
+    auto params() { return mpp_params; }
+
+    Random random_mt;
 
     /**
      * Branch information data
@@ -1025,12 +1032,14 @@ class MultiperspectivePerceptron : public Branch_Predictor
      */
     void setExtraBits(int bits);
 
-    void init();
 
+    void init() override;
+
+    bool predict(Instruction &instr) override;
     bool lookup(ThreadID tid, Addr instPC, void * &bp_history);
     void update(ThreadID tid, Addr instPC, bool taken,
             void *bp_history, bool squashed,
-            Addr corrTarget);
+            Addr corrTarget = MaxAddr);
 };
 }
 

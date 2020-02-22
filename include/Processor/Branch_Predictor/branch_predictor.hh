@@ -11,18 +11,22 @@ class Branch_Predictor
     uint64_t correct_preds = 0;
     uint64_t incorrect_preds = 0;
 
+    typedef unsigned ThreadID;
+
+    typedef uint64_t Addr;
+    static const Addr MaxAddr = (Addr) - 1;
+
   public:
     Branch_Predictor() {}
 
     typedef Simulator::Instruction Instruction;
     virtual bool predict(Instruction &instr) = 0;
+    virtual void init() {}
 
     uint64_t getCorPreds() { return correct_preds; }
     uint64_t getInCorPreds() { return incorrect_preds; }
 
   protected:
-    typedef uint64_t Addr;
-
     struct Sat_Counter
     {
         Sat_Counter(unsigned _bits)
