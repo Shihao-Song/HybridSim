@@ -49,6 +49,29 @@ struct TAGEParams : public Params
     std::unique_ptr<TAGEBase> tage; 
 };
 
+struct LoopPredictorParams : public Params
+{
+    unsigned logSizeLoopPred = 8;
+    unsigned withLoopBits = 7;
+    unsigned loopTableAgeBits = 8;
+    unsigned loopTableConfidenceBits = 2;
+    unsigned loopTableTagBits = 14;
+    unsigned loopTableIterBits = 14;
+    unsigned logLoopTableAssoc = 2;
+
+    bool useSpeculation = false;
+
+    bool useHashing = false;
+
+    bool useDirectionBit = false;
+
+    bool restrictAllocation = false;
+
+    unsigned initialLoopIter = 1;
+    unsigned initialLoopAge = 255;
+    bool optionalAgeReset = true;
+};
+
 struct LTAGE_TAGE_Params : public TAGEBaseParams
 {
     LTAGE_TAGE_Params()
@@ -60,6 +83,48 @@ struct LTAGE_TAGE_Params : public TAGEBaseParams
         logTagTableSizes = {14, 10, 10, 11, 11, 11, 11, 10, 10, 10, 10, 9, 9};
         logUResetPeriod = 19;
     }
+};
+
+struct LTAGEParams : public Params
+{
+    std::unique_ptr<LoopPredictor> loop_predictor;
+    std::unique_ptr<TAGEParams> tage_params;
+};
+
+struct StatisticalCorrectorParams : public Params
+{
+    unsigned numEntriesFirstLocalHistories;
+
+    unsigned bwnb;
+    std::vector<int> bwm;
+    unsigned logBwnb;
+    int bwWeightInitValue;
+
+    unsigned lnb;
+    std::vector<int> lm;
+    unsigned logLnb;
+    int lWeightInitValue;
+
+    unsigned inb = 1;
+    std::vector<int> im = {8};
+    unsigned logInb;
+    int iWeightInitValue;
+
+    unsigned logBias;
+
+    unsigned logSizeUp = 6;
+
+    unsigned chooserConfWidth = 7;
+
+    unsigned updateThresholdWidth = 12;
+
+    unsigned pUpdateThresholdWidth = 8;
+
+    unsigned extraWeightsWidth = 6;
+
+    unsigned scCountersWidth = 6;
+
+    int initialUpdateThresholdValue = 0;
 };
 
 /*
@@ -119,28 +184,6 @@ struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
 };
 */
 
-struct LoopPredictorParams : public Params
-{
-    unsigned logSizeLoopPred = 8;
-    unsigned withLoopBits = 7;
-    unsigned loopTableAgeBits = 8;
-    unsigned loopTableConfidenceBits = 2;
-    unsigned loopTableTagBits = 14;
-    unsigned loopTableIterBits = 14;
-    unsigned logLoopTableAssoc = 2;
-
-    bool useSpeculation = false;
-
-    bool useHashing = false;
-
-    bool useDirectionBit = false;
-
-    bool restrictAllocation = false;
-
-    unsigned initialLoopIter = 1;
-    unsigned initialLoopAge = 255;
-    bool optionalAgeReset = true;
-};
 
 /*
 struct TAGE_SC_L_LoopPredictorParams : public LPParams
@@ -170,48 +213,8 @@ struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
 };
 */
 
-struct LTAGEParams
-{
-//    LPParams *lp;
-//    TAGEParams *tage;
-};
 
 /*
-struct StatisticalCorrectorParams
-{
-    unsigned numEntriesFirstLocalHistories;
-
-    unsigned bwnb;
-    std::vector<int> bwm;
-    unsigned logBwnb;
-    int bwWeightInitValue;
-
-    unsigned lnb;
-    std::vector<int> lm;
-    unsigned logLnb;
-    int lWeightInitValue;
-
-    unsigned inb = 1;
-    std::vector<int> im = {8};
-    unsigned logInb;
-    int iWeightInitValue;
-
-    unsigned logBias;
-
-    unsigned logSizeUp = 6;
-
-    unsigned chooserConfWidth = 7;
-
-    unsigned updateThresholdWidth = 12;
-
-    unsigned pUpdateThresholdWidth = 8;
-
-    unsigned extraWeightsWidth = 6;
-
-    unsigned scCountersWidth = 6;
-
-    int initialUpdateThresholdValue = 0;
-};
 
 struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorParams
 {

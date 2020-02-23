@@ -46,7 +46,6 @@
 namespace CoreSystem
 {
 struct LoopPredictorParams;
-
 class LoopPredictor : public Branch_Predictor
 {
   protected:
@@ -91,10 +90,6 @@ class LoopPredictor : public Branch_Predictor
     const unsigned initialLoopIter;
     const unsigned initialLoopAge;
     const bool optionalAgeReset;
-
-    // stats
-    // Stats::Scalar loopPredictorCorrect;
-    // Stats::Scalar loopPredictorWrong;
 
     /**
      * Updates an unsigned counter based on up/down parameter
@@ -266,8 +261,6 @@ class LoopPredictor : public Branch_Predictor
      * Register stats for this object
      */
     // void regStats() override;
-
-    
 
     LoopPredictor(LoopPredictorParams *p);
 
