@@ -42,6 +42,9 @@
 #ifndef __CPU_PRED_STATISTICAL_CORRECTOR_HH
 #define __CPU_PRED_STATISTICAL_CORRECTOR_HH
 
+#include <cassert>
+#include <iostream>
+
 #include "Processor/Branch_Predictor/branch_predictor.hh"
 #include "Processor/Branch_Predictor/gem5_random.hh"
 
