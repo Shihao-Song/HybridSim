@@ -127,6 +127,48 @@ struct StatisticalCorrectorParams : public Params
     int initialUpdateThresholdValue = 0;
 };
 
+struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorParams
+{
+    unsigned pnb = 3;
+    std::vector<int> pm = {25, 16, 9};
+    unsigned logPnb = 9;
+
+    unsigned snb = 3;
+    std::vector<int> sm = {16, 11, 6};
+    unsigned logSnb = 9;
+
+    unsigned tnb = 2;
+    std::vector<int> tm = {9, 4};
+    unsigned logTnb = 10;
+
+    unsigned imnb = 2;
+    std::vector<int> imm = {10, 4};
+    unsigned logImnb = 9;
+
+    unsigned numEntriesSecondLocalHistories = 16;
+    unsigned numEntriesThirdLocalHistories = 16;
+
+    TAGE_SC_L_64KB_StatisticalCorrectorParams()
+    {
+        numEntriesFirstLocalHistories = 256;
+
+        logBias = 8;
+
+        bwnb = 3;
+        bwm = {40, 24, 10};
+        logBwnb = 10;
+        bwWeightInitValue = 7;
+
+        lnb = 3;
+        lm = {11, 6, 3};
+        logLnb = 10;
+        lWeightInitValue = 7;
+
+        logInb = 8;
+        iWeightInitValue = 7;
+    }
+};
+
 /*
 struct TAGE_SC_L_TAGEParams : public TAGEParams
 {
@@ -216,47 +258,6 @@ struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
 
 /*
 
-struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorParams
-{
-    unsigned pnb = 3;
-    std::vector<int> pm = {25, 16, 9};
-    unsigned logPnb = 9;
-
-    unsigned snb = 3;
-    std::vector<int> sm = {16, 11, 6};
-    unsigned logSnb = 9;
-
-    unsigned tnb = 2;
-    std::vector<int> tm = {9, 4};
-    unsigned logTnb = 10;
-
-    unsigned imnb = 2;
-    std::vector<int> imm = {10, 4};
-    unsigned logImnb = 9;
-
-    unsigned numEntriesSecondLocalHistories = 16;
-    unsigned numEntriesThirdLocalHistories = 16;
-
-    TAGE_SC_L_64KB_StatisticalCorrectorParams()
-    {
-        numEntriesFirstLocalHistories = 256;
-
-        logBias = 8;
-
-        bwnb = 3;
-        bwm = {40, 24, 10};
-        logBwnb = 10;
-        bwWeightInitValue = 7;
-
-        lnb = 3;
-        lm = {11, 6, 3};
-        logLnb = 10;
-        lWeightInitValue = 7;
-
-        logInb = 8;
-        iWeightInitValue = 7;
-    }
-};
 */
 
 struct MultiperspectivePerceptronParams : public Params
