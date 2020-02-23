@@ -9,13 +9,14 @@
 
 namespace CoreSystem
 {
-struct Params{};
-
-struct TAGEBaseParams : public Params
+struct Params
 {
     unsigned instShiftAmt = 2;
     unsigned numThreads = 1;
+};
 
+struct TAGEBaseParams : public Params
+{
     unsigned nHistoryTables = 7;
     unsigned minHist = 5;
     unsigned maxHist = 130;
@@ -45,6 +46,19 @@ struct TAGEBaseParams : public Params
 struct TAGEParams : public Params
 {
     std::unique_ptr<TAGEBase> tage; 
+};
+
+struct LTAGE_TAGE_Params : public TAGEBaseParams
+{
+    LTAGE_TAGE_Params()
+    {
+        nHistoryTables = 12;
+        minHist = 4;
+        maxHist = 640;
+        tagTableTagWidths = {0, 7, 7, 8, 8, 9, 10, 11, 12, 12, 13, 14, 15};
+        logTagTableSizes = {14, 10, 10, 11, 11, 11, 11, 10, 10, 10, 10, 9, 9};
+        logUResetPeriod = 19;
+    }
 };
 
 /*
@@ -102,6 +116,7 @@ struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
     firstLongTagTable = 13;
     }
 };
+*/
 
 struct LPParams : public Params
 {
@@ -126,6 +141,7 @@ struct LPParams : public Params
     bool optionalAgeReset = true;
 };
 
+/*
 struct TAGE_SC_L_LoopPredictorParams : public LPParams
 {
     TAGE_SC_L_LoopPredictorParams()
@@ -151,6 +167,7 @@ struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
     logSizeLoopPred = 5;
     }
 };
+*/
 
 struct LTAGEParams
 {
@@ -158,6 +175,7 @@ struct LTAGEParams
     TAGEParams *tage;
 };
 
+/*
 struct StatisticalCorrectorParams
 {
     unsigned numEntriesFirstLocalHistories;
