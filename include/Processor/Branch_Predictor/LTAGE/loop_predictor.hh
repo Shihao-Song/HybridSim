@@ -38,6 +38,7 @@
 #define __CPU_PRED_LOOP_PREDICTOR_HH__
 
 #include <cassert>
+#include <iostream>
 
 #include "Processor/Branch_Predictor/branch_predictor.hh"
 #include "Processor/Branch_Predictor/gem5_random.hh"
@@ -257,6 +258,9 @@ class LoopPredictor : public Branch_Predictor
      * Initialize the loop predictor
      */
     void init() override;
+
+    bool predict(Instruction &instr) override
+    { std::cerr << "Fatal: not supported." << std::endl; exit(0); }
 
     /**
      * Register stats for this object

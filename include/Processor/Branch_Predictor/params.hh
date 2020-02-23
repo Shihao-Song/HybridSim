@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Processor/Branch_Predictor/TAGE/tage_base.hh"
+#include "Processor/Branch_Predictor/LTAGE/loop_predictor.hh"
 
 namespace CoreSystem
 {
