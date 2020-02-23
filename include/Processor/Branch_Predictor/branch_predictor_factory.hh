@@ -6,6 +6,8 @@
 
 #include "Processor/Branch_Predictor/TAGE/tage.hh"
 
+#include "Processor/Branch_Predictor/LTAGE/loop_predictor.hh"
+
 #include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron_64KB.hh"
 
 #include <algorithm>

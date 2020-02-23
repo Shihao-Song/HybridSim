@@ -118,7 +118,7 @@ struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
 };
 */
 
-struct LPParams : public Params
+struct LoopPredictorParams : public Params
 {
     unsigned logSizeLoopPred = 8;
     unsigned withLoopBits = 7;
@@ -171,8 +171,8 @@ struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
 
 struct LTAGEParams
 {
-    LPParams *lp;
-    TAGEParams *tage;
+//    LPParams *lp;
+//    TAGEParams *tage;
 };
 
 /*
