@@ -184,25 +184,25 @@ struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
 {
     TAGE_SC_L_TAGE_64KBParams()
     {
-    nHistoryTables = 36;
+        nHistoryTables = 36;
 
-    minHist = 6;
-    maxHist = 3000;
+        minHist = 6;
+        maxHist = 3000;
 
-    tagTableUBits = 1;
+        tagTableUBits = 1;
 
-    logTagTableSizes = {13};
+        logTagTableSizes = {13};
 
-    noSkip = {0,0,1,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,
-                1,1,1,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1};
+        noSkip = {0,0,1,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,
+                    1,1,1,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1};
 
-    logTagTableSize = 10;
-    shortTagsTageFactor = 10;
-    longTagsTageFactor = 20;
+        logTagTableSize = 10;
+        shortTagsTageFactor = 10;
+        longTagsTageFactor = 20;
 
-    longTagsSize = 12;
+        longTagsSize = 12;
 
-    firstLongTagTable = 13;
+        firstLongTagTable = 13;
     }
 };
 
@@ -254,6 +254,11 @@ struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
     {
         logSizeLoopPred = 5;
     }
+};
+
+struct TAGE_SC_L_64KBParams : public TAGE_SC_LParams
+{
+
 };
 
 struct MultiperspectivePerceptronParams : public Params

@@ -9,7 +9,7 @@
 
 #include "Processor/Branch_Predictor/LTAGE/ltage.hh"
 
-#include "Processor/Branch_Predictor/TAGE_SC_L/tage_sc_l.hh"
+#include "Processor/Branch_Predictor/TAGE_SC_L/tage_sc_l_64KB.hh"
 
 #include "Processor/Branch_Predictor/Multiperspective_Perceptron/multiperspective_perceptron_64KB.hh"
 
