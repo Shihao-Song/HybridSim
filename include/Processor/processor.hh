@@ -105,11 +105,11 @@ class Processor
     {
       public:
         Core(int _id, std::string trace_file)
-            : bp(createBP("2-bit-local")),
-            // : bp(createBP("MultiperspectivePerceptron")),
+            // : bp(createBP("tage_sc_l")),
+            // : bp(createBP("mpp")),
             // : bp(createBP("tournament")),
             // : bp(createBP("tage")),
-            // : bp(createBP("ltage")),
+            : bp(createBP("ltage")),
               trace(trace_file),
               cycles(0),
               core_id(_id)

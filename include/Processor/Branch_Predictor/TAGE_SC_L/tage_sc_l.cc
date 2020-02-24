@@ -418,6 +418,7 @@ TAGE_SC_L::update(ThreadID tid, Addr branch_pc, bool taken, void *bp_history,
 
     assert(corrTarget != MaxAddr);
 
+    /*
     if (squashed) {
         if (tage->isSpeculativeUpdateEnabled()) {
             // This restores the global history, then update it
@@ -429,6 +430,7 @@ TAGE_SC_L::update(ThreadID tid, Addr branch_pc, bool taken, void *bp_history,
         }
         return;
     }
+    */
 
     int nrand = random_mt.random<int>() & 3;
     if (tage_bi->condBranch) {
