@@ -7,6 +7,7 @@
 
 #include "Processor/Branch_Predictor/TAGE/tage_base.hh"
 #include "Processor/Branch_Predictor/LTAGE/loop_predictor.hh"
+#include "Processor/Branch_Predictor/TAGE_SC_L/statistical_corrector.hh"
 
 namespace CoreSystem
 {
@@ -91,6 +92,53 @@ struct LTAGEParams : public Params
     std::unique_ptr<TAGEParams> tage_params;
 };
 
+struct TAGE_SC_L_TAGEParams : public TAGEBaseParams
+{
+    unsigned logTagTableSize;
+
+    unsigned shortTagsTageFactor;
+
+    unsigned longTagsTageFactor;
+
+    unsigned shortTagsSize = 8;
+
+    unsigned longTagsSize;
+
+    unsigned firstLongTagTable;
+
+    bool truncatePathHist = true;
+
+    TAGE_SC_L_TAGEParams()
+    {
+        tagTableTagWidths = {0};
+        numUseAltOnNa = 16;
+        pathHistBits = 27;
+        maxNumAlloc = 2;
+        logUResetPeriod = 10;
+        initialTCounterValue = 1 << 9;
+        useAltOnNaBits = 5;
+        speculativeHistUpdate = false;
+    }
+};
+
+struct TAGE_SC_L_LoopPredictorParams : public LoopPredictorParams
+{
+    TAGE_SC_L_LoopPredictorParams()
+    {
+        loopTableAgeBits = 4;
+        loopTableConfidenceBits = 4;
+        loopTableTagBits = 10;
+        loopTableIterBits = 10;
+        useSpeculation = false;
+        useHashing = true;
+        useDirectionBit = true;
+        restrictAllocation = true;
+        initialLoopIter = 0;
+        initialLoopAge = 7;
+        optionalAgeReset = false;
+    }
+};
+
 struct StatisticalCorrectorParams : public Params
 {
     unsigned numEntriesFirstLocalHistories;
@@ -125,6 +173,11 @@ struct StatisticalCorrectorParams : public Params
     unsigned scCountersWidth = 6;
 
     int initialUpdateThresholdValue = 0;
+};
+
+struct TAGE_SC_LParams : public LTAGEParams
+{
+    std::unique_ptr<StatisticalCorrector> statistical_corrector;
 };
 
 struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorParams
@@ -170,34 +223,6 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
 };
 
 /*
-struct TAGE_SC_L_TAGEParams : public TAGEParams
-{
-    unsigned logTagTableSize;
-
-    unsigned shortTagsTageFactor;
-
-    unsigned longTagsTageFactor;
-
-    unsigned shortTagsSize = 8;
-
-    unsigned longTagsSize;
-
-    unsigned firstLongTagTable;
-
-    bool truncatePathHist = true;
-
-    TAGE_SC_L_TAGEParams()
-    {
-    tagTableTagWidths = {0};
-    numUseAltOnNa = 16;
-    pathHistBits = 27;
-    maxNumAlloc = 2;
-    logUResetPeriod = 10;
-    initialTCounterValue = 1 << 9;
-    useAltOnNaBits = 5;
-    speculativeHistUpdate = false;
-    }
-};
 
 struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
 {
@@ -228,23 +253,6 @@ struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
 
 
 /*
-struct TAGE_SC_L_LoopPredictorParams : public LPParams
-{
-    TAGE_SC_L_LoopPredictorParams()
-    {
-    loopTableAgeBits = 4;
-    loopTableConfidenceBits = 4;
-    loopTableTagBits = 10;
-    loopTableIterBits = 10;
-    useSpeculation = false;
-    useHashing = true;
-    useDirectionBit = true;
-    restrictAllocation = true;
-    initialLoopIter = 0;
-    initialLoopAge = 7;
-    optionalAgeReset = false;
-    }
-};
 
 struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
 {

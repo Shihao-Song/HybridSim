@@ -236,7 +236,7 @@ class LoopPredictor : public Branch_Predictor
 
     virtual bool calcConf(int index) const;
 
-    virtual bool optionalAgeInc() const;
+    virtual bool optionalAgeInc();
 
     virtual BranchInfo *makeBranchInfo();
 

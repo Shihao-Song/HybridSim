@@ -167,7 +167,7 @@ LoopPredictor::specLoopUpdate(bool taken, BranchInfo* bi)
 }
 
 bool
-LoopPredictor::optionalAgeInc() const
+LoopPredictor::optionalAgeInc()
 {
     return false;
 }
