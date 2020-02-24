@@ -180,6 +180,32 @@ struct TAGE_SC_LParams : public LTAGEParams
     std::unique_ptr<StatisticalCorrector> statistical_corrector;
 };
 
+struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
+{
+    TAGE_SC_L_TAGE_64KBParams()
+    {
+    nHistoryTables = 36;
+
+    minHist = 6;
+    maxHist = 3000;
+
+    tagTableUBits = 1;
+
+    logTagTableSizes = {13};
+
+    noSkip = {0,0,1,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,
+                1,1,1,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1};
+
+    logTagTableSize = 10;
+    shortTagsTageFactor = 10;
+    longTagsTageFactor = 20;
+
+    longTagsSize = 12;
+
+    firstLongTagTable = 13;
+    }
+};
+
 struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorParams
 {
     unsigned pnb = 3;
@@ -222,51 +248,13 @@ struct TAGE_SC_L_64KB_StatisticalCorrectorParams : public StatisticalCorrectorPa
     }
 };
 
-/*
-
-struct TAGE_SC_L_TAGE_64KBParams : public TAGE_SC_L_TAGEParams
-{
-    TAGE_SC_L_TAGE_64KBParams()
-    {
-    nHistoryTables = 36;
-
-    minHist = 6;
-    maxHist = 3000;
-
-    tagTableUBits = 1;
-
-    logTagTableSizes = {13};
-
-    noSkip = {0,0,1,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,
-                1,1,1,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1};
-
-    logTagTableSize = 10;
-    shortTagsTageFactor = 10;
-    longTagsTageFactor = 20;
-
-    longTagsSize = 12;
-
-    firstLongTagTable = 13;
-    }
-};
-*/
-
-
-/*
-
 struct TAGE_SC_L_64KB_LoopPredictorParams : public TAGE_SC_L_LoopPredictorParams
 {
     TAGE_SC_L_64KB_LoopPredictorParams()
     {
-    logSizeLoopPred = 5;
+        logSizeLoopPred = 5;
     }
 };
-*/
-
-
-/*
-
-*/
 
 struct MultiperspectivePerceptronParams : public Params
 {
