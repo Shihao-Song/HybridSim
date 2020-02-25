@@ -104,12 +104,8 @@ class Processor
     class Core
     {
       public:
-        Core(int _id, std::string trace_file)
-            // : bp(createBP("tage_sc_l")),
-            // : bp(createBP("mpp")),
-            // : bp(createBP("tournament")),
-            // : bp(createBP("tage")),
-            : bp(createBP("ltage")),
+        Core(int _id, std::string trace_file, std::string bp_type = "ltage")
+            : bp(createBP(bp_type)),
               trace(trace_file),
               cycles(0),
               core_id(_id)
@@ -147,6 +143,8 @@ class Processor
         void tick()
         {
             cycles++;
+            // std::cerr << std::endl;
+            // std::cerr << "CLK: " << cycles << std::endl;
 
             d_cache->tick();
 
@@ -188,10 +186,10 @@ class Processor
                         {
                             branch_instr->branch_target = cur_inst.eip;
 
-                            // std::cout << branch_instr->thread_id << " "
+                            // std::cerr << branch_instr->thread_id << " "
                             //           << branch_instr->eip << " B "
                             //           << branch_instr->branch_target
-                            //           << " (Accessed)\n";
+                            //           << " (Accessed)" << std::endl;
                             bool wrong_pred = !bp->predict(*branch_instr);
 
                             pending_bra_accesses.erase(branch_instr);
@@ -199,12 +197,17 @@ class Processor
                         }
                     }
                 }
-                if (pending_bra_stall) { mispred_penalty = 15; break; }
+                if (pending_bra_stall)
+                { 
+                    // std::cerr << "Prediction Wrong 1" << std::endl;
+                    mispred_penalty = 15; 
+                    break;
+                }
 
 		if (cur_inst.opr == Instruction::Operation::EXE)
                 {
-                    // std::cout << cur_inst.thread_id << " "
-                    //           << cur_inst.eip << " E\n";
+                    // std::cerr << cur_inst.thread_id << " "
+                    //           << cur_inst.eip << " E" << std::endl;
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -227,7 +230,7 @@ class Processor
                     window.insert(branch_instr);
                     inserted++;
 
-                    // std::cout << branch_instr.thread_id << " "
+                    // std::cerr << branch_instr.thread_id << " "
                     //           << branch_instr.eip << " B "
                     //           << branch_instr.branch_target;
  
@@ -235,7 +238,7 @@ class Processor
                     // cur_inst may not have the same the thread_id as the branch_instr.
                     if (cur_inst.thread_id != branch_instr.thread_id)
                     {
-                        // std::cout << " (Pending Access)\n";
+                        // std::cerr << " (Pending Access)" << std::endl;
                         auto check(std::find_if(std::begin(pending_bra_accesses), 
                                                 std::end(pending_bra_accesses),
                                                 [&](const auto &branch)
@@ -245,14 +248,15 @@ class Processor
                                                 }));
                         assert(check == pending_bra_accesses.end());
                         pending_bra_accesses.push_back(branch_instr);
-                        break;
+                        continue;
                     }
-                    // std::cout << " (Accessed)\n";
+                    // std::cerr << " (Accessed)" << std::endl;
 
                     // If there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
                     if (!bp->predict(branch_instr))
                     {
+                        // std::cerr << "Prediction Wrong 2" << std::endl;
                         mispred_penalty = 15;
                         break; // No new instruction should be issued before penalty
                                // is completely resolved.
@@ -262,16 +266,16 @@ class Processor
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
                     /*
-                    std::cout << cur_inst.thread_id << " " << cur_inst.eip;
+                    std::cerr << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
-                        std::cout << " L ";
+                        std::cerr << " L ";
                     }
                     else if (cur_inst.opr == Instruction::Operation::STORE)
                     {
-                        std::cout << " S ";
+                        std::cerr << " S ";
                     }
-                    std::cout << cur_inst.target_vaddr << "\n";
+                    std::cerr << cur_inst.target_vaddr << std::endl;
                     */
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -335,7 +339,7 @@ class Processor
                 }
                 else
                 {
-                    std::cerr << "Unsupported Instruction Type \n";
+                    std::cerr << "Unsupported Instruction Type" << std::endl;
                     exit(0);
                 }
             }
