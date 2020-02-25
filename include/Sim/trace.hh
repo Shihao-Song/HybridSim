@@ -171,12 +171,14 @@ class Trace
         }
         assert(tokens.size());
 
-        req.addr = std::stoull(tokens[0]);
-        if (tokens[1] == "R")
+        req.core_id = std::stoi(tokens[0]);
+
+        req.addr = std::stoull(tokens[1]);
+        if (tokens[2] == "R")
         {
             req.req_type = Request::Request_Type::READ;
         }
-        else if (tokens[1] == "W")
+        else if (tokens[2] == "W")
         {
             req.req_type = Request::Request_Type::WRITE;
         }

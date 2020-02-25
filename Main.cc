@@ -8,6 +8,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             int64_t num_instrs_per_phase,
                                             std::string &stats_output_file);
 
+void MemControllerDesign(std::string &mem_trace, std::string &stats_output_file);
+
 void TraceGen(std::vector<Config> &cfgs,
               std::vector<std::string> &trace_lists,
               std::string &trace_output_file,
@@ -15,7 +17,8 @@ void TraceGen(std::vector<Config> &cfgs,
 
 int main(int argc, const char *argv[])
 {
-    auto [dram_cfg_file,
+    auto [mode,
+          dram_cfg_file,
           pcm_cfg_file,
           trace_lists,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
@@ -23,6 +26,12 @@ int main(int argc, const char *argv[])
           trace_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
+    if (mode == "mem-ctrl-design")
+    {
+        MemControllerDesign(trace_lists[0], stats_output_file);
+    }
+
+    /*
     std::vector<Config> cfgs;
     cfgs.emplace_back(dram_cfg_file);
     cfgs.emplace_back(pcm_cfg_file);
@@ -43,6 +52,7 @@ int main(int argc, const char *argv[])
                                                num_instrs_per_phase,
                                                stats_output_file);
     }
+    */
 }
 
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
@@ -139,6 +149,39 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     stats.registerStats("Execution Time (CPU cycles) = " + 
                         std::to_string(processor->exeTime()));
     stats.outputStats(stats_output_file);
+}
+
+#include "MemSim/qos/qos_base.hh"
+void MemControllerDesign(std::string &trace, std::string &stats_output_file)
+{
+    Simulator::Trace mem_trace(trace);
+
+    Request req;
+
+    std::cout << "\nMemory Controller Exploration Mode...\n";
+    uint64_t Tick = 0;
+    bool stall = false;
+    bool end = false;
+   
+    std::unique_ptr<QoS::QoSBase> mem = std::make_unique<QoS::QoSBase>();
+
+    /*
+    while (!end || mem_obj->pendingRequests())
+    {
+        if (!end && !stall)
+        {
+            end = !(mem_trace.getMemtraceRequest(req));
+        }
+
+        if (!end)
+        {
+            stall = !(mem_obj->send(req));
+        }
+
+        mem_obj->tick();
+        ++Tick;
+    }
+    */
 }
 
 void TraceGen(std::vector<Config> &cfgs,

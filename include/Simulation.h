@@ -38,6 +38,7 @@ enum class Memories : int
 
 struct ParseArgsRet
 {
+    std::string mode;
     std::string dram_cfg_file;
     std::string pcm_cfg_file;
     std::vector<std::string> trace_lists;
@@ -106,9 +107,10 @@ auto runCPUTrace(Processor *processor)
 
 ParseArgsRet parse_args(int argc, const char *argv[])
 {
+    std::string mode = "N/A";
     std::string dram_cfg_file = "N/A";
     std::string pcm_cfg_file = "N/A";
-    std::vector<std::string> cpu_traces;
+    std::vector<std::string> traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
     std::string trace_output_file = "N/A";
@@ -117,12 +119,14 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     po::options_description desc("Options"); 
     desc.add_options() 
         ("help", "Print help messages")
+        ("mode", po::value<std::string>(&mode),
+                 "Mode: dram-only, pcm-only, hybrid, mem-ctrl-design, trace-gen")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
                    "Configuration file for PCM (if hybrid system)")
-        ("cpu_trace", po::value<std::vector<std::string>>(&cpu_traces)->required(),
-                      "CPU trace")
+        ("trace", po::value<std::vector<std::string>>(&traces)->required(),
+                      "CPU trace or MEM trace (when mem-ctrl-design is set)")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instructions per phase (Optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
@@ -152,9 +156,10 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         exit(0);
     }
 
-    return ParseArgsRet{dram_cfg_file,
+    return ParseArgsRet{mode,
+                        dram_cfg_file,
                         pcm_cfg_file,
-                        cpu_traces,
+                        traces,
                         num_instrs_per_phase,
                         stats_output,
                         trace_output_file};
