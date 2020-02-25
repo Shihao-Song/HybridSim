@@ -163,10 +163,9 @@ void MemControllerDesign(std::string &trace, std::string &stats_output_file)
     bool stall = false;
     bool end = false;
    
-    std::unique_ptr<QoS::QoSBase> mem = std::make_unique<QoS::QoSBase>();
+    std::unique_ptr<MemObject> mem = std::make_unique<QoS::QoSBase>();
 
-    /*
-    while (!end || mem_obj->pendingRequests())
+    while (!end || mem->pendingRequests())
     {
         if (!end && !stall)
         {
@@ -175,13 +174,12 @@ void MemControllerDesign(std::string &trace, std::string &stats_output_file)
 
         if (!end)
         {
-            stall = !(mem_obj->send(req));
+            stall = !(mem->send(req));
         }
 
-        mem_obj->tick();
+        mem->tick();
         ++Tick;
     }
-    */
 }
 
 void TraceGen(std::vector<Config> &cfgs,
