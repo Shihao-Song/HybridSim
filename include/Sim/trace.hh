@@ -89,6 +89,8 @@ class Trace
                 instr->thread_id = thread_id;
                 instr->eip = pc;
                 instr->taken = taken;
+                // When branch instruction is ignored.
+                if (bra_ignored) { instr->opr = Instruction::Operation::EXE; }
 
                 pending_instrs.push_back(std::move(instr));
 
@@ -102,6 +104,8 @@ class Trace
                 inst.thread_id = thread_id;
                 inst.eip = pc;
                 inst.opr = Instruction::Operation::BRANCH;
+                // When branch instruction is ignored.
+                if (bra_ignored) { inst.opr = Instruction::Operation::EXE; }
                 inst.taken = taken;
             }
         }
@@ -112,6 +116,9 @@ class Trace
             Instruction::Operation opr;
             if (tokens[3] == "S") { opr = Instruction::Operation::STORE; }
             else if (tokens[3] == "L") { opr = Instruction::Operation::LOAD; }
+
+            // When memory operation is ignored.
+            if (mem_opr_ignored) { opr = Instruction::Operation::EXE; }
 
             if (pending_instrs.size())
             {
@@ -216,7 +223,7 @@ class Trace
 
     struct BranchInstrInfo : public InstrInfo
     {
-        const Instruction::Operation opr = Instruction::Operation::BRANCH;
+        Instruction::Operation opr = Instruction::Operation::BRANCH;
 
         Addr eip; // PC of the branch
         bool taken; // Real direction of the branch
@@ -247,7 +254,7 @@ class Trace
     };
     struct ExeInstrInfo : public InstrInfo
     {
-        const Instruction::Operation opr = Instruction::Operation::EXE;
+        Instruction::Operation opr = Instruction::Operation::EXE;
         Addr eip;
        
         void makeInstr(Instruction &instr) override
@@ -262,12 +269,17 @@ class Trace
     std::string trace_name;
     std::ifstream trace_file_expr;
 
+    // TODO, I don't think the profiling signals are still needed.
     // Are we in profiling stage?
     bool profiling_stage = false;
     uint64_t profiling_limit = 0;
 
     const unsigned REPEAT = 1;
     unsigned runs = 0;
+
+    // For workload characterization.
+    bool mem_opr_ignored = false; // Ignore memory operations? (Used in BP evaluations)
+    bool bra_ignored = true; // Ignore branch operations? (When evaluting mem system)
 };
 }
 #endif

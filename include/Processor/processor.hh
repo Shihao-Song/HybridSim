@@ -104,7 +104,7 @@ class Processor
     class Core
     {
       public:
-        Core(int _id, std::string trace_file, std::string bp_type = "tage_sc_l")
+        Core(int _id, std::string trace_file, std::string bp_type)
             : bp(createBP(bp_type)),
               trace(trace_file),
               cycles(0),
@@ -265,9 +265,6 @@ class Processor
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
-                    // TODO, when evaluating the branch predictors, the cache 
-                    // is configured to be perfect. Make it configurable by users.
-
                     /*
                     std::cerr << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -280,13 +277,14 @@ class Processor
                     }
                     std::cerr << cur_inst.target_vaddr << std::endl;
                     */
+                    /*
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
+                    */
 
-                    /*
                     Request req; 
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -338,7 +336,6 @@ class Processor
                         cur_inst.already_translated = true;
                         break;
                     }
-                    */
                 }
                 else
                 {
@@ -457,14 +454,15 @@ class Processor
   public:
     Processor(float on_chip_frequency, float off_chip_frequency,
               std::vector<std::string> trace_lists,
-              MemObject *_shared_m_obj) : cycles(0), shared_m_obj(_shared_m_obj)
+              MemObject *_shared_m_obj,
+              std::string bp_type = "tournament") : cycles(0), shared_m_obj(_shared_m_obj)
     {
         unsigned num_of_cores = trace_lists.size();
         for (int i = 0; i < num_of_cores; i++)
         {
             std::cout << "Core " << i << " is assigned trace: "
                       << trace_lists[i] << "\n";
-            cores.emplace_back(new Core(i, trace_lists[i]));
+            cores.emplace_back(new Core(i, trace_lists[i], bp_type));
         }
 
         if (shared_m_obj->isOnChip()) { nclks_to_tick_shared = 1; }
