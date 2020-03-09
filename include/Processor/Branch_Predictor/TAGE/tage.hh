@@ -90,6 +90,7 @@ class TAGE: public Branch_Predictor
     virtual bool predict(ThreadID tid, Addr branch_pc, bool cond_branch,
                          void* &b);
 
+    virtual void squash(ThreadID tid, void *bp_history);
     // Base class methods.
     virtual bool lookup(ThreadID tid, Addr branch_addr, void* &bp_history);
     virtual void update(ThreadID tid, Addr branch_addr, bool taken, void *bp_history,

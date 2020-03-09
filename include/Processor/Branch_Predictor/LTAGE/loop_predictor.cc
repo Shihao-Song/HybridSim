@@ -66,6 +66,7 @@ LoopPredictor::LoopPredictor(LoopPredictorParams *p)
 void
 LoopPredictor::init()
 {
+    assert(useSpeculation == false);
     // we use uint16_t type for these vales, so they cannot be more than
     // 16 bits
     assert(loopTableTagBits <= 16);

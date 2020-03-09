@@ -260,11 +260,11 @@ TAGE_SC_L_TAGE::updateHistories(
     ThreadID tid, Addr branch_pc, bool taken, TAGEBase::BranchInfo* b,
     bool speculative, Addr target)
 {
-    if (speculative != speculativeHistUpdate) {
-        return;
-    }
+    // if (speculative != speculativeHistUpdate) {
+    //     return;
+    // }
     // speculation is not implemented
-    assert(! speculative);
+    // assert(! speculative);
 
     ThreadHistory& tHist = threadHistory[tid];
 
@@ -455,13 +455,13 @@ TAGE_SC_L::update(ThreadID tid, Addr branch_pc, bool taken, void *bp_history,
                                nrand, corrTarget, bi->lpBranchInfo->predTaken);
     }
 
-    if (!tage->isSpeculativeUpdateEnabled()) {
+    // if (!tage->isSpeculativeUpdateEnabled()) {
         statisticalCorrector->scHistoryUpdate(branch_pc, taken,
                                               bi->scBranchInfo, corrTarget);
 
-        tage->updateHistories(tid, branch_pc, taken, bi->tageBranchInfo, false,
+        tage->updateHistories(tid, branch_pc, taken, bi->tageBranchInfo, true,
                               corrTarget);
-    }
+    // }
 
     delete bi;
 }

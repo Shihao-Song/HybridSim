@@ -584,6 +584,8 @@ TAGEBase::updateHistories(ThreadID tid, Addr branch_pc, bool taken,
                           Addr target)
 {
     if (speculative != speculativeHistUpdate) {
+        std::cerr << "Error: TAGE histories should always be updated." << std::endl;
+        exit(0);
         return;
     }
     ThreadHistory& tHist = threadHistory[tid];

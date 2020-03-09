@@ -61,11 +61,13 @@ bool TAGE::predict(Instruction &instr)
     if (instr.taken == final_pred)
     {
         correct_preds++;
+
         return true; // Indicate a correct prediction.
     }
     else
     {
         incorrect_preds++;
+
         return false; // Indicate an in-correct prediction.
     }
 }
@@ -86,8 +88,8 @@ TAGE::update(ThreadID tid, Addr branch_pc, bool taken, void* bp_history,
     // if (squashed) {
         // This restores the global history, then update it
         // and recomputes the folded histories.
-    //     tage->squash(tid, taken, tage_bi, corrTarget);
-    //     return;
+        // tage->squash(tid, taken, tage_bi, corrTarget);
+        // return;
     // }
 
     int nrand = random_mt.random<int>() & 3;
@@ -100,8 +102,16 @@ TAGE::update(ThreadID tid, Addr branch_pc, bool taken, void* bp_history,
     }
 
     // optional non speculative update of the histories
-    tage->updateHistories(tid, branch_pc, taken, tage_bi, false,
+    tage->updateHistories(tid, branch_pc, taken, tage_bi, true,
                           corrTarget);
+    delete bi;
+}
+
+void
+TAGE::squash(ThreadID tid, void *bp_history)
+{
+    TageBranchInfo *bi = static_cast<TageBranchInfo*>(bp_history);
+    // DPRINTF(Tage, "Deleting branch info: %lx\n", bi->tageBranchInfo->branchPC);
     delete bi;
 }
 

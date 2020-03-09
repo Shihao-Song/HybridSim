@@ -104,7 +104,7 @@ class Processor
     class Core
     {
       public:
-        Core(int _id, std::string trace_file, std::string bp_type = "ltage")
+        Core(int _id, std::string trace_file, std::string bp_type = "tage_sc_l")
             : bp(createBP(bp_type)),
               trace(trace_file),
               cycles(0),
@@ -265,6 +265,9 @@ class Processor
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
+                    // TODO, when evaluating the branch predictors, the cache 
+                    // is configured to be perfect. Make it configurable by users.
+
                     /*
                     std::cerr << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)

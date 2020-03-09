@@ -117,7 +117,8 @@ struct TAGE_SC_L_TAGEParams : public TAGEBaseParams
         logUResetPeriod = 10;
         initialTCounterValue = 1 << 9;
         useAltOnNaBits = 5;
-        speculativeHistUpdate = false;
+        // speculativeHistUpdate = false; // TODO, this doesn't matter in our 
+                                          // simulation framework
     }
 };
 

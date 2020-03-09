@@ -26,12 +26,11 @@ int main(int argc, const char *argv[])
           trace_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
-    if (mode == "mem-ctrl-design")
-    {
-        MemControllerDesign(trace_lists[0], stats_output_file);
-    }
+    // if (mode == "mem-ctrl-design")
+    // {
+    //     MemControllerDesign(trace_lists[0], stats_output_file);
+    // }
 
-    /*
     std::vector<Config> cfgs;
     cfgs.emplace_back(dram_cfg_file);
     cfgs.emplace_back(pcm_cfg_file);
@@ -52,7 +51,6 @@ int main(int argc, const char *argv[])
                                                num_instrs_per_phase,
                                                stats_output_file);
     }
-    */
 }
 
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
