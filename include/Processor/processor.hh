@@ -285,7 +285,6 @@ class Processor
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
                     */
-                    // TODO, need more error checkings, for example, cache != nullptr, mmu != nullptr
                     Request req; 
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -389,6 +388,7 @@ class Processor
             // return !more_insts && window.isEmpty();
             bool issuing_done = !more_insts && window.isEmpty();
 
+            // When evaluating branch predictors, d/i-cache maybe set to NULL.
             if (d_cache == nullptr) { return issuing_done; }
 
             bool cache_done = false;
@@ -412,7 +412,7 @@ class Processor
             if (cur_inst.opr == Instruction::Operation::LOAD ||
                 cur_inst.opr == Instruction::Operation::STORE)
             {
-                cur_inst.opr == Instruction::Operation::EXE;
+                cur_inst.opr = Instruction::Operation::EXE;
             }
             trace.BPEvalMode();
         }
@@ -437,6 +437,7 @@ class Processor
         std::list<Instruction> pending_bra_accesses;
         unsigned mispred_penalty = 0;
 
+        // When evaluting branch predictors, MMU is allowed to be NULL.
         MMU *mmu = nullptr;
 
         Trace trace;
@@ -461,6 +462,7 @@ class Processor
         bool phase_enabled = false;
         bool phase_end = false;
 
+        // When evaluating branch predictors, d/i-cache is allowed to be NULL
         MemObject *d_cache = nullptr;
         MemObject *i_cache = nullptr;
     };
@@ -642,7 +644,7 @@ class Processor
   private:
     Tick cycles;
 
-    MMU *mmu;
+    MMU *mmu = nullptr;
     std::vector<std::unique_ptr<Core>> cores;
     MemObject *shared_m_obj;
 

@@ -179,6 +179,8 @@ void BPEval(std::vector<std::string> &trace_lists,
         Stats stats;
 
         processor.registerStats(stats);
+        stats.registerStats("Execution Time (CPU cycles) = " +
+                            std::to_string(processor.exeTime()));
 
         std::string type_file = stats_output_file + "/" + bp_type + ".stats";
         stats.outputStats(type_file);
