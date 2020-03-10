@@ -146,7 +146,7 @@ class Processor
             // std::cerr << std::endl;
             // std::cerr << "CLK: " << cycles << std::endl;
 
-            d_cache->tick();
+            if (d_cache != nullptr) { d_cache->tick(); }
 
             // Absorb all the misprediction penalty
             while (mispred_penalty)
@@ -169,7 +169,6 @@ class Processor
             {
                 if (in_phase_tracking >= num_instrs_per_phase) { phase_end = true; return; }
             }
-            
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
@@ -265,6 +264,8 @@ class Processor
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
                 {
+                    assert(d_cache != nullptr);
+                    assert(mmu != nullptr);
                     /*
                     std::cerr << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -284,7 +285,7 @@ class Processor
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
                     */
-
+                    // TODO, need more error checkings, for example, cache != nullptr, mmu != nullptr
                     Request req; 
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -388,6 +389,8 @@ class Processor
             // return !more_insts && window.isEmpty();
             bool issuing_done = !more_insts && window.isEmpty();
 
+            if (d_cache == nullptr) { return issuing_done; }
+
             bool cache_done = false;
             if (d_cache->pendingRequests() == 0)
             {
@@ -404,11 +407,22 @@ class Processor
 
 	bool instrDrained() { return !more_insts; }
 
+        void BPEvalMode()
+        {
+            if (cur_inst.opr == Instruction::Operation::LOAD ||
+                cur_inst.opr == Instruction::Operation::STORE)
+            {
+                cur_inst.opr == Instruction::Operation::EXE;
+            }
+            trace.BPEvalMode();
+        }
+
         void registerStats(Simulator::Stats &stats)
         {
             std::string registeree_name = "Core-" + std::to_string(core_id);
             stats.registerStats(registeree_name +
                             ": Number of instructions = " + std::to_string(retired));
+
             stats.registerStats(registeree_name +
                             "-BP: Number of correct predictions = " + 
                             std::to_string(bp->getCorPreds()));
@@ -423,7 +437,7 @@ class Processor
         std::list<Instruction> pending_bra_accesses;
         unsigned mispred_penalty = 0;
 
-        MMU *mmu;
+        MMU *mmu = nullptr;
 
         Trace trace;
 
@@ -447,8 +461,8 @@ class Processor
         bool phase_enabled = false;
         bool phase_end = false;
 
-        MemObject *d_cache;
-        MemObject *i_cache;
+        MemObject *d_cache = nullptr;
+        MemObject *i_cache = nullptr;
     };
 
   public:
@@ -558,6 +572,7 @@ class Processor
             if (!core->endOfPhase()) { return; }
         }
 
+        assert(mmu != nullptr);
         if (!mmu->pageMig()) { return; } // Only proceed when the 
                                             // page migration is done.
 
@@ -609,6 +624,14 @@ class Processor
             num_loads += core->numLoads();
         }
         return num_loads;
+    }
+
+    void BPEvalMode()
+    {
+        for (auto &core : cores)
+        {
+            core->BPEvalMode();
+        }
     }
 
     void registerStats(Simulator::Stats &stats)

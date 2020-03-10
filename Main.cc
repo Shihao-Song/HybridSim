@@ -14,7 +14,7 @@ void TraceGen(std::vector<Config> &cfgs,
               std::string &stats_output_file);
 
 void BPEval(std::vector<std::string> &trace_lists,
-            std::string trace_output_file);
+            std::string stats_output_file);
 
 int main(int argc, const char *argv[])
 {
@@ -26,6 +26,11 @@ int main(int argc, const char *argv[])
           stats_output_file,
           trace_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
+
+    if (mode == "bp-eval")
+    {
+        BPEval(trace_lists, stats_output_file);
+    }
 
     /*
     std::vector<Config> cfgs;
@@ -147,10 +152,11 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     stats.outputStats(stats_output_file);
 }
 
-#include "Sim/dummy_mem_object.hh"
 void BPEval(std::vector<std::string> &trace_lists,
-            std::string trace_output_file)
+            std::string stats_output_file)
 {
+    std::cerr << "[INFO] Branch predictor evaluation mode." << std::endl;
+
     const std::vector<std::string> supported_bp = {"2-bit-local", 
                                                    "tournament",
                                                    "tage",
@@ -158,7 +164,25 @@ void BPEval(std::vector<std::string> &trace_lists,
                                                    "tage_sc_l",
                                                    "mpp"};
 
-    
+    for (auto bp_type : supported_bp)
+    {
+        std::cerr << "\n[INFO] Branch predictor type: " << bp_type << std::endl;
+
+        Simulator::DummyMemObject mem_sys;
+
+        Processor processor(1.0, 1.0, trace_lists, &mem_sys, bp_type);
+        processor.BPEvalMode();
+
+        runCPUTrace(&processor);
+
+        // Collecting Stats
+        Stats stats;
+
+        processor.registerStats(stats);
+
+        std::string type_file = stats_output_file + "/" + bp_type + ".stats";
+        stats.outputStats(type_file);
+    }
 }
 
 void TraceGen(std::vector<Config> &cfgs,

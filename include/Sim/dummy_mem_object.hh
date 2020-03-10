@@ -1,5 +1,5 @@
-#ifndef __TRACE_PROBE_HH__
-#define __TRACE_PROBE_HH__
+#ifndef __DUMMY_MEM_OBJ_HH__
+#define __DUMMY_MEM_OBJ_HH__
 
 #include <fstream>
 #include <list>

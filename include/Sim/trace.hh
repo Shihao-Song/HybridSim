@@ -89,7 +89,7 @@ class Trace
                 instr->thread_id = thread_id;
                 instr->eip = pc;
                 instr->taken = taken;
-                // When branch instruction is ignored.
+                // When branch instruction is ignored, simply treat it as a normal execution instruction.
                 if (bra_ignored) { instr->opr = Instruction::Operation::EXE; }
 
                 pending_instrs.push_back(std::move(instr));
@@ -104,7 +104,7 @@ class Trace
                 inst.thread_id = thread_id;
                 inst.eip = pc;
                 inst.opr = Instruction::Operation::BRANCH;
-                // When branch instruction is ignored.
+                // When branch instruction is ignored, simply treat it as a normal execution instruction.
                 if (bra_ignored) { inst.opr = Instruction::Operation::EXE; }
                 inst.taken = taken;
             }
@@ -117,7 +117,7 @@ class Trace
             if (tokens[3] == "S") { opr = Instruction::Operation::STORE; }
             else if (tokens[3] == "L") { opr = Instruction::Operation::LOAD; }
 
-            // When memory operation is ignored.
+            // When memory operation is ignored, simply treat it as a normal execution instruction.
             if (mem_opr_ignored) { opr = Instruction::Operation::EXE; }
 
             if (pending_instrs.size())
@@ -211,6 +211,21 @@ class Trace
     {
         trace_file_expr.open(trace_name);
         assert(trace_file_expr.good());
+    }
+
+    void BPEvalMode() 
+    { 
+        for (auto &instr : pending_instrs)
+        {
+            if (instr->opr == Instruction::Operation::LOAD ||
+                instr->opr == Instruction::Operation::STORE)
+            {
+                instr->opr == Instruction::Operation::EXE;
+            }
+        }
+
+        mem_opr_ignored = true;
+        bra_ignored = false;
     }
 
   private:

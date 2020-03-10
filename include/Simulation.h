@@ -15,6 +15,7 @@
 #include "Processor/processor.hh"
 
 #include "Sim/trace_probe.hh"
+#include "Sim/dummy_mem_object.hh"
 
 #define isLLC 1
 #define isNonLLC 0
@@ -120,7 +121,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: dram-only, pcm-only, hybrid, mem-ctrl-design, trace-gen")
+                 "Mode: dram-only, pcm-only, hybrid, bp-eval, trace-gen")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
