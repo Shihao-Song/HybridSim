@@ -65,7 +65,7 @@ class Trace
         {
             tokens.push_back(intermidiate);
         }
-        assert(tokens.size() == 5);
+        assert(tokens.size() > 0);
 
         unsigned thread_id = std::stoul(tokens[0]);
         unsigned num_exes = std::stoul(tokens[1]);
@@ -83,12 +83,15 @@ class Trace
 	if (tokens[3] == "B")
         {
             bool taken = std::stoul(tokens[4]);
+            Addr target_addr = std::stoull(tokens[5]);
+
             if (pending_instrs.size())
             {
                 auto instr = std::make_unique<BranchInstrInfo>();
                 instr->thread_id = thread_id;
                 instr->eip = pc;
                 instr->taken = taken;
+                instr->target_addr = target_addr;
                 if (bra_ignored) { instr->opr = Instruction::Operation::EXE; }
 
                 pending_instrs.push_back(std::move(instr));
@@ -105,6 +108,7 @@ class Trace
                 inst.opr = Instruction::Operation::BRANCH;
                 if (bra_ignored) { inst.opr = Instruction::Operation::EXE; }
                 inst.taken = taken;
+                inst.branch_target = target_addr;
             }
         }
         else if (tokens[3] == "S" || tokens[3] == "L")
@@ -245,12 +249,15 @@ class Trace
         Addr eip; // PC of the branch
         bool taken; // Real direction of the branch
 
+        Addr target_addr;
+
         void makeInstr(Instruction& instr) override
         {
             instr.thread_id = thread_id;
             instr.opr = opr;
             instr.eip = eip;
             instr.taken = taken;
+            instr.branch_target = target_addr;
         }
     };
     struct MemInstrInfo : public InstrInfo

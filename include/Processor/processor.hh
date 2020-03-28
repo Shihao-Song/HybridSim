@@ -143,8 +143,6 @@ class Processor
         void tick()
         {
             cycles++;
-            // std::cerr << std::endl;
-            // std::cerr << "CLK: " << cycles << std::endl;
 
             if (d_cache != nullptr) { d_cache->tick(); }
 
@@ -172,40 +170,10 @@ class Processor
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
-                bool pending_bra_stall = false;
-                if (pending_bra_accesses.size() > 0)
-                {
-                    auto iter = pending_bra_accesses.begin();
-                    while (iter != pending_bra_accesses.end())
-                    {
-                        auto branch_instr = iter;
-                        iter++; // Proceed to the next iterator
-
-                        if (branch_instr->thread_id == cur_inst.thread_id)
-                        {
-                            branch_instr->branch_target = cur_inst.eip;
-
-                            // std::cerr << branch_instr->thread_id << " "
-                            //           << branch_instr->eip << " B "
-                            //           << branch_instr->branch_target
-                            //           << " (Accessed)" << std::endl;
-                            bool wrong_pred = !bp->predict(*branch_instr);
-
-                            pending_bra_accesses.erase(branch_instr);
-                            if (wrong_pred) { pending_bra_stall = true; break; }
-                        }
-                    }
-                }
-                if (pending_bra_stall)
-                { 
-                    // std::cerr << "Prediction Wrong 1" << std::endl;
-                    mispred_penalty = 15; 
-                    break;
-                }
-
 		if (cur_inst.opr == Instruction::Operation::EXE)
                 {
-                    // std::cerr << cur_inst.thread_id << " "
+                    // std::cerr << cycles << ": "
+                    //           << cur_inst.thread_id << " "
                     //           << cur_inst.eip << " E" << std::endl;
 
                     cur_inst.ready_to_commit = true;
@@ -216,50 +184,28 @@ class Processor
                 }
                 else if (cur_inst.opr == Instruction::Operation::BRANCH)
                 {
-                    Instruction branch_instr;
-                    branch_instr.opr = Instruction::Operation::BRANCH;
-                    branch_instr.thread_id = cur_inst.thread_id;
-                    branch_instr.eip = cur_inst.eip;
-                    branch_instr.taken = cur_inst.taken;
-                    
-                    more_insts = trace.getInstruction(cur_inst);
+                    // std::cerr << cycles << ": "
+                    //           << cur_inst.thread_id << " "
+                    //           << cur_inst.eip << " B "
+                    //           << cur_inst.taken << " "
+                    //           << cur_inst.branch_target << std::endl;
 
-                    branch_instr.branch_target = cur_inst.eip;
-                    branch_instr.ready_to_commit = true;
-                    window.insert(branch_instr);
+                    cur_inst.ready_to_commit = true;
+                    window.insert(cur_inst);
                     inserted++;
-
-                    // std::cerr << branch_instr.thread_id << " "
-                    //           << branch_instr.eip << " B "
-                    //           << branch_instr.branch_target;
- 
-                    // TODO, we may have to pend the branch instruction. This is because 
-                    // cur_inst may not have the same the thread_id as the branch_instr.
-                    if (cur_inst.thread_id != branch_instr.thread_id)
-                    {
-                        // std::cerr << " (Pending Access)" << std::endl;
-                        auto check(std::find_if(std::begin(pending_bra_accesses), 
-                                                std::end(pending_bra_accesses),
-                                                [&](const auto &branch)
-                                                {
-                                                    return branch.thread_id == 
-                                                           branch_instr.thread_id;
-                                                }));
-                        assert(check == pending_bra_accesses.end());
-                        pending_bra_accesses.push_back(branch_instr);
-                        continue;
-                    }
-                    // std::cerr << " (Accessed)" << std::endl;
 
                     // If there is a branch misprediction, stall the processor
                     // for 15 clock cycles (a typical misprediction penalty).
-                    if (!bp->predict(branch_instr))
+                    if (!bp->predict(cur_inst))
                     {
-                        // std::cerr << "Prediction Wrong 2" << std::endl;
+                        cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
+                        more_insts = trace.getInstruction(cur_inst);
                         mispred_penalty = 15;
                         break; // No new instruction should be issued before penalty
                                // is completely resolved.
                     }
+                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
+                    more_insts = trace.getInstruction(cur_inst);
                 }
                 else if (cur_inst.opr == Instruction::Operation::LOAD || 
                          cur_inst.opr == Instruction::Operation::STORE)
@@ -434,7 +380,6 @@ class Processor
       private:
         std::unique_ptr<Branch_Predictor> bp;
 
-        std::list<Instruction> pending_bra_accesses;
         unsigned mispred_penalty = 0;
 
         // When evaluting branch predictors, MMU is allowed to be NULL.
