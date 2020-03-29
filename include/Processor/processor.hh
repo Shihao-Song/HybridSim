@@ -172,9 +172,9 @@ class Processor
             {
 		if (cur_inst.opr == Instruction::Operation::EXE)
                 {
-                    // std::cerr << cycles << ": "
-                    //           << cur_inst.thread_id << " "
-                    //           << cur_inst.eip << " E" << std::endl;
+                    std::cerr << cycles << ": "
+                              << cur_inst.thread_id << " "
+                              << cur_inst.eip << " E" << std::endl;
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -184,11 +184,11 @@ class Processor
                 }
                 else if (cur_inst.opr == Instruction::Operation::BRANCH)
                 {
-                    // std::cerr << cycles << ": "
-                    //           << cur_inst.thread_id << " "
-                    //           << cur_inst.eip << " B "
-                    //           << cur_inst.taken << " "
-                    //           << cur_inst.branch_target << std::endl;
+                    std::cerr << cycles << ": "
+                              << cur_inst.thread_id << " "
+                              << cur_inst.eip << " B "
+                              << cur_inst.taken << " "
+                              << cur_inst.branch_target << std::endl;
 
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
@@ -212,7 +212,7 @@ class Processor
                 {
                     assert(d_cache != nullptr);
                     assert(mmu != nullptr);
-                    /*
+
                     std::cerr << cur_inst.thread_id << " " << cur_inst.eip;
                     if (cur_inst.opr == Instruction::Operation::LOAD)
                     {
@@ -223,14 +223,14 @@ class Processor
                         std::cerr << " S ";
                     }
                     std::cerr << cur_inst.target_vaddr << std::endl;
-                    */
-                    /*
+
                     cur_inst.ready_to_commit = true;
                     window.insert(cur_inst);
                     inserted++;
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
-                    */
+                    continue;
+
                     Request req; 
 
                     if (cur_inst.opr == Instruction::Operation::LOAD)
@@ -361,6 +361,15 @@ class Processor
                 cur_inst.opr = Instruction::Operation::EXE;
             }
             trace.BPEvalMode();
+        }
+
+        void MEMEvalMode()
+        {
+            if (cur_inst.opr == Instruction::Operation::BRANCH)
+            {
+                cur_inst.opr = Instruction::Operation::EXE;
+            }
+            trace.MEMEvalMode();
         }
 
         void registerStats(Simulator::Stats &stats)
@@ -578,6 +587,14 @@ class Processor
         for (auto &core : cores)
         {
             core->BPEvalMode();
+        }
+    }
+
+    void MEMEvalMode()
+    {
+        for (auto &core : cores)
+        {
+            core->MEMEvalMode();
         }
     }
 

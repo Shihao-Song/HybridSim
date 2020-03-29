@@ -229,6 +229,20 @@ class Trace
         bra_ignored = false;
     }
 
+    void MEMEvalMode()
+    {
+        for (auto &instr : pending_instrs)
+        {
+            if (instr->opr == Instruction::Operation::BRANCH)
+            {
+                instr->opr = Instruction::Operation::EXE;
+            }
+        }
+
+        mem_opr_ignored = false;
+        bra_ignored = true;
+    }
+
   private:
     struct InstrInfo
     {
