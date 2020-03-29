@@ -131,7 +131,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instructions per phase (Optional)")
         ("stat_output", po::value<std::string>(&stats_output)->required(),
-                        "Stats output file")
+                        "Stats output file/Stats output directory (bp-eval mode)")
         ("trace_output", po::value<std::string>(&trace_output_file),
                          "Trace output file (Optional)");
 

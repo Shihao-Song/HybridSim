@@ -133,7 +133,9 @@ class SingleNode : public MMU
         }
         else
         {
-            
+            // TODO, randomize page selection from slow-access region and 
+            // fast-access region.
+
             auto &free_frames = free_slow_access_frame_pool;
             if (free_frames.size() == 0)
             {

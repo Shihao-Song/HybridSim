@@ -31,7 +31,24 @@ int main(int argc, const char *argv[])
     {
         BPEval(trace_lists, stats_output_file);
     }
+    else if (mode == "trace-gen")
+    {
+        std::vector<Config> cfgs;
 
+        if (dram_cfg_file != "N/A")
+        {
+            cfgs.emplace_back(dram_cfg_file);
+        }
+        else if (pcm_cfg_file != "N/A")
+        {
+            cfgs.emplace_back(pcm_cfg_file);
+        }
+
+        TraceGen(cfgs,
+                 trace_lists,
+                 trace_output_file,
+                 stats_output_file);
+    }
     /*
     std::vector<Config> cfgs;
     cfgs.emplace_back(dram_cfg_file);
@@ -249,6 +266,8 @@ void TraceGen(std::vector<Config> &cfgs,
     {
         processor->setDCache(i, L1Ds[i].get());
     }
+    // Memory evaluation mode, ignore all other type instruction.
+    processor->MEMEvalMode();
 
     std::cout << "\nTrace Generating...\n\n";
     runCPUTrace(processor.get());

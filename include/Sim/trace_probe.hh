@@ -49,23 +49,20 @@ class TraceProbe : public MemObject
 
     void tick() override
     {
-            if (!q.size()) { return; }
+        if (!q.size()) { return; }
 
-            auto req = q.begin();
-        // for (auto req = q.begin(); req != q.end(); req++)
-        // {
-            if (req->callback)
-            {
-                if (req->callback(req->addr))
-                {
-                    q.erase(req);
-                }
-            }
-	    else
+        auto req = q.begin();
+        if (req->callback)
+        {
+            if (req->callback(req->addr))
             {
                 q.erase(req);
             }
-        // }
+        }
+        else
+        {
+            q.erase(req);
+        }
     }
 
   protected:
