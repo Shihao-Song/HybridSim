@@ -103,11 +103,11 @@ class CPAwareController : public FRFCFSController
 
         // Step one, to determine stage level.
         int row_id = scheduled_req->addr_vec[int(Config::Decoding::Row)];
-//        std::cout << "Row ID: " << row_id << "\n";
+        // std::cout << "Row ID: " << row_id << "\n";
 
         unsigned stage_id = (row_id / num_rows_per_stage >= num_stages - 1)
                               ? num_stages - 1 : row_id / num_rows_per_stage;
-//        std::cout << "Stage ID: " << stage_id << "\n";
+        // std::cout << "Stage ID: " << stage_id << "\n";
 
         // Step two, to determine timings.
         scheduled_req->begin_exe = clk;

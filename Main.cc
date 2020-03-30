@@ -49,20 +49,12 @@ int main(int argc, const char *argv[])
                  trace_output_file,
                  stats_output_file);
     }
-    /*
-    std::vector<Config> cfgs;
-    cfgs.emplace_back(dram_cfg_file);
-    cfgs.emplace_back(pcm_cfg_file);
+    else if (mode == "hybrid")
+    {
+        std::vector<Config> cfgs;
+        cfgs.emplace_back(dram_cfg_file);
+        cfgs.emplace_back(pcm_cfg_file);
 
-    if (trace_output_file != "N/A")
-    {
-        TraceGen(cfgs,
-                 trace_lists,
-                 trace_output_file,
-                 stats_output_file);
-    }
-    else
-    {
         // For a Hybrid system, the first config file should be for DRAM and the second
         // one should be PCM.
         Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
@@ -70,7 +62,6 @@ int main(int argc, const char *argv[])
                                                num_instrs_per_phase,
                                                stats_output_file);
     }
-    */
 }
 
 void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
@@ -141,12 +132,16 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     {
         processor->setDCache(i, L1Ds[i].get());
     }
+    processor->MEMEvalMode(); // Only evaluate memory operations.
 
     std::cout << "\nSimulation Stage (Hybrid DRAM-PCM system)...\n\n";
     runCPUTrace(processor.get());
 
     // Collecting Stats
     Stats stats;
+
+    stats.registerStats("Execution Time (CPU cycles) = " + 
+                        std::to_string(processor->exeTime()));
 
     processor->registerStats(stats);
 
@@ -164,8 +159,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     }
 
     mmu->registerStats(stats);
-    stats.registerStats("Execution Time (CPU cycles) = " + 
-                        std::to_string(processor->exeTime()));
+    DRAM_PCM->registerStats(stats);
+    
     stats.outputStats(stats_output_file);
 }
 

@@ -90,6 +90,7 @@ class MMU
 
         // Decoding bits
         const std::vector<int> mem_addr_decoding_bits;
+        
         unsigned channel_idx; // Index to mem_addr_decoding_bits
         unsigned rank_idx;
         unsigned bank_idx;

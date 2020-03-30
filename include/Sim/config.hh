@@ -51,6 +51,8 @@ class Config
     // PCM Array Architecture
     // To mimic DRAM Architecture, num_of_tiles can set to 1 and treat partitions as
     // sub-arrays.
+    unsigned num_of_near_rows;
+
     unsigned num_of_word_lines_per_tile;
     unsigned num_of_bit_lines_per_tile;
     unsigned num_of_tiles;
@@ -59,6 +61,9 @@ class Config
     unsigned num_of_banks;
     unsigned num_of_ranks;
     unsigned num_of_channels;
+
+    unsigned numNearRows() const { return num_of_near_rows; }
+    unsigned numRows() const { return num_of_word_lines_per_tile; }
 
     Config(const std::string &cfg_file);
 

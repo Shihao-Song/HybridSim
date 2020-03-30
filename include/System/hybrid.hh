@@ -95,8 +95,9 @@ class Hybrid : public MMU
     // A pool of free physical pages, one for DRAM, one for PCM
     std::vector<std::vector<Addr>> free_frame_pool_by_technology;
     
+    const unsigned NUM_ROWS[int(Config::Memory_Node::MAX)];
     // A pool of free fast-access physical pages, one for DRAM, one for PCM
-    const unsigned NUM_FAST_ACCESS_ROWS[int(Config::Memory_Node::MAX)] = {128, 512};
+    const unsigned NUM_FAST_ACCESS_ROWS[int(Config::Memory_Node::MAX)];
     std::vector<std::vector<Addr>> free_fast_access_frame_pool_by_technology;
 
     // A pool of free slow-access physical pages, one for DRAM, one for PCM
@@ -108,6 +109,8 @@ class Hybrid : public MMU
   public:
     Hybrid(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
         : MMU(num_of_cores)
+        , NUM_ROWS{dram_cfg.numRows(), pcm_cfg.numRows()}
+        , NUM_FAST_ACCESS_ROWS{dram_cfg.numNearRows(), pcm_cfg.numNearRows()}
     {
         pages_by_cores.resize(num_of_cores);
         FTIs_by_cores.resize(num_of_cores);
@@ -186,18 +189,27 @@ class Hybrid : public MMU
             Addr page_id = p_iter->second.re_alloc_page_id;
             req.addr = (page_id << Mapper::va_page_shift) |
                        (va & Mapper::va_page_mask);
+
+            if (req.req_type == Request::Request_Type::READ) { (p_iter->second.num_of_reads)++; }
+            if (req.req_type == Request::Request_Type::WRITE) { (p_iter->second.num_of_writes)++; }
         }
         else
         {
-            int total_mem_size = mem_size_in_gb[int(Config::Memory_Node::DRAM)] + 
-                                 mem_size_in_gb[int(Config::Memory_Node::PCM)];
+            // Keep track of page information
+            bool in_pcm_near = false;
+            bool in_pcm_far = false;
+            bool in_dram_near = false;
+            bool in_dram_far = false;
+
+            static int total_mem_size = mem_size_in_gb[int(Config::Memory_Node::DRAM)] + 
+                                        mem_size_in_gb[int(Config::Memory_Node::PCM)];
 
             static std::default_random_engine e{};
-            static std::uniform_int_distribution<int> d{1, total_mem_size};
+            static std::uniform_int_distribution<int> d_tech{1, total_mem_size};
 
             // Randomly determine which technology to be mapped
             int chosen_technology = 0;
-            if (int random_num = d(e);
+            if (int random_num = d_tech(e);
                 random_num <= mem_size_in_gb[int(Config::Memory_Node::DRAM)])
             {
                 chosen_technology = int(Config::Memory_Node::DRAM);
@@ -209,11 +221,36 @@ class Hybrid : public MMU
                 // std::cout << "Mapped to PCM \n";
             }
 
-            // TODO, this should be random as well.
-            auto &free_frames = free_slow_access_frame_pool_by_technology[chosen_technology];
-            if (free_frames.size() == 0)
+            // Randomly determine near or far segment to be mapped
+            static std::uniform_int_distribution<int> d_pcm_region{1, NUM_ROWS[int(Config::Memory_Node::PCM)]};
+            static std::uniform_int_distribution<int> d_dram_region{1, NUM_ROWS[int(Config::Memory_Node::DRAM)]};
+
+            auto *free_frames = &(free_slow_access_frame_pool_by_technology[chosen_technology]);
+            if (chosen_technology == int(Config::Memory_Node::PCM))
             {
-                free_frames = free_fast_access_frame_pool_by_technology[chosen_technology];
+                if (int random_num = d_pcm_region(e);
+                        random_num <= NUM_FAST_ACCESS_ROWS[int(Config::Memory_Node::PCM)])
+                {
+                    free_frames = &(free_fast_access_frame_pool_by_technology[int(Config::Memory_Node::PCM)]);
+                    in_pcm_near = true;
+                }
+                else
+                {
+                    in_pcm_far = true;
+                }
+            }
+	    else if (chosen_technology == int(Config::Memory_Node::DRAM))
+            {
+                if (int random_num = d_dram_region(e);
+                        random_num <= NUM_FAST_ACCESS_ROWS[int(Config::Memory_Node::DRAM)])
+                {
+                    free_frames = &(free_fast_access_frame_pool_by_technology[int(Config::Memory_Node::DRAM)]);
+                    in_dram_near = true;
+                }
+                else
+                {
+                    in_dram_far = true;
+		}
             }
 
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
@@ -221,13 +258,13 @@ class Hybrid : public MMU
             // std::cout << "Size of used frames: " << used_frames.size() << "\n";
 
             // Choose a free frame
-            Addr free_frame = *(free_frames.begin());
+            Addr free_frame = *(free_frames->begin());
             // for (int i = 0; i < 11; i++)
             // {
             //     std::cout << free_frames[i] << "\n";
             // }
 
-            free_frames.erase(free_frames.begin());
+            free_frames->erase(free_frames->begin());
             used_frames.insert({free_frame, true});
 
             // std::cout << "\nSize of free frames: " << free_frames.size() << "\n";
@@ -241,7 +278,20 @@ class Hybrid : public MMU
                        (va & Mapper::va_page_mask);
             // std::cout << "\nPhysical address: " << req.addr << "\n";
             // Insert the page
-            pages.insert({virtual_page_id, {virtual_page_id, free_frame}});
+            uint64_t num_of_reads = 0;
+            uint64_t num_of_writes = 0;
+            if (req.req_type == Request::Request_Type::READ) { num_of_reads++; }
+            if (req.req_type == Request::Request_Type::WRITE) { num_of_writes++; }
+
+            pages.insert({virtual_page_id, {virtual_page_id, 
+                                            free_frame,
+                                            req.eip,
+                                            in_pcm_near,
+                                            in_pcm_far,
+                                            in_dram_near,
+                                            in_dram_far,
+                                            num_of_reads,
+                                            num_of_writes}});
             // exit(0);
         }
     }
@@ -268,12 +318,35 @@ class Hybrid : public MMU
     void registerStats(Simulator::Stats &stats)
     {
         uint64_t num_pages = 0;
+        uint64_t num_pages_in_near_DRAM = 0;
+        uint64_t num_pages_in_far_DRAM = 0;
+        uint64_t num_pages_in_near_PCM = 0;
+        uint64_t num_pages_in_far_PCM = 0;
+
         for (auto &pages : pages_by_cores)
         {
             num_pages += pages.size();
+
+            for (auto [v_page, page_info] : pages)
+            {
+                if (page_info.in_pcm_near == true) { num_pages_in_near_PCM++; }
+                if (page_info.in_pcm_far == true) { num_pages_in_far_PCM++; }
+                if (page_info.in_dram_near == true) { num_pages_in_near_DRAM++; }
+                if (page_info.in_dram_far == true) { num_pages_in_far_DRAM++; }
+            }
         }
 
         std::string prin = "MMU_Total_Pages = " + std::to_string(num_pages);
+        stats.registerStats(prin);
+
+        prin = "MMU_Pages_in_near_DRAM = " + std::to_string(num_pages_in_near_DRAM);
+        stats.registerStats(prin);
+        prin = "MMU_Pages_in_far_DRAM = " + std::to_string(num_pages_in_far_DRAM);
+        stats.registerStats(prin);
+	
+        prin = "MMU_Pages_in_near_PCM = " + std::to_string(num_pages_in_near_PCM);
+        stats.registerStats(prin);
+        prin = "MMU_Pages_in_far_PCM = " + std::to_string(num_pages_in_far_PCM);
         stats.registerStats(prin);
     }
 };

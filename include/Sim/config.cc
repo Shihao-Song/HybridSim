@@ -136,6 +136,10 @@ void Config::parse(const std::string &fname)
         {
             mem_controller_type = tokens[1];
         }
+        else if (tokens[0] == "num_of_near_rows")
+        {
+            num_of_near_rows = atoi(tokens[1].c_str());
+        }
 	else if(tokens[0] == "num_of_word_lines_per_tile")
         {
             num_of_word_lines_per_tile = atoi(tokens[1].c_str());
