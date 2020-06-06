@@ -241,7 +241,14 @@ void TraceGen(std::vector<Config> &cfgs,
         L2->setPrevLevel(L1_D.get());
         L3->setPrevLevel(L2.get());
 
-        L3->setInclusive();
+        if (cfg.caches[int(Config::Cache_Level::L2)].inclusive == true)
+        {
+            L2->setInclusive();
+        }
+        if (cfg.caches[int(Config::Cache_Level::L3)].inclusive == true)
+        {
+            L3->setInclusive();
+        }
 
         L1Ds.push_back(std::move(L1_D));
         L2s.push_back(std::move(L2));
@@ -266,11 +273,24 @@ void TraceGen(std::vector<Config> &cfgs,
 
     std::cout << "\nTrace Generating...\n\n";
     runCPUTrace(processor.get());
-
+    std::cerr << std::endl;
     // Collecting Stats
     Stats stats;
 
     processor->registerStats(stats);
+
+    for (auto &L1D : L1Ds)
+    {
+        L1D->debugPrint();
+    }
+    for (auto &L2 : L2s)
+    {
+        L2->debugPrint();
+    }
+    for (auto &L3 : L3s)
+    {
+        L3->debugPrint();
+    }
 
     for (auto &L1D : L1Ds)
     {

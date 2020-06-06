@@ -46,29 +46,6 @@ class Blk
     bool dirty; // Has the brought in cache-line been modified yet?
 
     Tick when_touched; // Last clock tick the Block is touched.
-
-    // Advanced features, record instruction (EIP) that brings this block
-    int core_id = -1;
-    Addr eip;
-    std::function<void(Simulator::Request&)> mmu_commu_cb = 0;
-    // Do this when a new block is inserted.
-    void recordMMUCommu(int _core_id, Addr _eip, auto _cb)
-    {
-        assert(mmu_commu_cb == 0);
-        core_id = _core_id;
-        eip = _eip;
-        mmu_commu_cb = _cb;
-    }
-    // Do this when a block is evicted and it is dirty.
-    auto retriMMUCommu()
-    {
-        return std::make_tuple(core_id, eip, mmu_commu_cb);
-    }
-    // Should do this right-after the block is evicted if write-back is not needed.
-    void clearMMUCommu()
-    {
-        mmu_commu_cb = 0;
-    }
 };
 
 class SetWayBlk : public Blk

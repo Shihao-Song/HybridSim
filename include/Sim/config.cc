@@ -183,10 +183,6 @@ void Config::extractCacheInfo(Cache_Level level, std::vector<std::string> &token
     {
         caches[int(level)].size = atoi(tokens[1].c_str());
     }
-    else if(tokens[0].find("write_only") != std::string::npos)
-    {
-        caches[int(level)].write_only = tokens[1] == "false" ? 0 : 1;
-    }
     else if(tokens[0].find("num_mshrs") != std::string::npos)
     {
         caches[int(level)].num_mshrs = atoi(tokens[1].c_str());
@@ -198,6 +194,10 @@ void Config::extractCacheInfo(Cache_Level level, std::vector<std::string> &token
     else if(tokens[0].find("tag_lookup_latency") != std::string::npos)
     {
 	caches[int(level)].tag_lookup_latency = atoi(tokens[1].c_str());
+    }
+    else if(tokens[0].find("inclusive") != std::string::npos)
+    {
+        caches[int(level)].inclusive = tokens[1] == "false" ? 0 : 1;
     }
 }
 }

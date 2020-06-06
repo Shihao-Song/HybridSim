@@ -83,8 +83,9 @@ class Processor
 
         auto commit()
         {
-            return [this](Addr addr)
+            return [this](Request &req)
             {
+                Addr addr = req.addr;
                 for (int i = 0; i < num_issues; i++)
                 {
                     Instruction &inst = pending_instructions[i];
@@ -251,7 +252,7 @@ class Processor
                     if (!cur_inst.already_translated)
                     {
                         req.addr = cur_inst.target_vaddr; // Assign virtual first
-                        mmu->va2pa(req);
+                        // mmu->va2pa(req);
                         // Update the instruction with the translated physical address
                         cur_inst.target_paddr = req.addr;
                     }

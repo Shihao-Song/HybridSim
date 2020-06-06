@@ -21,7 +21,8 @@ class Tags
     Tags(int level, Config &cfg)
         : block_size(cfg.block_size),
           block_mask(block_size - 1),
-          size(cfg.caches[level].size * 1024),
+          // size(cfg.caches[level].size * 1024),
+          size(cfg.caches[level].size),
           num_blocks(size / block_size),
           blks(new T[num_blocks])
     {}
@@ -37,29 +38,21 @@ class Tags
 
   public:
 
-    // return val: <hit in cache?, block-aligned address>
+    // return val: <hit in cache?, the block is modified?, block-aligned address>
     virtual std::pair<bool, Addr> accessBlock(Addr addr, bool modify, Tick cur_clk = 0) = 0;
 
     // return val: <write-back required?, write-back address>
     virtual std::pair<bool, Addr> insertBlock(Addr addr, bool modify, Tick cur_clk = 0) = 0;
 
+    virtual bool isBlockModified(Addr addr) { std::cerr << "Not implemented\n"; exit(0); }
+
     virtual void reInitialize() {}
     
-    // Advanced features, MMU communications
-    virtual void recordMMUCommu(Addr,
-                                int,
-                                Addr,
-                                std::function<void(Simulator::Request&)>) {}
-    virtual std::tuple<int,
-                       Addr,
-                       std::function<void(Simulator::Request&)>> retriMMUCommu(Addr) = 0;
-    virtual void clearMMUCommu(Addr) {}
-
     virtual void printTagInfo() {}
 
-    // virtual bool writeback(uint64_t page_id) = 0;
+    virtual bool invalBlock(Addr) {}
 
-    virtual void incluInval(Addr) {}
+    virtual void debugPrint() {}
 
   protected:
 

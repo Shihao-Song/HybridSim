@@ -75,42 +75,6 @@ class FATags : public TagsWithFABlk
         return std::make_pair(wb_required, victim_addr);
     }
 
-    void recordMMUCommu(Addr block_addr,
-                        int core_id,
-                        Addr eip,
-                        std::function<void(Simulator::Request&)> mmu_cb) override
-    {
-        Addr blk_aligned_addr = blkAlign(block_addr);
-
-        FABlk *blk = findBlock(blk_aligned_addr);
-        assert(blk);
-        blk->clearMMUCommu();
-        blk->recordMMUCommu(core_id, eip, mmu_cb);
-    }
-
-    std::tuple<int,
-               Addr,
-               std::function<void(Simulator::Request&)>> 
-        retriMMUCommu(Addr block_addr) override
-    {
-        Addr blk_aligned_addr = blkAlign(block_addr);
-
-        FABlk *blk = findBlock(blk_aligned_addr);
-        assert(blk);
-
-        return blk->retriMMUCommu();
-    }
-
-    void clearMMUCommu(Addr block_addr) override
-    {
-        Addr blk_aligned_addr = blkAlign(block_addr);
-
-        FABlk *blk = findBlock(blk_aligned_addr);
-        assert(blk);
-
-        blk->clearMMUCommu();
-    }
-
     void printTagInfo() override
     {
         std::cout << "Number of blocks: " << num_blocks << "\n";
@@ -122,7 +86,6 @@ class FATags : public TagsWithFABlk
         {
             blks[i].invalidate();
             blks[i].clearDirty();
-            blks[i].clearMMUCommu();
             blks[i].when_touched = 0;
         }
         tagHash.clear();

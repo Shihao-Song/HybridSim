@@ -60,17 +60,14 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
-        //std::cout << clk << ": " << "Core-" << id << "-"
-        //          << level_name << " is sending an MSHR request for "
-        //          << "addr " << addr << "\n";
+        // std::cout << clk << ": " << "Core-" << id << "-"
+        //           << level_name << " is sending an MSHR request for "
+        //           << "addr " << addr << "\n";
 
         Request req(addr, Request::Request_Type::READ,
-                    [this](Addr _addr){ return this->mshrComplete(_addr); });
+                    [this](Request &_req){ return this->mshrComplete(_req); });
 
-        auto [core_id, eip, mmu_commu] = mshr_queue->retriMMUCommu(addr);
-        req.core_id = core_id;
-        req.eip = eip;
-        req.setMMUCommuFunct(mmu_commu);
+        req.core_id = id;
         
 	if (next_level->send(req))
         {
@@ -79,54 +76,62 @@ class Cache : public Simulator::MemObject
         }
     }
 
-    bool mshrComplete(Addr addr)
+    bool mshrComplete(Request &req)
     {
-        //std::cout << clk << ": " << "Core-" << id << "-" 
-        //          << level_name << " is receiving an MSHR answer for "
-        //          << "addr " << addr << "\n";
+        Addr addr = req.addr;
 
-        // To insert a new block may cause a eviction, need to make sure the write-back
-        // is not full.
-        if (wb_queue->isFull()) { return false; }
+        // std::cout << clk << ": " << "Core-" << id << "-" 
+        //           << level_name << " is receiving an MSHR answer for "
+        //           << "addr " << addr << ". ";
 
-        bool is_entry_modified = mshr_queue->isEntryModified(addr);
-        auto [core_id, eip, mmu_commu] = mshr_queue->retriMMUCommu(addr);
-        // if (is_entry_modified)
-        // { 
-        //      std::cout << level_name << " " << addr << " is dirty. \n";
-        // }
-        // else
-        // {
-        //     std::cout << level_name << " " << addr << " is clean. \n";
-        // }
-        mshr_queue->deAllocate(addr, true);
-        auto [wb_required, victim_addr] = tags->insertBlock(addr, is_entry_modified, clk);
-        if (wb_required)
+        // When only insert the cache-block if the cache is inclusive or the cache is L1-D
+        if (level == Config::Cache_Level::L1D || inclusive)
         {
-            wb_queue->allocate(victim_addr, clk);
+            // To insert a new block may cause a eviction, need to make sure the write-back
+            // is not full.
+            if (wb_queue->isFull()) { return false; }
 
-            auto [wb_core_id, wb_eip, wb_mmu_commu] = tags->retriMMUCommu(addr);
-            // Record to wb_queue.
-            wb_queue->recordMMUCommu(victim_addr,
-                                     wb_core_id,
-                                     wb_eip,
-                                     wb_mmu_commu);
+            // Check if this cache line is modified or not. For example, brought in by a store instruction.
+            bool is_entry_modified = mshr_queue->isEntryModified(addr);
+            // The entry may also be modified if brought from the next level cache (as a dirty block)
+            if (req.hitwhere == Request::Hitwhere::L1_D_Dirty ||
+                req.hitwhere == Request::Hitwhere::L2_Dirty || 
+                req.hitwhere == Request::Hitwhere::L3_Dirty)
+            {
+                is_entry_modified = true;
+            }
+
+            // De-allocate the MSHR entry
+            mshr_queue->deAllocate(addr, true);
+
+            auto [wb_required, victim_addr] = tags->insertBlock(addr, is_entry_modified, clk);
+            if (wb_required)
+            {
+                wb_queue->allocate(victim_addr, clk);
+            }
+
+	    // We are trying to make the cache as real as possible.
+            if (victim_addr != ((Addr) - 1) && inclusive)
+            {
+                // std::cout << clk << ": " << level_name 
+                //           << " Evicted address " << victim_addr << "\n";
+
+                // For an inclusive cache, all upper layers of cache should invalidate this 
+                // victim address.
+                bool dirty = false;
+                for (auto &prev_level : prev_levels) { dirty |= prev_level->incluInval(victim_addr); }
+
+                if (dirty) { wb_queue->allocate(victim_addr, clk); }
+            }
+            // std::cout << "Allocated cache block. \n";
         }
-        if (victim_addr != ((Addr) - 1) && inclusive)
-        {
-            // std::cout << clk << ": " << level_name 
-            //           << " Evicted address " << victim_addr << "\n";
+        else
+	{
+            // De-allocate the MSHR entry
+            mshr_queue->deAllocate(addr, true);
 
-            // For an inclusive cache, all upper layers of cache should invalidate this 
-            // victim address.
-            for (auto &prev_level : prev_levels) { prev_level->incluInval(victim_addr); }
+            // std::cout << "Non-inclusive, no allocation. \n";
         }
-
-        // Need to record new MMU call-back information.
-        tags->recordMMUCommu(addr,
-                             core_id,
-                             eip,
-                             mmu_commu);
 
         auto iter = pending_queue_for_non_hit_reqs.begin();
         while (iter != pending_queue_for_non_hit_reqs.end())
@@ -152,10 +157,7 @@ class Cache : public Simulator::MemObject
         {
             Request req(addr, Request::Request_Type::WRITE);
 
-            auto [core_id, eip, mmu_commu] = wb_queue->retriMMUCommu(addr);
-            req.core_id = core_id;
-            req.eip = eip;
-            req.setMMUCommuFunct(mmu_commu);
+            req.core_id = id;
 
 	    if (next_level->send(req))
             {
@@ -167,13 +169,14 @@ class Cache : public Simulator::MemObject
 	{
             Request req(addr, Request::Request_Type::WRITE_BACK);
 
-            auto [core_id, eip, mmu_commu] = wb_queue->retriMMUCommu(addr);
-            req.core_id = core_id;
-            req.eip = eip;
-            req.setMMUCommuFunct(mmu_commu);
+            req.core_id = id;
 
 	    if (next_level->send(req))
             {
+                // std::cerr << clk << ": " << "Core-" << id << "-"
+                //           << level_name << " is sending write-back for "
+                //           << "addr " << addr << "\n";
+
                 ++num_evicts;
                 wb_queue->deAllocate(addr);
             }
@@ -182,15 +185,19 @@ class Cache : public Simulator::MemObject
 
     bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
 
-    void incluInval(uint64_t addr) override
+    bool incluInval(uint64_t addr) override
     {
         // std::cout << clk << ": " << level_name 
         //           << " (inclu) invalidaing addr " << addr << "\n";
-        tags->incluInval(addr);
+        bool dirty = tags->invalBlock(addr);
 
         // Our prev levels should be invalidated as well.
         for (auto &prev_level : prev_levels)
-        { prev_level->incluInval(addr); }
+        {
+            dirty |= prev_level->incluInval(addr);
+        }
+
+        return dirty;
     }
 
   protected:
@@ -215,22 +222,30 @@ class Cache : public Simulator::MemObject
 
     auto servePendings()
     {
-        if (pending_commits.size())
+        auto iter = pending_commits.begin();
+        while (iter != pending_commits.end())
         {
-            Request &req = pending_commits[0];
-            if (req.end_exe <= clk)
+            if (iter->end_exe <= clk)
             {
-                if (req.callback)
+                if (iter->callback)
                 {
-                    if (req.callback(req.addr))
+                    if (iter->callback(*iter))
                     {
-                        pending_commits.pop_front();
+                        iter = pending_commits.erase(iter);
+                    }
+                    else
+                    {
+                        ++iter;
                     }
                 }
                 else
                 {
-                    pending_commits.pop_front();
-                }
+                    iter = pending_commits.erase(iter);
+		}
+            }
+            else
+            {
+                 ++iter;
             }
         }
 
@@ -336,13 +351,39 @@ class Cache : public Simulator::MemObject
         {
             recordAccess(req);
 
+            // Indicate which layer it hits
+            bool dirty = tags->isBlockModified(req.addr);
+            if (level == Config::Cache_Level::L1D && !dirty) { req.hitwhere = Request::Hitwhere::L1_D_Clean; }
+            if (level == Config::Cache_Level::L1D && dirty) { req.hitwhere = Request::Hitwhere::L1_D_Dirty; }
+            if (level == Config::Cache_Level::L2 && !dirty) { req.hitwhere = Request::Hitwhere::L2_Clean; }
+            if (level == Config::Cache_Level::L2 && dirty) { req.hitwhere = Request::Hitwhere::L2_Dirty; }
+            if (level == Config::Cache_Level::L3 && !dirty) { req.hitwhere = Request::Hitwhere::L3_Clean; }
+            if (level == Config::Cache_Level::L3 && dirty) { req.hitwhere = Request::Hitwhere::L3_Dirty; }
+
             req.begin_exe = clk;
             req.end_exe = clk + tag_lookup_latency;
             pending_commits.push_back(req);
 
             ++num_hits;
-            // Notify MMU that there is a hit
-            req.commuToMMU();
+
+            if (level == Config::Cache_Level::L2 && !inclusive)
+            {
+                if (req.hitwhere == Request::Hitwhere::L2_Clean ||
+                    req.hitwhere == Request::Hitwhere::L2_Dirty)
+                {
+                    tags->invalBlock(req.addr);
+                }
+            }
+
+            if (level == Config::Cache_Level::L3 && !inclusive)
+            {
+                if (req.hitwhere == Request::Hitwhere::L3_Clean ||
+                    req.hitwhere == Request::Hitwhere::L3_Dirty)
+                {
+                    tags->invalBlock(req.addr);
+                }
+            }
+
             return true;
         }
         else
@@ -355,17 +396,21 @@ class Cache : public Simulator::MemObject
             {
                 recordAccess(req);
 
+                if (level == Config::Cache_Level::L1D) { req.hitwhere = Request::Hitwhere::L1_D_Dirty; }
+                if (level == Config::Cache_Level::L2) { req.hitwhere = Request::Hitwhere::L2_Dirty; }
+                if (level == Config::Cache_Level::L3) { req.hitwhere = Request::Hitwhere::L3_Dirty; }
+
                 ++num_hits;
-                // Notify MMU that there is a hit
-                req.commuToMMU();
 
                 req.begin_exe = clk;
                 req.end_exe = clk + tag_lookup_latency;
                 pending_commits.push_back(req);
 
+                wb_queue->deAllocate(aligned_addr);
+
                 return true;
             }
-            
+           
             // Step three, if there is a write-back (eviction). We should allocate the space
             // directly.
             if (req.req_type == Request::Request_Type::WRITE_BACK)
@@ -383,23 +428,18 @@ class Cache : public Simulator::MemObject
                     if (wb_required)
                     {
                         wb_queue->allocate(victim_addr, clk);
-                        // Retrive MMU call-back information of evicted.
-                        auto [core_id, eip, mmu_commu] = tags->retriMMUCommu(aligned_addr);
-                        // Record to wb_queue.
-                        wb_queue->recordMMUCommu(victim_addr, core_id, eip, mmu_commu);
                     }
-
                     if (victim_addr != ((Addr) - 1) && inclusive)
                     {
-                        for (auto &prev_level : prev_levels)
-                        { prev_level->incluInval(victim_addr); }
-                    }
 
-                    // Need to record new MMU call-back information.
-                    tags->recordMMUCommu(aligned_addr,
-                                         req.core_id,
-                                         req.eip,
-                                         req.getMMUCommuFunct());
+                        bool dirty = false;
+                        for (auto &prev_level : prev_levels) { dirty |= prev_level->incluInval(victim_addr); }
+
+                        if (dirty) { wb_queue->allocate(victim_addr, clk); }
+                    }
+                    // std::cout << clk << ": " << "Core-" << id << "-"
+                    //           << level_name << " allocating block for addr "
+                    //           << aligned_addr << "\n";
 
                     return true;
                 }
@@ -423,8 +463,6 @@ class Cache : public Simulator::MemObject
                          // std::cout << clk << ": Address " << aligned_addr 
                          //           << " is hit in MSRH. \n";
                         ++num_hits;
-                        // Notify MMU that there is a hit
-                        req.commuToMMU();
                     }
                     else
                     {
@@ -432,10 +470,6 @@ class Cache : public Simulator::MemObject
                         // Not hit in wb
                         // Not in mshr 
                         ++num_misses;
-                        mshr_queue->recordMMUCommu(aligned_addr,
-                                                   req.core_id,
-                                                   req.eip,
-                                                   req.getMMUCommuFunct());
                     }
 
                     if (req.req_type == Request::Request_Type::WRITE)
@@ -453,60 +487,6 @@ class Cache : public Simulator::MemObject
                 }
                 return false;
             }
-            /*
-            else if constexpr(std::is_same<WriteOnly, Mode>::value)
-            {
-                if (!blocked())
-                {
-                    assert(!mshr_queue->isFull());
-                    assert(!wb_queue->isFull());
-                    
-		    if (req.req_type == Request::Request_Type::WRITE)
-                    {
-                        // TODO, delete this exit() later.
-                        std::cerr << "Should not happen.\n";
-                        exit(0);
-                        if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
-                                                                 clk + tag_lookup_latency);
-                            hit_in_mshr_queue)
-                        {
-                            ++num_hits;
-                            // Notify MMU that there is a hit
-                            req.commuToMMU();
-                        }
-                        else
-                        {
-                            // Not hit in cache
-                            // Not hit in wb
-                            // Not hit in mshr 
-                            ++num_misses;
-                            mshr_queue->recordMMUCommu(aligned_addr,
-                                                       req.core_id,
-                                                       req.eip,
-                                                       req.getMMUCommuFunct());
-                        }
-                        if (req.req_type == Request::Request_Type::WRITE)
-                        {
-                            mshr_queue->setEntryModified(aligned_addr);
-                        }
-                        req.begin_exe = clk;
-                        pending_queue_for_non_hit_reqs.push_back(req);
-
-                        return true;
-                    }
-                    else
-                    {
-                        assert(req.req_type == Request::Request_Type::READ);
-                        ++num_misses;
-                        // Forward to next level directly.
-                        bool ret = next_level->send(req);
-                        if (ret) {num_loads++;}
-                        return ret;
-                    }
-                }
-                return false;
-            }
-            */
         }
     }
 
@@ -595,18 +575,11 @@ class Cache : public Simulator::MemObject
                             ": Number of evictions = " + std::to_string(num_evicts));
     }
 
-    /*
-    bool writeback(uint64_t page_id) override
-    {
-        return tags->writeback(page_id);
-    }
-    */
+    void debugPrint() override { tags->debugPrint(); }
 };
 
 typedef Cache<LRUFATags,NormalMode,OnChipToOffChip> FA_LRU_LLC;
-typedef Cache<LRUFATags,WriteOnly,OnChipToOffChip> FA_LRU_LLC_WRITE_ONLY;
 typedef Cache<LRUSetWayAssocTags,NormalMode,OnChipToOffChip> SET_WAY_LRU_LLC;
-typedef Cache<LRUSetWayAssocTags,WriteOnly,OnChipToOffChip> SET_WAY_LRU_LLC_WRITE_ONLY;
 typedef Cache<LRUSetWayAssocTags,NormalMode,OnChipToOnChip> SET_WAY_LRU_NON_LLC;
 
 class CacheFactory
@@ -626,22 +599,11 @@ class CacheFactory
                                       return std::make_unique<FA_LRU_LLC>(level, cfg);
                                   };
 
-        factories["FA_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg)
-                                  {
-                                      return std::make_unique<FA_LRU_LLC_WRITE_ONLY>(level,
-                                                                                     cfg);
-                                  };
 
         factories["SET_WAY_LRU_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
                                       return std::make_unique<SET_WAY_LRU_LLC>(level, cfg);
                                   };
-
-        factories["SET_WAY_LRU_LLC_WRITE_ONLY"] = [](Config::Cache_Level level, Config &cfg)
-            {
-                return std::make_unique<SET_WAY_LRU_LLC_WRITE_ONLY>(level, cfg);
-            };
-
 
         factories["SET_WAY_LRU_NON_LLC"] = [](Config::Cache_Level level, Config &cfg)
                                   {
@@ -653,11 +615,6 @@ class CacheFactory
     // We have limit the use of Set-Assoc-LRU here.
     auto createCache(Config::Cache_Level level, Config &cfg, bool LLC = false)
     {
-        if (level == Config::Cache_Level::eDRAM)
-        {
-            return factories["SET_WAY_LRU_LLC_WRITE_ONLY"](level, cfg);
-        }
-
         if (LLC)
         {
             return factories["SET_WAY_LRU_LLC"](level, cfg);

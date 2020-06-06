@@ -91,41 +91,15 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         return std::make_pair(wb_required, victim_addr);
     }
 
-    void recordMMUCommu(Addr block_addr,
-                        int core_id,
-                        Addr eip,
-                        std::function<void(Simulator::Request&)> mmu_cb) override
+    bool isBlockModified(Addr addr) override
     {
-        Addr blk_aligned_addr = blkAlign(block_addr);
+        Addr blk_aligned_addr = blkAlign(addr);
 
         SetWayBlk *blk = findBlock(blk_aligned_addr);
-        assert(blk);
 
-        blk->clearMMUCommu();
-        blk->recordMMUCommu(core_id, eip, mmu_cb);
-    }
+        assert(blk != nullptr);
 
-    std::tuple<int,
-               Addr,
-               std::function<void(Simulator::Request&)>> 
-        retriMMUCommu(Addr block_addr) override
-    {
-        Addr blk_aligned_addr = blkAlign(block_addr);
-
-        SetWayBlk *blk = findBlock(blk_aligned_addr);
-        assert(blk);
-
-        return blk->retriMMUCommu();
-    }
-
-    void clearMMUCommu(Addr block_addr) override
-    {
-        Addr blk_aligned_addr = blkAlign(block_addr);
-
-        SetWayBlk *blk = findBlock(blk_aligned_addr);
-        assert(blk);
-
-        blk->clearMMUCommu();
+        return blk->isDirty();
     }
 
     void reInitialize() override
@@ -134,7 +108,6 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         {
             blks[i].invalidate();
             blks[i].clearDirty();
-            blks[i].clearMMUCommu();
             blks[i].when_touched = 0;
         }
         tagsInit();
@@ -146,21 +119,36 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         std::cout << "Number of sets: " << num_sets << "\n";
     }
 
-    void incluInval(Addr addr) override
+    bool invalBlock(Addr addr) override
     {
         Addr blk_aligned_addr = blkAlign(addr);
 
         SetWayBlk *blk = findBlock(blk_aligned_addr);
 
-        if (blk != nullptr) { invalidate(blk); }
-    }
+        if (blk != nullptr)
+	{
+            if (blk->isDirty()) { invalidate(blk); return true; } else { invalidate(blk); return false; }
+        }
 
-    /*
-    bool writeback(uint64_t page_id) override
-    {
         return false;
     }
-    */
+
+    void debugPrint() override
+    {
+        for (int i = 0; i < num_blocks; i++)
+        {
+            if (blks[i].isValid())
+            {
+                Addr blk_addr = regenerateAddr(&blks[i]);
+                bool is_modified = blks[i].isDirty();
+                std::cerr << blk_addr;
+                if (is_modified) { std::cerr << " (D) "; }
+                else { std::cerr << " (C) "; }
+                std::cerr << blks[i].when_touched << std::endl;
+            }
+        }
+        std::cerr << std::endl;
+    }
 
   protected:
     void tagsInit() override

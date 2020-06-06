@@ -22,11 +22,6 @@ class CacheQueue
     {
         Tick when_ready;
         bool modified;
-
-        // Advanced features, record MMU commu information
-        int core_id = -1;
-        Addr eip;
-        std::function<void(Simulator::Request&)> mmu_commu_cb = 0;
     };
 
   public:
@@ -95,28 +90,7 @@ class CacheQueue
         assert(iter != entry_info.end());
         (iter->second).modified = true;
     }
-
-    void recordMMUCommu(Addr addr,
-                        int core_id,
-                        Addr eip,
-                        std::function<void(Simulator::Request&)> mmu_cb)
-    {
-        auto iter = entry_info.find(addr);
-        assert(iter != entry_info.end());
-        (iter->second).core_id = core_id;
-        (iter->second).eip = eip;
-        (iter->second).mmu_commu_cb = mmu_cb;
-    }
-
-    auto retriMMUCommu(Addr addr)
-    {
-        auto iter = entry_info.find(addr);
-        assert(iter != entry_info.end());
-        return make_tuple((iter->second).core_id,
-                          (iter->second).eip,
-                          (iter->second).mmu_commu_cb);
-    }
-
+    
     bool isInQueue(Addr addr)
     {
         bool in_all = (all_entries.find(addr) != all_entries.end());

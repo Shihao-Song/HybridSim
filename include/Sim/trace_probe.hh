@@ -54,7 +54,7 @@ class TraceProbe : public MemObject
         auto req = q.begin();
         if (req->callback)
         {
-            if (req->callback(req->addr))
+            if (req->callback(*req))
             {
                 q.erase(req);
             }

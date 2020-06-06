@@ -9,55 +9,18 @@
 
 namespace Simulator
 {
-// Sometimes, certain memory objects need to communicate with the MMU.
 class Request;
-class MMUCommuPacket
-{
-  public:
-    MMUCommuPacket(){}
-
-    std::function<void(Request&)> callback = 0;
-};
-
 class Request
 {
   public:
     typedef uint64_t Addr;
     typedef uint64_t Tick;
 
-    /*
-    // For hybrid memory, a request can be sent to either DRAM or PCM.
-    enum class Target_Memory : int
-    {
-        DRAM,
-        PCM,
-        MAX
-    }target_mem = Target_Memory::MAX;
-    */
+    int core_id; // Which core issues this request.
 
-    // TODO, tmp hack, delete it later
-    bool half_way = false;
-    bool display = false;
+    Addr eip; // PC that issues this request.
+
     bool mig = false; // If this is a migration request.
-
-    int core_id;
-    Addr eip; // Advanced feature, the instruction that caused this memory request;
-    MMUCommuPacket mmu_commu; // Advanced feature
-    void setMMUCommuFunct(auto func)
-    {
-        mmu_commu.callback = func;
-    }
-    auto getMMUCommuFunct()
-    {
-        return mmu_commu.callback;
-    }
-    auto commuToMMU()
-    {
-        if (mmu_commu.callback)
-        {
-            mmu_commu.callback(*this);
-        }
-    }
 
     Addr addr; // The address we are trying to read or write
 
@@ -74,22 +37,34 @@ class Request
         WRITE,
         WRITE_BACK,
         MAX
-    }req_type;
+    }req_type = Request_Type::MAX;
 
-    // clock cycle that request arrives to the queue
+    // Hitwhere, which level of memory it hits.
+    enum class Hitwhere : int
+    {
+        L1_D_Clean,
+        L1_D_Dirty,
+        L2_Clean,
+        L2_Dirty,
+        L3_Clean,
+        L3_Dirty,
+        MAX
+    }hitwhere = Hitwhere::MAX;
+
+    // clock cycle that request arrives to the queue (in main memory)
     Addr queue_arrival;
 
-    // time to start execution
+    // time to start execution (in main memory)
     Addr begin_exe;
 
-    // estimated completion time
+    // estimated completion time (in main memory)
     Addr end_exe;
 
-    // when OoO is enabled (track back-logging)
+    // when OoO is enabled (track back-logging) (in main memory)
     int OrderID;
 
     // (general) call-back function
-    std::function<bool(Addr)> callback;
+    std::function<bool(Request&)> callback;
 
     /* Constructors */
     Request() : addr(0), req_type(Request_Type::MAX)
@@ -101,7 +76,7 @@ class Request
     {}
 
     Request(Addr _addr, Request_Type _type,
-            std::function<bool(Addr)> _callback) :
+            std::function<bool(Request&)> _callback) :
         addr(_addr),
         req_type(_type),
         callback(_callback)
@@ -117,9 +92,6 @@ class PLPRequest : public Request
     PLPRequest(Request &req) : Request()
     { 
         core_id = req.core_id;
-
-        eip = req.eip;
-        setMMUCommuFunct(req.getMMUCommuFunct());
 
         addr = req.addr;
         addr_vec = req.addr_vec;

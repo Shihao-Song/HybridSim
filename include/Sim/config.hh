@@ -34,10 +34,10 @@ class Config
     {
         int assoc;
         unsigned size;
-        bool write_only;
         unsigned num_mshrs;
         unsigned num_wb_entries;
         unsigned tag_lookup_latency;
+        bool inclusive; // Inclusive or not.
     };
     std::array<Cache_Info, int(Cache_Level::MAX)> caches;
     void extractCacheInfo(Cache_Level level, std::vector<std::string> &tokens);

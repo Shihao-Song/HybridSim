@@ -215,7 +215,6 @@ class FCFSController : public BaseController
             scheduled)
         {
             channelAccess(scheduled_req);
-            scheduled_req->commuToMMU();
 
             r_w_pending_queue.push_back(std::move(*scheduled_req));
             queue.erase(scheduled_req);
@@ -280,10 +279,8 @@ class FCFSController : public BaseController
             */
             if (req.callback)
             {
-                if (req.callback(req.addr))
+                if (req.callback(req))
                 {
-                    if (req.display) { displayReqInfo(req); }
-
                     if (!req.mig)
                     {
                         uint64_t waiting_time = (req.begin_exe - req.queue_arrival);
@@ -300,8 +297,6 @@ class FCFSController : public BaseController
             }
             else
             {
-                if (req.display) { displayReqInfo(req); }
-
                 if (!req.mig)
 		{
                     uint64_t waiting_time = (req.begin_exe - req.queue_arrival);

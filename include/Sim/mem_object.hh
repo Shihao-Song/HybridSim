@@ -51,7 +51,7 @@ class MemObject
     virtual void reInitialize() {}
 
     // Inclusive invalidation
-    virtual void incluInval(uint64_t addr) {} 
+    virtual bool incluInval(uint64_t addr) {} 
 
     // Do we want to extract memory traces from this mem_object?
     virtual void setTraceOutput(const char* file)
@@ -71,7 +71,7 @@ class MemObject
 
   protected:
     bool on_chip = false;
-    bool inclusive = false; // Is the mem object inclusive?
+    bool inclusive = false; // Is the mem object inclusive? Default: non-inclusive.
 
   protected:
     System::MMU *mmu; // Give mem object access to MMU
@@ -90,6 +90,9 @@ class MemObject
 
     bool mem_trace_extr_mode = false;
     std::ofstream mem_trace;
+
+  public:
+    virtual void debugPrint(){}
 
 };
 }
