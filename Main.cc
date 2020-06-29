@@ -279,6 +279,7 @@ void TraceGen(std::vector<Config> &cfgs,
 
     processor->registerStats(stats);
 
+/*
     for (auto &L1D : L1Ds)
     {
         L1D->debugPrint();
@@ -291,6 +292,7 @@ void TraceGen(std::vector<Config> &cfgs,
     {
         L3->debugPrint();
     }
+*/
 
     for (auto &L1D : L1Ds)
     {

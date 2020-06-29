@@ -418,8 +418,8 @@ class Cache : public Simulator::MemObject
                 // We need to make sure that the write-back queue is not full.
                 if (!wb_queue->isFull())
                 {
-                    ++num_misses;
-                    recordAccess(req);
+                    // ++num_hits;
+                    // recordAccess(req);
 
                     // A write-back from higher level must be a dirty block.
                     auto [wb_required, victim_addr] = tags->insertBlock(aligned_addr,

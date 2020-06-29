@@ -252,7 +252,7 @@ class Processor
                     if (!cur_inst.already_translated)
                     {
                         req.addr = cur_inst.target_vaddr; // Assign virtual first
-                        // mmu->va2pa(req);
+                        mmu->va2pa(req);
                         // Update the instruction with the translated physical address
                         cur_inst.target_paddr = req.addr;
                     }
