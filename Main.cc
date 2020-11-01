@@ -8,6 +8,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                             int64_t num_instrs_per_phase,
                                             std::string &stats_output_file);
 
+// TODO, change the name to LLC trace
 void TraceGen(std::vector<Config> &cfgs,
               std::vector<std::string> &trace_lists,
               std::string &trace_output_file,
@@ -16,11 +17,15 @@ void TraceGen(std::vector<Config> &cfgs,
 void BPEval(std::vector<std::string> &trace_lists,
             std::string stats_output_file);
 
+void L1TraceGen(const char* cfg_file,
+                const char *trace_name);
+
 int main(int argc, const char *argv[])
 {
     auto [mode,
           dram_cfg_file,
           pcm_cfg_file,
+          trace_gen_cfg_file,
           trace_lists,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           stats_output_file,
@@ -30,6 +35,10 @@ int main(int argc, const char *argv[])
     if (mode == "bp-eval")
     {
         BPEval(trace_lists, stats_output_file);
+    }
+    else if (mode == "l1-trace-gen")
+    {
+        L1TraceGen(trace_gen_cfg_file, trace_lists[0], trace_output_file);
     }
     else if (mode == "trace-gen")
     {

@@ -42,6 +42,7 @@ struct ParseArgsRet
     std::string mode;
     std::string dram_cfg_file;
     std::string pcm_cfg_file;
+    std::string trace_gen_cfg_file;
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
@@ -111,6 +112,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::string mode = "N/A";
     std::string dram_cfg_file = "N/A";
     std::string pcm_cfg_file = "N/A";
+    std::string trace_gen_cfg_file = "N/A";
     std::vector<std::string> traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
@@ -121,11 +123,13 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: dram-only, pcm-only, hybrid, bp-eval, trace-gen")
+                 "Mode: dram-only, pcm-only, hybrid, bp-eval, llc-trace-gen, l1-trace-gen")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
                    "Configuration file for PCM (if hybrid system)")
+        ("trace-gen-config", po::value<std::string>(&trace_gen_cfg_file),
+                   "Configuration file for trace generation")
         ("trace", po::value<std::vector<std::string>>(&traces)->required(),
                       "CPU trace or MEM trace (when mem-ctrl-design is set)")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
@@ -160,6 +164,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     return ParseArgsRet{mode,
                         dram_cfg_file,
                         pcm_cfg_file,
+                        trace_gen_cfg_file,
                         traces,
                         num_instrs_per_phase,
                         stats_output,
@@ -222,6 +227,68 @@ auto runCacheTest(const char* cfg_file, const char *trace_name)
     double hit_rate = (double)num_hits / ((double)num_misses + (double)num_hits);
     std::cout << "Hit rate: " << hit_rate << "\n";
     std::cout << "Number of evictions: " << num_evictions << "\n";
+}
+
+auto L1TraceGen(std::string& cfg_file,
+                std::string& cpu_trace_file,
+                std::string& trace_out_file)
+{
+    Config cfg(cfg_file);
+    Simulator::Trace cpu_trace(cpu_trace_file);
+    
+    Simulator::Instruction instr;
+
+    std::ofstream trace_out(trace_out_file);
+
+    // To test Set-Assoc tag with LRU replacement policy.
+    CacheSimulator::LRUSetWayAssocTags tags(int(Config::Cache_Level::L1D), cfg);
+    // tags.printTagInfo();
+    // std::cout << "\nCache (tag) stressing mode...\n";
+
+    uint64_t cycles = 0;
+
+    uint64_t num_evictions = 0;
+    uint64_t num_hits = 0;
+    uint64_t num_misses = 0;
+
+    bool more_insts = cpu_trace.getInstruction(instr);
+    while (more_insts)
+    {
+        if (instr.opr == Simulator::Instruction::Operation::LOAD ||
+            instr.opr == Simulator::Instruction::Operation::STORE)
+        {
+            uint64_t addr = instr.target_vaddr;
+            if (auto [hit, aligned_addr] = tags.accessBlock(addr,
+                                       instr.opr == Simulator::Instruction::Operation::STORE ?
+                                       true : false,
+                                       cycles);
+                !hit)
+            {
+                trace_out << "0 " << instr.eip << " " << aligned_addr << " L\n";
+
+                ++num_misses;
+                if (auto [wb_required, wb_addr] = tags.insertBlock(aligned_addr,
+                                       instr.opr == Simulator::Instruction::Operation::STORE ?
+                                       true : false,
+                                       cycles);
+                    wb_required)
+		{
+                    ++num_evictions;
+                }
+            }
+            else
+            {
+                ++num_hits;
+            }
+        }
+        more_insts = cpu_trace.getInstruction(instr);
+        ++cycles;
+    }
+    double hit_rate = (double)num_hits / ((double)num_misses + (double)num_hits);
+    std::cout << "Hit rate: " << hit_rate << "\n";
+    std::cout << "Number of evictions: " << num_evictions << "\n";
+
+    trace_out.close();
 }
 
 auto runMemTrace(MemObject *mem_obj,
