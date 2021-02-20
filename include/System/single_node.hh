@@ -15,7 +15,7 @@ class SingleNode : public MMU
     struct Page_Info
     {
         Addr page_id; // virtual page_id
-        Addr re_alloc_page_id; // A page may be re-allocated to a different location (see below)
+        Addr re_alloc_page_id; // A page may be re-allocated to a different location
         
         Addr first_touch_instruction; // The first-touch instruction that brings in this page
 

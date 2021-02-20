@@ -17,6 +17,8 @@ void TraceGen(std::vector<Config> &cfgs,
 void BPEval(std::vector<std::string> &trace_lists,
             std::string stats_output_file);
 
+void PrefEval(std::vector<std::string> &trace_lists);
+
 void L1TraceGen(const char* cfg_file,
                 const char *trace_name);
 
@@ -35,6 +37,10 @@ int main(int argc, const char *argv[])
     if (mode == "bp-eval")
     {
         BPEval(trace_lists, stats_output_file);
+    }
+    else if (mode == "pref-eval")
+    {
+        PrefEval(trace_lists);
     }
     else if (mode == "l1-trace-gen")
     {
@@ -171,6 +177,24 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     DRAM_PCM->registerStats(stats);
     
     stats.outputStats(stats_output_file);
+}
+
+void PrefEval(std::vector<std::string> &trace_lists)
+{
+    std::cerr << "[INFO] Prefetcher evaluation mode." << std::endl;
+
+    // This is our anal. tool for prefetchers
+    Simulator::PrefEval pref_eval;
+
+    Processor processor(1.0, 1.0, trace_lists, &pref_eval);
+    processor.PrefEvalMode();
+
+    processor.setDCache(0, &pref_eval);
+
+    runCPUTrace(&processor);
+
+    Stats stats;
+    pref_eval.registerStats(stats);
 }
 
 void BPEval(std::vector<std::string> &trace_lists,

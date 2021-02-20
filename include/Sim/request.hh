@@ -39,6 +39,9 @@ class Request
         MAX
     }req_type = Request_Type::MAX;
 
+    bool isWrite() { return req_type == Request_Type::WRITE; }
+    bool isRead() { return req_type == Request_Type::READ; }
+
     // Hitwhere, which level of memory it hits.
     enum class Hitwhere : int
     {

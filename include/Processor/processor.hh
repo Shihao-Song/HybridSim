@@ -208,8 +208,47 @@ class Processor
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
                 }
-                else if (cur_inst.opr == Instruction::Operation::LOAD || 
-                         cur_inst.opr == Instruction::Operation::STORE)
+                else if ((cur_inst.opr == Instruction::Operation::LOAD || 
+                          cur_inst.opr == Instruction::Operation::STORE) && 
+                          pref_eval_mode)
+                {
+                    // prefetcher evaluation mode
+                    Request req; 
+
+                    if (cur_inst.opr == Instruction::Operation::LOAD)
+                    {
+                        req.req_type = Request::Request_Type::READ;
+                        // req.callback = window.commit();
+                    }
+                    else if (cur_inst.opr == Instruction::Operation::STORE)
+                    {
+                        req.req_type = Request::Request_Type::WRITE;
+                    }
+
+                    req.core_id = core_id;
+                    req.eip = cur_inst.eip;
+                    req.addr = cur_inst.target_vaddr;
+
+                    // Align the address before sending to cache.
+                    req.addr = req.addr & ~window.block_mask;
+                    assert(d_cache->send(req));
+                    if (cur_inst.opr == Instruction::Operation::STORE)
+                    {
+                        ++num_stores;
+                    }
+                    else
+                    {
+                        ++num_loads;
+                    }
+                    cur_inst.ready_to_commit = true;
+                    window.insert(cur_inst);
+                    inserted++;
+                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
+                    more_insts = trace.getInstruction(cur_inst);
+                }
+                else if ((cur_inst.opr == Instruction::Operation::LOAD || 
+                          cur_inst.opr == Instruction::Operation::STORE) && 
+                          !pref_eval_mode)
                 {
                     assert(d_cache != nullptr);
                     assert(mmu != nullptr);
@@ -356,6 +395,8 @@ class Processor
 
 	bool instrDrained() { return !more_insts; }
 
+        void PrefEvalMode() { pref_eval_mode = true; }
+
         void BPEvalMode()
         {
             if (cur_inst.opr == Instruction::Operation::LOAD ||
@@ -422,6 +463,9 @@ class Processor
         // When evaluating branch predictors, d/i-cache is allowed to be NULL
         MemObject *d_cache = nullptr;
         MemObject *i_cache = nullptr;
+
+        // prefetcher evaluation mode
+        bool pref_eval_mode = false;
     };
 
   public:
@@ -590,6 +634,14 @@ class Processor
         for (auto &core : cores)
         {
             core->BPEvalMode();
+        }
+    }
+
+    void PrefEvalMode()
+    {
+        for (auto &core : cores)
+        {
+            core->PrefEvalMode();
         }
     }
 

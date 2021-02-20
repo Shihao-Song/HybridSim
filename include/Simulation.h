@@ -13,6 +13,7 @@
 #include "CacheSim/cache.hh"
 #include "PCMSim/Memory_System/pcm_sim_memory_system.hh"
 #include "Processor/processor.hh"
+#include "Processor/Prefetcher_Prep/pref_eval.hh"
 
 #include "Sim/trace_probe.hh"
 #include "Sim/dummy_mem_object.hh"
@@ -123,18 +124,18 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: dram-only, pcm-only, hybrid, bp-eval, llc-trace-gen, l1-trace-gen")
+                 "Mode: dram-only, pcm-only, hybrid, bp-eval, pref-eval, llc-trace-gen, l1-trace-gen")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
                    "Configuration file for PCM (if hybrid system)")
         ("trace-gen-config", po::value<std::string>(&trace_gen_cfg_file),
                    "Configuration file for trace generation")
-        ("trace", po::value<std::vector<std::string>>(&traces)->required(),
+        ("trace", po::value<std::vector<std::string>>(&traces),
                       "CPU trace or MEM trace (when mem-ctrl-design is set)")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instructions per phase (Optional)")
-        ("stat_output", po::value<std::string>(&stats_output)->required(),
+        ("stat_output", po::value<std::string>(&stats_output),
                         "Stats output file/Stats output directory (bp-eval mode)")
         ("trace_output", po::value<std::string>(&trace_output_file),
                          "Trace output file (Optional)");
