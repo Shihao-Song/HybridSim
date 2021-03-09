@@ -24,6 +24,8 @@ void L1TraceGen(const char* cfg_file,
 
 int main(int argc, const char *argv[])
 {
+    // TODO, prepare for SVF integration
+
     auto [mode,
           dram_cfg_file,
           pcm_cfg_file,
