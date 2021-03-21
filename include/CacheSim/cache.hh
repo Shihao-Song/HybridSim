@@ -17,8 +17,8 @@ struct OnChipToOffChip{}; // Next level is off-chip
 struct OnChipToOnChip{}; // Next level is still on-chip
 
 struct NormalMode{};
-struct ReadOnly{}; // The cache is read only
-struct WriteOnly{}; // The cache is write only
+// struct ReadOnly{}; // The cache is read only
+// struct WriteOnly{}; // The cache is write only
 
 template<class Tag, class Mode, class Position>
 class Cache : public Simulator::MemObject
@@ -84,53 +84,27 @@ class Cache : public Simulator::MemObject
         //           << level_name << " is receiving an MSHR answer for "
         //           << "addr " << addr << ". ";
 
-        // When only insert the cache-block if the cache is inclusive or the cache is L1-D
-        if (level == Config::Cache_Level::L1D || inclusive)
+        // To insert a new block may cause a eviction, need to make sure the write-back
+        // is not full.
+        if (wb_queue->isFull()) { return false; }
+
+        // Check if this cache line is modified or not. For example, brought in by a store instruction.
+        bool is_entry_modified = mshr_queue->isEntryModified(addr);
+        // The entry may also be modified if brought from the next level cache (as a dirty block)
+        if (req.hitwhere == Request::Hitwhere::L1_D_Dirty ||
+            req.hitwhere == Request::Hitwhere::L2_Dirty || 
+            req.hitwhere == Request::Hitwhere::L3_Dirty)
         {
-            // To insert a new block may cause a eviction, need to make sure the write-back
-            // is not full.
-            if (wb_queue->isFull()) { return false; }
-
-            // Check if this cache line is modified or not. For example, brought in by a store instruction.
-            bool is_entry_modified = mshr_queue->isEntryModified(addr);
-            // The entry may also be modified if brought from the next level cache (as a dirty block)
-            if (req.hitwhere == Request::Hitwhere::L1_D_Dirty ||
-                req.hitwhere == Request::Hitwhere::L2_Dirty || 
-                req.hitwhere == Request::Hitwhere::L3_Dirty)
-            {
-                is_entry_modified = true;
-            }
-
-            // De-allocate the MSHR entry
-            mshr_queue->deAllocate(addr, true);
-
-            auto [wb_required, victim_addr] = tags->insertBlock(addr, is_entry_modified, clk);
-            if (wb_required)
-            {
-                wb_queue->allocate(victim_addr, clk);
-            }
-
-	    // We are trying to make the cache as real as possible.
-            if (victim_addr != ((Addr) - 1) && inclusive)
-            {
-                // std::cout << clk << ": " << level_name 
-                //           << " Evicted address " << victim_addr << "\n";
-
-                // For an inclusive cache, all upper layers of cache should invalidate this 
-                // victim address.
-                bool dirty = false;
-                for (auto &prev_level : prev_levels) { dirty |= prev_level->incluInval(victim_addr); }
-
-                if (dirty) { wb_queue->allocate(victim_addr, clk); }
-            }
-            // std::cout << "Allocated cache block. \n";
+            is_entry_modified = true;
         }
-        else
-	{
-            // De-allocate the MSHR entry
-            mshr_queue->deAllocate(addr, true);
 
-            // std::cout << "Non-inclusive, no allocation. \n";
+        // De-allocate the MSHR entry
+        mshr_queue->deAllocate(addr, true);
+
+        auto [wb_required, victim_addr] = tags->insertBlock(addr, is_entry_modified, clk);
+        if (wb_required)
+        {
+            wb_queue->allocate(victim_addr, clk);
         }
 
         auto iter = pending_queue_for_non_hit_reqs.begin();
@@ -184,21 +158,6 @@ class Cache : public Simulator::MemObject
     }
 
     bool blocked() {return (mshr_queue->isFull() || wb_queue->isFull());}
-
-    bool incluInval(uint64_t addr) override
-    {
-        // std::cout << clk << ": " << level_name 
-        //           << " (inclu) invalidaing addr " << addr << "\n";
-        bool dirty = tags->invalBlock(addr);
-
-        // Our prev levels should be invalidated as well.
-        for (auto &prev_level : prev_levels)
-        {
-            dirty |= prev_level->incluInval(addr);
-        }
-
-        return dirty;
-    }
 
   protected:
     auto nclksToTickNextLevel(auto &cfg)
@@ -366,24 +325,6 @@ class Cache : public Simulator::MemObject
 
             ++num_hits;
 
-            if (level == Config::Cache_Level::L2 && !inclusive)
-            {
-                if (req.hitwhere == Request::Hitwhere::L2_Clean ||
-                    req.hitwhere == Request::Hitwhere::L2_Dirty)
-                {
-                    tags->invalBlock(req.addr);
-                }
-            }
-
-            if (level == Config::Cache_Level::L3 && !inclusive)
-            {
-                if (req.hitwhere == Request::Hitwhere::L3_Clean ||
-                    req.hitwhere == Request::Hitwhere::L3_Dirty)
-                {
-                    tags->invalBlock(req.addr);
-                }
-            }
-
             return true;
         }
         else
@@ -429,14 +370,6 @@ class Cache : public Simulator::MemObject
                     {
                         wb_queue->allocate(victim_addr, clk);
                     }
-                    if (victim_addr != ((Addr) - 1) && inclusive)
-                    {
-
-                        bool dirty = false;
-                        for (auto &prev_level : prev_levels) { dirty |= prev_level->incluInval(victim_addr); }
-
-                        if (dirty) { wb_queue->allocate(victim_addr, clk); }
-                    }
                     // std::cout << clk << ": " << "Core-" << id << "-"
                     //           << level_name << " allocating block for addr "
                     //           << aligned_addr << "\n";
@@ -447,8 +380,8 @@ class Cache : public Simulator::MemObject
             }
 
             // Step four, accept normal READ or WRITES.
-            if constexpr(std::is_same<NormalMode, Mode>::value)
-            {
+            // if constexpr(std::is_same<NormalMode, Mode>::value)
+            // {
                 if (!blocked())
                 {
                     recordAccess(req);
@@ -486,7 +419,7 @@ class Cache : public Simulator::MemObject
                     return true;
                 }
                 return false;
-            }
+            // }
         }
     }
 
@@ -498,22 +431,8 @@ class Cache : public Simulator::MemObject
 
         if (boundary)
         {
-            // TODO, delete assert in the future.
-            // assert(level == Config::Cache_Level::L1D);
-            // clk++;
             return;
         }
-
-        // TODO, re-think the design of arbitration.
-        // TODO, delete assert in the future.
-        // assert(int(level) > int(Config::Cache_Level::L1D));
-        // if (arbitrator)
-        // {
-            // TODO, delete assert in the future.
-            // assert(level == Config::Cache_Level::L2);
-            // TODO, there should be a better arbitration mechanism.
-        //     selected_client = (selected_client + 1) % num_clients;
-        // }
 
         if (clk % nclks_to_tick_next_level == 0)
         {
@@ -534,8 +453,6 @@ class Cache : public Simulator::MemObject
         num_misses = 0;
         num_loads = 0;
         num_evicts = 0;
-
-        selected_client = 0;
 
         if (!boundary)
         {

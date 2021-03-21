@@ -14,13 +14,7 @@ class MemObject
 {
   public:
     MemObject(){}
-    ~MemObject()
-    {
-        if (mem_trace_extr_mode)
-        {
-            mem_trace.close();
-        }
-    }
+    ~MemObject() {}
 
     virtual int pendingRequests() = 0;
 
@@ -34,31 +28,10 @@ class MemObject
         id = _id;
     }
 
-    virtual void setArbitrator(int _num_clients)
-    {
-        arbitrator = true;
-        num_clients = _num_clients;
-    }
-
-    virtual void setBoundaryMemObject()
-    {
-        boundary = true;
-    }
-
     virtual void registerStats(Stats &stats) {}
 
     // Re-initialize cache
     virtual void reInitialize() {}
-
-    // Inclusive invalidation
-    virtual bool incluInval(uint64_t addr) {} 
-
-    // Do we want to extract memory traces from this mem_object?
-    virtual void setTraceOutput(const char* file)
-    {
-        mem_trace_extr_mode = true;
-        mem_trace.open(file);
-    }
 
     // Write-back all the physical address belong to the given page_id.
     // virtual bool writeback(uint64_t page_id) = 0;
@@ -66,12 +39,14 @@ class MemObject
 
     bool isOnChip() const { return on_chip; }
 
-    void setInclusive() { inclusive = true; }
-    bool isInclusive() const { return inclusive; }
+    virtual void setBoundaryMemObject()
+    {
+        boundary = true;
+    }
 
   protected:
     bool on_chip = false;
-    bool inclusive = false; // Is the mem object inclusive? Default: non-inclusive.
+    // bool inclusive = false; // Is the mem object inclusive? Default: non-inclusive.
 
   protected:
     System::MMU *mmu; // Give mem object access to MMU
@@ -82,14 +57,7 @@ class MemObject
 
     int id = -1;
 
-    bool arbitrator = false; // Am i the arbitrator.
-    int num_clients = -1;
-    int selected_client = 0; // Which client is allowed to pass.
-
     bool boundary = false; // I'm the boundary of my group.
-
-    bool mem_trace_extr_mode = false;
-    std::ofstream mem_trace;
 
   public:
     virtual void debugPrint(){}
