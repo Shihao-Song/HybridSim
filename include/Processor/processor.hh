@@ -1,7 +1,6 @@
 #ifndef __PROCESSOR_HH__
 #define __PROCESSOR_HH__
 
-#include "Processor/Branch_Predictor/branch_predictor_factory.hh"
 #include "Sim/instruction.hh"
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
@@ -105,9 +104,8 @@ class Processor
     class Core
     {
       public:
-        Core(int _id, std::string trace_file, std::string bp_type)
-            : bp(createBP(bp_type)),
-              trace(trace_file),
+        Core(int _id, std::string trace_file)
+            : trace(trace_file),
               cycles(0),
               core_id(_id)
         {
@@ -147,10 +145,6 @@ class Processor
 
             if (d_cache != nullptr) { d_cache->tick(); }
 
-            // Absorb all the misprediction penalty
-            while (mispred_penalty)
-            { mispred_penalty--; return; }
-
             int num_window_done = window.retire();
             retired += num_window_done;
             if (phase_enabled) { in_phase_tracking += num_window_done; };
@@ -183,72 +177,8 @@ class Processor
                     cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                     more_insts = trace.getInstruction(cur_inst);
                 }
-                else if (cur_inst.opr == Instruction::Operation::BRANCH)
-                {
-                    // std::cerr << cycles << ": "
-                    //           << cur_inst.thread_id << " "
-                    //           << cur_inst.eip << " B "
-                    //           << cur_inst.taken << " "
-                    //           << cur_inst.branch_target << std::endl;
-
-                    cur_inst.ready_to_commit = true;
-                    window.insert(cur_inst);
-                    inserted++;
-
-                    // If there is a branch misprediction, stall the processor
-                    // for 15 clock cycles (a typical misprediction penalty).
-                    if (!bp->predict(cur_inst))
-                    {
-                        cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
-                        more_insts = trace.getInstruction(cur_inst);
-                        mispred_penalty = 15;
-                        break; // No new instruction should be issued before penalty
-                               // is completely resolved.
-                    }
-                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
-                    more_insts = trace.getInstruction(cur_inst);
-                }
                 else if ((cur_inst.opr == Instruction::Operation::LOAD || 
-                          cur_inst.opr == Instruction::Operation::STORE) && 
-                          pref_eval_mode)
-                {
-                    // prefetcher evaluation mode
-                    Request req; 
-
-                    if (cur_inst.opr == Instruction::Operation::LOAD)
-                    {
-                        req.req_type = Request::Request_Type::READ;
-                        // req.callback = window.commit();
-                    }
-                    else if (cur_inst.opr == Instruction::Operation::STORE)
-                    {
-                        req.req_type = Request::Request_Type::WRITE;
-                    }
-
-                    req.core_id = core_id;
-                    req.eip = cur_inst.eip;
-                    req.addr = cur_inst.target_vaddr;
-
-                    // Align the address before sending to cache.
-                    req.addr = req.addr & ~window.block_mask;
-                    assert(d_cache->send(req));
-                    if (cur_inst.opr == Instruction::Operation::STORE)
-                    {
-                        ++num_stores;
-                    }
-                    else
-                    {
-                        ++num_loads;
-                    }
-                    cur_inst.ready_to_commit = true;
-                    window.insert(cur_inst);
-                    inserted++;
-                    cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
-                    more_insts = trace.getInstruction(cur_inst);
-                }
-                else if ((cur_inst.opr == Instruction::Operation::LOAD || 
-                          cur_inst.opr == Instruction::Operation::STORE) && 
-                          !pref_eval_mode)
+                          cur_inst.opr == Instruction::Operation::STORE))
                 {
                     assert(d_cache != nullptr);
                     assert(mmu != nullptr);
@@ -395,46 +325,14 @@ class Processor
 
 	bool instrDrained() { return !more_insts; }
 
-        void PrefEvalMode() { pref_eval_mode = true; }
-
-        void BPEvalMode()
-        {
-            if (cur_inst.opr == Instruction::Operation::LOAD ||
-                cur_inst.opr == Instruction::Operation::STORE)
-            {
-                cur_inst.opr = Instruction::Operation::EXE;
-            }
-            trace.BPEvalMode();
-        }
-
-        void MEMEvalMode()
-        {
-            if (cur_inst.opr == Instruction::Operation::BRANCH)
-            {
-                cur_inst.opr = Instruction::Operation::EXE;
-            }
-            trace.MEMEvalMode();
-        }
-
         void registerStats(Simulator::Stats &stats)
         {
             std::string registeree_name = "Core-" + std::to_string(core_id);
             stats.registerStats(registeree_name +
                             ": Number of instructions = " + std::to_string(retired));
-
-            stats.registerStats(registeree_name +
-                            "-BP: Number of correct predictions = " + 
-                            std::to_string(bp->getCorPreds()));
-            stats.registerStats(registeree_name +
-                            "-BP: Number of in-correct predictions = " +
-                            std::to_string(bp->getInCorPreds()));
         }
 
       private:
-        std::unique_ptr<Branch_Predictor> bp;
-
-        unsigned mispred_penalty = 0;
-
         // When evaluting branch predictors, MMU is allowed to be NULL.
         MMU *mmu = nullptr;
 
@@ -464,22 +362,19 @@ class Processor
         MemObject *d_cache = nullptr;
         MemObject *i_cache = nullptr;
 
-        // prefetcher evaluation mode
-        bool pref_eval_mode = false;
     };
 
   public:
     Processor(float on_chip_frequency, float off_chip_frequency,
               std::vector<std::string> trace_lists,
-              MemObject *_shared_m_obj,
-              std::string bp_type = "tournament") : cycles(0), shared_m_obj(_shared_m_obj)
+              MemObject *_shared_m_obj) : cycles(0), shared_m_obj(_shared_m_obj)
     {
         unsigned num_of_cores = trace_lists.size();
         for (int i = 0; i < num_of_cores; i++)
         {
             std::cout << "Core " << i << " is assigned trace: "
                       << trace_lists[i] << "\n";
-            cores.emplace_back(new Core(i, trace_lists[i], bp_type));
+            cores.emplace_back(new Core(i, trace_lists[i]));
         }
 
         if (shared_m_obj->isOnChip()) { nclks_to_tick_shared = 1; }
@@ -627,30 +522,6 @@ class Processor
             num_loads += core->numLoads();
         }
         return num_loads;
-    }
-
-    void BPEvalMode()
-    {
-        for (auto &core : cores)
-        {
-            core->BPEvalMode();
-        }
-    }
-
-    void PrefEvalMode()
-    {
-        for (auto &core : cores)
-        {
-            core->PrefEvalMode();
-        }
-    }
-
-    void MEMEvalMode()
-    {
-        for (auto &core : cores)
-        {
-            core->MEMEvalMode();
-        }
     }
 
     void registerStats(Simulator::Stats &stats)
