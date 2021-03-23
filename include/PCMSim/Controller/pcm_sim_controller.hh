@@ -39,7 +39,6 @@ class BaseController
 
     // One for read and one for write
     // This is a per-bank record on how many reads and writes left to a bank.
-    std::vector<std::vector<int>> num_reqs_to_banks[2];
 
   protected:
     Tick clk;
@@ -57,21 +56,7 @@ class BaseController
     {
         channel = std::make_unique<Array>(Config::Array_Level::Channel, cfg);
         channel->id = _id;
-
-        for (int k = 0; k < 2; k++)
-        {
-            num_reqs_to_banks[k].resize(num_of_ranks);
-            for (int i = 0; i < num_of_ranks; i++)
-            {
-                num_reqs_to_banks[k][i].resize(num_of_banks);
-
-                for (int j = 0; j < num_of_banks; j++)
-                {
-                    num_reqs_to_banks[k][i][j] = 0;
-                }
-            }
-        }
-    }
+   }
     
     virtual ~BaseController()
     { 
@@ -135,7 +120,8 @@ class BaseController
                   << "Row:" << req.addr_vec[int(Config::Decoding::Row)] << ","
                   << "Col:" << req.addr_vec[int(Config::Decoding::Col)] << ",";
 
-        std::cout << req.begin_exe << ","
+        std::cout << req.queue_arrival << ","
+                  << req.begin_exe << ","
                   << req.end_exe << ","
                   << (req.end_exe - req.begin_exe) << "\n";
     }
@@ -155,9 +141,9 @@ class FCFSController : public BaseController
     std::deque<Request> r_w_pending_queue;
 
   protected:
-    const unsigned singleReadLatency = 57;
-    const unsigned singleWriteLatency = 162;
-    const unsigned channelDelay = 15;
+    unsigned singleReadLatency = 57;
+    unsigned singleWriteLatency = 162;
+    unsigned channelDelay = 15;
 
   public:
     FCFSController(int _id, Config &cfg)
@@ -178,10 +164,6 @@ class FCFSController : public BaseController
             return false;
         }
        
-        int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
-        int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
-        num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]++;
-
         req.queue_arrival = clk;	
         req.OrderID = queue.size(); // To track back-logging.
 	queue.push_back(req);
@@ -256,27 +238,7 @@ class FCFSController : public BaseController
         Request &req = r_w_pending_queue[0];
         if (req.end_exe <= clk)
         {
-            /*
-            if (req.req_type == Request::Request_Type::READ)
-            {
-                std::cout << "R,";
-            }
-            else
-            {
-                std::cout << "W,";
-            }
-
-            unsigned uni_bank_id = req.addr_vec[int(Config::Decoding::Channel)] *
-                                   num_of_ranks * num_of_banks +
-                                   req.addr_vec[int(Config::Decoding::Rank)] *
-                                   num_of_banks +
-                                   req.addr_vec[int(Config::Decoding::Bank)];
-            std::cout << uni_bank_id << ","
-                      // << req.addr_vec[int(Config::Decoding::Row)] << ","
-                      << req.queue_arrival << ","
-                      << req.begin_exe << ","
-                      << req.end_exe << "\n";
-            */
+            // displayReqInfo(req);
             if (req.callback)
             {
                 if (req.callback(req))
@@ -287,10 +249,6 @@ class FCFSController : public BaseController
                         total_waiting_time += waiting_time;
                         ++finished_requests;
                     }
-
-                    int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
-                    int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
-                    num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]--;
 
                     r_w_pending_queue.pop_front();
                 }
@@ -304,16 +262,13 @@ class FCFSController : public BaseController
                     ++finished_requests;
                 }
 
-                int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
-                int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
-                num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]--;
-
                 r_w_pending_queue.pop_front();
             }
         }
     }
 
-    virtual std::pair<bool,std::list<Request>::iterator> getHead(std::list<Request>& queue)
+    virtual std::pair<bool,std::list<Request>::iterator> 
+        getHead(std::list<Request>& queue)
     {
         if (queue.size() == 0)
         {
@@ -373,7 +328,8 @@ class FRFCFSController : public FCFSController
     {}
 
   protected:
-    std::pair<bool,std::list<Request>::iterator> getHead(std::list<Request>& queue) override
+    std::pair<bool,std::list<Request>::iterator> 
+        getHead(std::list<Request>& queue) override
     {
         if (queue.size() == 0)
         {
@@ -391,6 +347,18 @@ class FRFCFSController : public FCFSController
         return std::make_pair(false, queue.end());
     }
 };
+
+class DRAMController : public FRFCFSController
+{
+  public:
+    DRAMController(int _id, Config &cfg)
+        : FRFCFSController(_id, cfg)
+    {
+        singleReadLatency = 52;
+        singleWriteLatency = 52;
+    }
+};
+
 }
 
 #endif

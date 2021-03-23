@@ -22,7 +22,6 @@ class Tags
         : block_size(cfg.block_size),
           block_mask(block_size - 1),
           size(cfg.caches[level].size * 1024),
-          // size(cfg.caches[level].size),
           num_blocks(size / block_size),
           blks(new T[num_blocks])
     {}

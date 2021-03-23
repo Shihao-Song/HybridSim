@@ -85,45 +85,5 @@ class Request
         callback(_callback)
     {}
 };
-
-// TODO, move this PLP_Controller diectory
-class PLPRequest : public Request
-{
-  public:
-    PLPRequest() : Request() {}
-
-    PLPRequest(Request &req) : Request()
-    { 
-        core_id = req.core_id;
-
-        addr = req.addr;
-        addr_vec = req.addr_vec;
-        size = req.size;
-
-        req_type = req.req_type;
-
-        callback = req.callback;
-    }
-
-    /*  PLP (Partition-level Parallelism) Section */
-    enum class Pairing_Type : int
-    {
-        RR, // Two reads scheduled in parallel
-        RW, // One read and one write scheduled in parallel
-        MAX
-    }pair_type = Pairing_Type::MAX;
-
-    // PLP related, master: request whose OrderID and queue arrival time are smaller
-    int master = 0;
-    // PLP related, slave: request that is scheduled with the master, this request
-    // comes (into the queue) later than master
-    int slave = 0;
-
-    // PLP related, master maintains a pointer to slave
-    std::list<PLPRequest>::iterator slave_req;
-    // PLP related, slave maintains a pointer to master
-    std::list<PLPRequest>::iterator master_req;
-};
-
 }
 #endif

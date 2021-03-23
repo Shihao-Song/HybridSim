@@ -7,7 +7,6 @@
 #include "Sim/request.hh"
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
-#include "PCMSim/CP_Aware_Controller/cp_aware_controller.hh"
 
 #include <functional>
 #include <iostream>
@@ -15,6 +14,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+// TODO, delete all the memory controller except the basic ones
+// TODO, don't forget to clean the request section
 
 namespace PCMSim
 {
@@ -25,7 +27,7 @@ class PCMSimMemorySystem : public Simulator::MemObject
 {
   private:
     std::vector<std::unique_ptr<PCMController>> pcm_controllers;
-    std::vector<std::unique_ptr<TLDRAMController>> dram_controllers;
+    std::vector<std::unique_ptr<DRAMController>> dram_controllers;
 
     std::vector<int> pcm_memory_addr_decoding_bits;
     std::vector<int> dram_memory_addr_decoding_bits;
@@ -185,116 +187,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
             stats.registerStats(waiting_info);
             stats.registerStats(access_latency);
         }
-        /*
-        if constexpr (std::is_same<LAS_PCM_Base, PCMController>::value ||
-                      std::is_same<LAS_PCM_Static, PCMController>::value ||
-                      std::is_same<LAS_PCM_Controller, PCMController>::value ||
-                      std::is_same<LASER_Controller, PCMController>::value ||
-                      std::is_same<LASER_2_Controller, PCMController>::value)
-        {
-            for (auto &controller : pcm_controllers)
-            {
-                std::string prin = "PCM_Channel_" + std::to_string(controller->id)
-                                   + "_Total_Idle = "
-                                   + std::to_string(controller->total_idle);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_PS_Aging = "
-                       + std::to_string(controller->total_ps_aging);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_VL_Aging = "
-                       + std::to_string(controller->total_vl_aging);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_SA_Aging = "
-                       + std::to_string(controller->total_sa_aging);
-                stats.registerStats(prin);
-
-                prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_MAX_Aging = "
-                       + std::to_string(controller->total_max_aging);
-                stats.registerStats(prin);
-
-		prin = "PCM_Channel_" + std::to_string(controller->id)
-                       + "_Total_Discharge = "
-                       + std::to_string(controller->total_discharge);
-                stats.registerStats(prin);
-            }
-        }
-        */
-        if constexpr (std::is_same<CPAwareController, PCMController>::value)
-        {
-            for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
-            {
-                std::string technology = "N/A";
-                if (m == int(Config::Memory_Node::DRAM))
-                { technology = "DRAM_"; }
-                else if (m == int(Config::Memory_Node::PCM))
-                { technology = "PCM_"; }
-
-                unsigned num_stages = 0;
-                if (m == int(Config::Memory_Node::DRAM))
-                {
-                    if (dram_controllers.size())
-                    {
-                        num_stages = dram_controllers[0]->numStages();
-                    }
-                }
-                else if (m == int(Config::Memory_Node::PCM))
-                {
-                    if (pcm_controllers.size())
-                    {
-                        num_stages = pcm_controllers[0]->numStages();
-                    }
-                }
-
-                for (int i = 0; i < int(CPAwareController::Req_Type::MAX); i++)
-                {
-                    std::string target = "READ";
-                    if (i == int(CPAwareController::Req_Type::READ))
-                    {
-                        target = "READ";
-                    }
-                    if (i == int(CPAwareController::Req_Type::WRITE))
-                    {
-                        target = "WRITE";
-                    }
-                
-                    for (int j = 0; j < num_stages; j++)
-                    {
-                        int64_t stage_accesses = 0;
-                        if (m == int(Config::Memory_Node::DRAM))
-                        {
-                            for (auto &controller : dram_controllers)
-                            {
-                                // i - request type; j - stage ID.
-                                stage_accesses += controller->stageAccess(i, j);
-                            }
-                        }
-                        else if (m == int(Config::Memory_Node::PCM))
-                        {
-                            for (auto &controller : pcm_controllers)
-                            {
-                                // i - request type; j - stage ID.
-                                stage_accesses += controller->stageAccess(i, j);
-                            }
-                        }
-
-                        std::string stage_access_prin = technology + 
-                                                        "Stage_" + std::to_string(j) + "_"
-                                                        + target + "_Access"
-                                                        + " = "
-                                                        + std::to_string(stage_accesses);
-
-                        stats.registerStats(stage_access_prin);
-                    }
-                }
-            }
-        }
     }
 
   private:
@@ -302,7 +194,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         for (int i = 0; i < pcm_cfg.num_of_channels; i++)
         {
-            pcm_controllers.push_back(std::move(std::make_unique<PCMController>(i, pcm_cfg)));
+            pcm_controllers.push_back(std::move(std::make_unique<PCMController>(i, 
+                pcm_cfg)));
         }
         pcm_memory_addr_decoding_bits = pcm_cfg.mem_addr_decoding_bits;
     }
@@ -311,8 +204,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
     {
         for (int i = 0; i < dram_cfg.num_of_channels; i++)
         {
-            dram_controllers.push_back(std::move(std::make_unique<TLDRAMController>(i, 
-                                                                                    dram_cfg)));
+            dram_controllers.push_back(std::move(std::make_unique<DRAMController>(i, 
+                dram_cfg)));
         }
         dram_memory_addr_decoding_bits = dram_cfg.mem_addr_decoding_bits;
 
@@ -323,14 +216,6 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<CPAwareController> CP_Aware_PCMSimMemorySystem;
-/*
-typedef PCMSimMemorySystem<LAS_PCM_Controller> LASPCM_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<LAS_PCM_Static> LASPCM_Static_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<LAS_PCM_Base> LASPCM_Base_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<LASER_Controller> LASER_PCMSimMemorySystem;
-typedef PCMSimMemorySystem<LASER_2_Controller> LASER_2_PCMSimMemorySystem;
-*/
 
 class PCMSimMemorySystemFactory
 {
@@ -348,78 +233,26 @@ class PCMSimMemorySystemFactory
     PCMSimMemorySystemFactory()
     {
         pcm_factories["FCFS"] = [](Config &pcm_cfg)
-                            {
-                                return std::make_unique<FCFS_PCMSimMemorySystem>(pcm_cfg);
-                            };
+                    {
+                        return std::make_unique<FCFS_PCMSimMemorySystem>(pcm_cfg);
+                    };
 
         pcm_factories["FR-FCFS"] = [](Config &pcm_cfg)
-                            {
-                                return std::make_unique<FR_FCFS_PCMSimMemorySystem>(pcm_cfg);
-                            };
+                    {
+                        return std::make_unique<FR_FCFS_PCMSimMemorySystem>(pcm_cfg);
+                    };
+	
+        hybrid_factories["FCFS"] = [](Config &dram_cfg, Config &pcm_cfg)
+                    {
+                        return std::make_unique<FCFS_PCMSimMemorySystem>(dram_cfg,
+                            pcm_cfg);
+                    };
 
-        pcm_factories["CP-AWARE"] = [](Config &pcm_cfg)
-                            {
-                                return std::make_unique<CP_Aware_PCMSimMemorySystem>(pcm_cfg);
-                            };
-
-        hybrid_factories["CP-AWARE"] = [](Config &dram_cfg, Config &pcm_cfg)
-                          {
-                              return std::make_unique<CP_Aware_PCMSimMemorySystem>(dram_cfg,
-                                                                                   pcm_cfg);
-                          };
-        /*
-        pcm_factories["LASER-2"] = [](Config &pcm_cfg)
-                          {
-                              return std::make_unique<LASER_2_PCMSimMemorySystem>(pcm_cfg);
-                          };
-
-
-        pcm_factories["LASER"] = [](Config &pcm_cfg)
-                          {
-                              return std::make_unique<LASER_PCMSimMemorySystem>(pcm_cfg);
-                          };
-
-
-        pcm_factories["LAS-PCM"] = [](Config &pcm_cfg)
-                          {
-                              return std::make_unique<LASPCM_PCMSimMemorySystem>(pcm_cfg);
-                          };
-
-        pcm_factories["LAS-PCM-Static"] = [](Config &pcm_cfg)
-            {
-                return std::make_unique<LASPCM_Static_PCMSimMemorySystem>(pcm_cfg);
-            };
-
-        pcm_factories["LAS-PCM-Base"] = [](Config &pcm_cfg)
-            {
-                return std::make_unique<LASPCM_Base_PCMSimMemorySystem>(pcm_cfg);
-            };
-
-
-        hybrid_factories["CP-AWARE"] = [](Config &dram_cfg, Config &pcm_cfg)
-                          {
-                              return std::make_unique<CP_Aware_PCMSimMemorySystem>(dram_cfg,
-                                                                                   pcm_cfg);
-                          };
-
-        hybrid_factories["LASER-2"] = [](Config &dram_cfg, Config &pcm_cfg)
-                          {
-                              return std::make_unique<LASER_2_PCMSimMemorySystem>(dram_cfg,
-                                                                                  pcm_cfg);
-                          };
-
-        hybrid_factories["LASER"] = [](Config &dram_cfg, Config &pcm_cfg)
-                          {
-                              return std::make_unique<LASER_PCMSimMemorySystem>(dram_cfg,
-                                                                                pcm_cfg);
-                          };
-
-        hybrid_factories["LAS-PCM-Static"] = [](Config &dram_cfg, Config &pcm_cfg)
-            {
-                return std::make_unique<LASPCM_Static_PCMSimMemorySystem>(dram_cfg, pcm_cfg);
-            };
-
-        */
+        hybrid_factories["FR-FCFS"] = [](Config &dram_cfg, Config &pcm_cfg)
+                    {
+                        return std::make_unique<FR_FCFS_PCMSimMemorySystem>(dram_cfg,
+                            pcm_cfg);
+                    };
     }
 
     auto createPCMMemorySystem(Config &pcm_cfg)
@@ -460,7 +293,8 @@ static auto createPCMMemorySystem(Simulator::Config &pcm_cfg)
     return PCMSimMemorySystemFactories.createPCMMemorySystem(pcm_cfg);
 }
 
-static auto createHybridMemorySystem(Simulator::Config &dram_cfg, Simulator::Config &pcm_cfg)
+static auto createHybridMemorySystem(Simulator::Config &dram_cfg, 
+                                     Simulator::Config &pcm_cfg)
 {
     return PCMSimMemorySystemFactories.createHybridMemorySystem(dram_cfg, pcm_cfg);
 }

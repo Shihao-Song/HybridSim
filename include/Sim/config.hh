@@ -65,7 +65,11 @@ class Config
     unsigned numNearRows() const { return num_of_near_rows; }
     unsigned numRows() const { return num_of_word_lines_per_tile; }
 
+    Config() {}
+
     Config(const std::string &cfg_file);
+
+    void setCfgFile(const std::string &cfg_file);
 
     void parse(const std::string &fname);
 

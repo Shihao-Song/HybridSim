@@ -3,7 +3,15 @@
 
 #include "Simulation.h"
 
-void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
+struct hybridCfgArgs
+{
+    hybridCfgArgs() {}
+    ~hybridCfgArgs() {}
+
+    Config dram_cfg;
+    Config pcm_cfg;
+};
+void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
                                             std::string &stats_output_file);
@@ -22,9 +30,10 @@ int main(int argc, const char *argv[])
 
     if (mode == "hybrid")
     {
-        std::vector<Config> cfgs;
-        cfgs.emplace_back(dram_cfg_file);
-        cfgs.emplace_back(pcm_cfg_file);
+        hybridCfgArgs cfgs;
+
+        cfgs.dram_cfg.setCfgFile(dram_cfg_file);
+        cfgs.pcm_cfg.setCfgFile(pcm_cfg_file);
 
         // For a Hybrid system, the first config file should be for DRAM and the second
         // one should be PCM.
@@ -33,9 +42,14 @@ int main(int argc, const char *argv[])
                                                num_instrs_per_phase,
                                                stats_output_file);
     }
+    else
+    {
+        std::cerr << "Error: currently only support hybrid for this branch \n";
+        exit(0);
+    }
 }
 
-void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
+void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_instrs_per_phase,
                                             std::string &stats_output_file)
@@ -43,14 +57,11 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     // TODO, for any shared caches, multiply their mshr and wb sizes to num_of_cores, please
     // see our example configuration files for more information.
     unsigned num_of_cores = trace_lists.size();
-    Config &dram_cfg = cfgs[0];
-    Config &pcm_cfg = cfgs[1];
+    Config &dram_cfg = cfgs.dram_cfg;
+    Config &pcm_cfg = cfgs.pcm_cfg;
 
     // Memory System Creation
     std::unique_ptr<MemObject> DRAM_PCM(createHybridSystem(dram_cfg, pcm_cfg));
-    // TODO, delete offline... function, we should only output important information to 
-    // the stats file only.
-    // DRAM_PCM->offlineReqAnalysis(offline_request_analysis_dir);
 
     // Cache system
     std::vector<std::unique_ptr<MemObject>> L1Ds;
@@ -63,9 +74,13 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
                                                         Memories::L1_D_CACHE,
                                                         isNonLLC));
 
-        std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, Memories::L2_CACHE, isNonLLC));
+        std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, 
+                                                      Memories::L2_CACHE, 
+                                                      isNonLLC));
 
-        std::unique_ptr<MemObject> L3(createMemObject(pcm_cfg, Memories::L3_CACHE, isLLC));
+        std::unique_ptr<MemObject> L3(createMemObject(pcm_cfg, 
+                                                      Memories::L3_CACHE,
+                                                      isLLC));
 
         L1_D->setId(i);
         L2->setId(i);
@@ -88,13 +103,13 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(std::vector<Config> &cfgs,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, dram_cfg, pcm_cfg));
-    mmu->setMemSystem(DRAM_PCM.get());
     DRAM_PCM->setMMU(mmu.get());
-
+    
     // Create Processor
     std::unique_ptr<Processor> processor(new Processor(pcm_cfg.on_chip_frequency,
                                                        pcm_cfg.off_chip_frequency,
                                                        trace_lists, DRAM_PCM.get()));
+    
     processor->setMMU(mmu.get());
     processor->numInstPerPhase(num_instrs_per_phase);
     for (int i = 0; i < num_of_cores; i++) 

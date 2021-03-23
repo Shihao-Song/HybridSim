@@ -58,6 +58,8 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         }
 
         tagsInit();
+
+        // printTagInfo();
     }
 
     std::pair<bool, Addr> accessBlock(Addr addr, bool modify, Tick cur_clk = 0) override
@@ -127,7 +129,8 @@ class SetWayAssocTags : public TagsWithSetWayBlk
 
         if (blk != nullptr)
 	{
-            if (blk->isDirty()) { invalidate(blk); return true; } else { invalidate(blk); return false; }
+            if (blk->isDirty()) { invalidate(blk); return true; } 
+            else { invalidate(blk); return false; }
         }
 
         return false;
@@ -183,7 +186,6 @@ class SetWayAssocTags : public TagsWithSetWayBlk
     {
         // Extract block tag
         Addr tag = extractTag(addr);
-        // std::cout << "Set: " << extractSet(addr) << "; ";
 
         // Extract the set
         const std::vector<SetWayBlk *> set = sets[extractSet(addr)];

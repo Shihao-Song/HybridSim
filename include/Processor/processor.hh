@@ -290,10 +290,6 @@ class Processor
             // re-Initialize all the trackings
             phase_end = false;
             in_phase_tracking = 0;
-
-            // Signal the MMU for an phase end.
-            // Only let core 0 to signal is enough.
-            if (core_id == 0) { mmu->phaseDone(); }
         }
 
         bool endOfPhase()
@@ -376,7 +372,7 @@ class Processor
                       << trace_lists[i] << "\n";
             cores.emplace_back(new Core(i, trace_lists[i]));
         }
-
+        
         if (shared_m_obj->isOnChip()) { nclks_to_tick_shared = 1; }
         else { nclks_to_tick_shared = on_chip_frequency / off_chip_frequency; }
     }
@@ -469,10 +465,6 @@ class Processor
         {
             if (!core->endOfPhase()) { return; }
         }
-
-        assert(mmu != nullptr);
-        if (!mmu->pageMig()) { return; } // Only proceed when the 
-                                            // page migration is done.
 
         // All cores reach the end of a execution phase
         for (auto &core : cores)

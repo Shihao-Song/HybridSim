@@ -4,6 +4,15 @@ namespace Simulator
 {
 Config::Config(const std::string &cfg_file)
 {
+    setCfgFile(cfg_file);
+    // parse(cfg_file);
+
+    // Generate memory address decoding bits
+    // genMemAddrDecodingBits();
+}
+
+void Config::setCfgFile(const std::string &cfg_file)
+{
     parse(cfg_file);
 
     // Generate memory address decoding bits

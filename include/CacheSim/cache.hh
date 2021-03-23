@@ -82,15 +82,17 @@ class Cache : public Simulator::MemObject
 
         // std::cout << clk << ": " << "Core-" << id << "-" 
         //           << level_name << " is receiving an MSHR answer for "
-        //           << "addr " << addr << ". ";
+        //           << "addr " << addr << ". \n";
 
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
         if (wb_queue->isFull()) { return false; }
 
-        // Check if this cache line is modified or not. For example, brought in by a store instruction.
+        // Check if this cache line is modified or not. 
+        // For example, brought in by a store instruction.
         bool is_entry_modified = mshr_queue->isEntryModified(addr);
-        // The entry may also be modified if brought from the next level cache (as a dirty block)
+        // The entry may also be modified if brought from the next level cache 
+        // (as a dirty block)
         if (req.hitwhere == Request::Hitwhere::L1_D_Dirty ||
             req.hitwhere == Request::Hitwhere::L2_Dirty || 
             req.hitwhere == Request::Hitwhere::L3_Dirty)
@@ -101,7 +103,9 @@ class Cache : public Simulator::MemObject
         // De-allocate the MSHR entry
         mshr_queue->deAllocate(addr, true);
 
-        auto [wb_required, victim_addr] = tags->insertBlock(addr, is_entry_modified, clk);
+        auto [wb_required, victim_addr] = tags->insertBlock(addr, 
+                                          is_entry_modified, 
+                                          clk);
         if (wb_required)
         {
             wb_queue->allocate(victim_addr, clk);
@@ -208,8 +212,8 @@ class Cache : public Simulator::MemObject
             }
         }
 
-        // Note, we are not serving non-hit reqs directly but sending out corres. MSHR request
-        // to next level.
+        // Note, we are not serving non-hit reqs directly but sending out corres. 
+        // MSHR request to next level.
         auto [write_back_entry_ready, write_back_addr] = wb_queue->getEntry(clk);
         auto [mshr_entry_ready, mshr_req_addr] = mshr_queue->getEntry(clk);
 
@@ -312,12 +316,18 @@ class Cache : public Simulator::MemObject
 
             // Indicate which layer it hits
             bool dirty = tags->isBlockModified(req.addr);
-            if (level == Config::Cache_Level::L1D && !dirty) { req.hitwhere = Request::Hitwhere::L1_D_Clean; }
-            if (level == Config::Cache_Level::L1D && dirty) { req.hitwhere = Request::Hitwhere::L1_D_Dirty; }
-            if (level == Config::Cache_Level::L2 && !dirty) { req.hitwhere = Request::Hitwhere::L2_Clean; }
-            if (level == Config::Cache_Level::L2 && dirty) { req.hitwhere = Request::Hitwhere::L2_Dirty; }
-            if (level == Config::Cache_Level::L3 && !dirty) { req.hitwhere = Request::Hitwhere::L3_Clean; }
-            if (level == Config::Cache_Level::L3 && dirty) { req.hitwhere = Request::Hitwhere::L3_Dirty; }
+            if (level == Config::Cache_Level::L1D && !dirty) 
+            { req.hitwhere = Request::Hitwhere::L1_D_Clean; }
+            if (level == Config::Cache_Level::L1D && dirty) 
+            { req.hitwhere = Request::Hitwhere::L1_D_Dirty; }
+            if (level == Config::Cache_Level::L2 && !dirty) 
+            { req.hitwhere = Request::Hitwhere::L2_Clean; }
+            if (level == Config::Cache_Level::L2 && dirty) 
+            { req.hitwhere = Request::Hitwhere::L2_Dirty; }
+            if (level == Config::Cache_Level::L3 && !dirty) 
+            { req.hitwhere = Request::Hitwhere::L3_Clean; }
+            if (level == Config::Cache_Level::L3 && dirty) 
+            { req.hitwhere = Request::Hitwhere::L3_Dirty; }
 
             req.begin_exe = clk;
             req.end_exe = clk + tag_lookup_latency;
@@ -337,9 +347,12 @@ class Cache : public Simulator::MemObject
             {
                 recordAccess(req);
 
-                if (level == Config::Cache_Level::L1D) { req.hitwhere = Request::Hitwhere::L1_D_Dirty; }
-                if (level == Config::Cache_Level::L2) { req.hitwhere = Request::Hitwhere::L2_Dirty; }
-                if (level == Config::Cache_Level::L3) { req.hitwhere = Request::Hitwhere::L3_Dirty; }
+                if (level == Config::Cache_Level::L1D) 
+                { req.hitwhere = Request::Hitwhere::L1_D_Dirty; }
+                if (level == Config::Cache_Level::L2) 
+                { req.hitwhere = Request::Hitwhere::L2_Dirty; }
+                if (level == Config::Cache_Level::L3) 
+                { req.hitwhere = Request::Hitwhere::L3_Dirty; }
 
                 ++num_hits;
 
@@ -380,46 +393,43 @@ class Cache : public Simulator::MemObject
             }
 
             // Step four, accept normal READ or WRITES.
-            // if constexpr(std::is_same<NormalMode, Mode>::value)
-            // {
-                if (!blocked())
-                {
-                    recordAccess(req);
+            if (!blocked())
+            {
+                recordAccess(req);
 
-                    assert(!mshr_queue->isFull());
-                    assert(!wb_queue->isFull());
+                assert(!mshr_queue->isFull());
+                assert(!wb_queue->isFull());
 
-                    if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
-                                                             clk + tag_lookup_latency);
+                if (auto hit_in_mshr_queue = mshr_queue->allocate(aligned_addr,
+                                                 clk + tag_lookup_latency);
                         hit_in_mshr_queue)
-                    {
-                         // std::cout << clk << ": Address " << aligned_addr 
-                         //           << " is hit in MSRH. \n";
-                        ++num_hits;
-                    }
-                    else
-                    {
-                        // Not hit in cache
-                        // Not hit in wb
-                        // Not in mshr 
-                        ++num_misses;
-                    }
-
-                    if (req.req_type == Request::Request_Type::WRITE)
-                    {
-                         // std::cout << "Address " << aligned_addr
-                         //           << " write arequest is detected.\n";
-                       
-                        mshr_queue->setEntryModified(aligned_addr);
-                    }
-
-                    req.begin_exe = clk;
-                    pending_queue_for_non_hit_reqs.push_back(req);
-
-                    return true;
+                {
+                    // std::cout << clk << ": Address " << aligned_addr 
+                    //           << " is hit in MSRH. \n";
+                    ++num_hits;
                 }
-                return false;
-            // }
+                else
+                {
+                    // Not hit in cache
+                    // Not hit in wb
+                    // Not in mshr 
+                    ++num_misses;
+                }
+
+                if (req.req_type == Request::Request_Type::WRITE)
+                {
+                    // std::cout << "Address " << aligned_addr
+                    //           << " write arequest is detected.\n";
+                       
+                    mshr_queue->setEntryModified(aligned_addr);
+                }
+
+                req.begin_exe = clk;
+                pending_queue_for_non_hit_reqs.push_back(req);
+
+                return true;
+            }
+            return false;
         }
     }
 
