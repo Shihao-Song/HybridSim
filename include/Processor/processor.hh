@@ -15,6 +15,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 namespace CoreSystem
 {
 typedef uint64_t Addr;
@@ -89,9 +92,13 @@ class Processor
                 {
                     Instruction &inst = pending_instructions[i];
                     if (inst.opr == Instruction::Operation::LOAD &&
-                       (inst.target_paddr & ~block_mask) == addr)
+                        (inst.target_paddr & ~block_mask) == addr &&
+	                !inst.ready_to_commit)
                     {
                         inst.ready_to_commit = true;
+                        std::cout << "  " 
+                                  << inst.target_paddr
+                                  << " resolved. \n";
                     }
                 }
 
@@ -147,7 +154,6 @@ class Processor
 
             int num_window_done = window.retire();
             retired += num_window_done;
-            if (phase_enabled) { in_phase_tracking += num_window_done; };
 
             if (cycles % 1000000 == 0)
             {
@@ -155,13 +161,9 @@ class Processor
                             << " has done " << retired << " instructions. \n";
 	    }
             // (1) check if end of a trace
-            // if (!more_insts) { return; }
-            if (!more_insts) { phase_end = true; return; }
-            // (2) check if end of a phase
-            if (phase_enabled)
-            {
-                if (in_phase_tracking >= num_instrs_per_phase) { phase_end = true; return; }
-            }
+            if (!more_insts) { return; }
+            // if (!more_insts) { phase_end = true; return; }
+
             int inserted = 0;
             while (inserted < window.IPC && !window.isFull() && more_insts)
             {
@@ -261,23 +263,11 @@ class Processor
                     exit(0);
                 }
             }
+	    // (2) check if end of a phase
+            
         }
 
-        void numInstPerPhase(int64_t _num_instrs_per_phase)
-        {
-            if (_num_instrs_per_phase <= 0) { phase_enabled = false; return; }
-
-            // Enable phase-phase execution
-            phase_enabled = true;
-            // Initialize phase_end (end of a phase) to FALSE
-            phase_end = false;
-
-            // Set the number of instructions per phase (remain constant)
-            num_instrs_per_phase = _num_instrs_per_phase;
-            // Track how many instructions have been completed in one phase
-            in_phase_tracking = 0;
-        }
-
+        /*
         void recordPhase()
         {
             if (!phase_enabled) { return; }
@@ -289,21 +279,13 @@ class Processor
             num_phases++;
             // re-Initialize all the trackings
             phase_end = false;
-            in_phase_tracking = 0;
         }
-
-        bool endOfPhase()
-	{
-            return phase_end;
-        }
+        */
 
         bool done()
         {
             // return !more_insts && window.isEmpty();
             bool issuing_done = !more_insts && window.isEmpty();
-
-            // When evaluating branch predictors, d/i-cache maybe set to NULL.
-            if (d_cache == nullptr) { return issuing_done; }
 
             bool cache_done = false;
             if (d_cache->pendingRequests() == 0)
@@ -345,14 +327,6 @@ class Processor
         bool more_insts;
         Instruction cur_inst;
         uint64_t retired = 0;
-
-        // Phase analysis
-        unsigned num_phases = 0;
-
-        uint64_t num_instrs_per_phase;
-        uint64_t in_phase_tracking = 0;
-        bool phase_enabled = false;
-        bool phase_end = false;
 
         // When evaluating branch predictors, d/i-cache is allowed to be NULL
         MemObject *d_cache = nullptr;
@@ -409,24 +383,18 @@ class Processor
 
     // Set number of instructions per execution phase, this helps us to better
     // monitor program behavior.
-    void numInstPerPhase(int64_t num_instrs_per_phase)
+    void numClksPerPhase(int64_t _num_clks_per_phase)
     {
-        for (auto &core : cores)
-        {
-            core->numInstPerPhase(num_instrs_per_phase);
-        }
+        if (_num_clks_per_phase <= 0) { phase_enabled = false; return; }
+
+        // Enable phase-phase execution
+        phase_enabled = true;
+        // Initialize phase_end (end of a phase) to FALSE
+        phase_end = false;
+
+        // Set the number of instructions per phase (remain constant)
+        num_clks_per_phase = _num_clks_per_phase;
     }
-    /*
-    // Are we in profiling stage?
-    void profiling(std::vector<uint64_t> profiling_limits)
-    {
-        assert(cores.size() == profiling_limits.size());
-        for (int i = 0; i < cores.size(); i++)
-        {
-            cores[i]->profiling(profiling_limits[i]);
-        }
-    }
-    */
 
     void reStartTrace()
     {
@@ -438,7 +406,32 @@ class Processor
 
     void tick()
     {
+        if (phase_enabled && phase_end)
+        {
+            std::cout << "\n" << cycles << "\n";
+
+            // Step one - extract the current cache set info
+            //     This is what attacker sees
+            std::cout << "Generating attacker trace...\n";
+
+            // Step two - drain all the caches and memory system
+            //     This is the oracle trace
+            std::cout << "Draining memory system...\n";
+            std::cout << "Generating oracle trace...\n";
+
+            std::cout << "\n";
+            phase_end = false;
+        }
+
         cycles++;
+        if (phase_enabled)
+        {
+            if ((cycles > 0) && (cycles %  num_clks_per_phase == 0))
+            {
+                phase_end = true;
+            }
+        }
+
         // std::cout << cycles << "\n";
         for (auto &core : cores)
         {
@@ -450,26 +443,6 @@ class Processor
         {
             // Tick the shared
             shared_m_obj->tick();
-        }
-
-        // If all the instructions are drained, there is no need to proceed.
-        bool all_drained = true;
-        for (auto &core : cores)
-        {
-            if (core->instrDrained() == false) { all_drained = false; }
-        }
-        if (all_drained) { return; }
-
-        // Check if the end of an execution phase
-        for (auto &core : cores)
-        {
-            if (!core->endOfPhase()) { return; }
-        }
-
-        // All cores reach the end of a execution phase
-        for (auto &core : cores)
-	{
-            core->recordPhase();
         }
     }
 
@@ -521,6 +494,30 @@ class Processor
         for (auto &core : cores) { core->registerStats(stats); }
     }
 
+    void setSVFTraceDir(std::string &_svf_trace_dir)
+    {
+        svf_trace_dir = _svf_trace_dir;
+
+        if (!dirExists(svf_trace_dir.c_str()))
+        {
+            std::cerr << "Error: trace dir does not exits!\n";
+            exit(0);
+        }
+    }
+
+  protected:
+    int dirExists(const char *path)
+    {
+        struct stat info;
+
+        if(stat( path, &info ) != 0)
+            return 0;
+        else if(info.st_mode & S_IFDIR)
+            return 1;
+        else
+            return 0;
+    }
+
   private:
     Tick cycles;
 
@@ -529,6 +526,15 @@ class Processor
     MemObject *shared_m_obj;
 
     unsigned nclks_to_tick_shared;
+
+    // Phase analysis
+    std::string svf_trace_dir;
+
+    unsigned num_phases = 0;
+
+    uint64_t num_clks_per_phase;
+    bool phase_enabled = false;
+    bool phase_end = false;
 };
 }
 

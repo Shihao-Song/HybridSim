@@ -40,8 +40,9 @@ struct ParseArgsRet
     std::string dram_cfg_file;
     std::string pcm_cfg_file;
     std::vector<std::string> trace_lists;
-    int64_t num_instrs_per_phase;
+    int64_t num_clks_per_phase;
     std::string stats_output_file;
+    std::string svf_trace_dir;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -108,8 +109,9 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::string dram_cfg_file = "N/A";
     std::string pcm_cfg_file = "N/A";
     std::vector<std::string> traces;
-    int64_t num_instrs_per_phase = -1;
+    int64_t num_clks_per_phase = -1;
     std::string stats_output;
+    std::string svf_trace_dir;
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
@@ -123,10 +125,12 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                    "Configuration file for PCM (if hybrid system)")
         ("trace", po::value<std::vector<std::string>>(&traces),
                       "CPU trace or MEM trace")
-        ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
-                   "Number of instructions per phase (Optional)")
+        ("num_clks_per_phase", po::value<int64_t>(&num_clks_per_phase),
+                   "Number of clks per phase")
         ("stat_output", po::value<std::string>(&stats_output),
-                        "Stats output file/Stats output");
+                        "Stats output file/Stats output")
+        ("svf_trace_dir", po::value<std::string>(&svf_trace_dir),
+                        "SVF traces directory");
 
     po::variables_map vm;
 
@@ -154,8 +158,9 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         dram_cfg_file,
                         pcm_cfg_file,
                         traces,
-                        num_instrs_per_phase,
-                        stats_output};
+                        num_clks_per_phase,
+                        stats_output,
+                        svf_trace_dir};
 }
 
 #endif

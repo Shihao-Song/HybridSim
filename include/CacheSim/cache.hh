@@ -60,9 +60,9 @@ class Cache : public Simulator::MemObject
     std::unique_ptr<CacheQueue> mshr_queue;
     auto sendMSHRReq(Addr addr)
     {
-        // std::cout << clk << ": " << "Core-" << id << "-"
-        //           << level_name << " is sending an MSHR request for "
-        //           << "addr " << addr << "\n";
+        std::cout << clk << ": " << "Core-" << id << "-"
+                  << level_name << " is sending an MSHR request for "
+                  << "addr " << addr << "\n";
 
         Request req(addr, Request::Request_Type::READ,
                     [this](Request &_req){ return this->mshrComplete(_req); });
@@ -80,9 +80,9 @@ class Cache : public Simulator::MemObject
     {
         Addr addr = req.addr;
 
-        // std::cout << clk << ": " << "Core-" << id << "-" 
-        //           << level_name << " is receiving an MSHR answer for "
-        //           << "addr " << addr << ". \n";
+        std::cout << clk << ": " << "Core-" << id << "-" 
+                  << level_name << " is receiving an MSHR answer for "
+                  << "addr " << addr << ". \n";
 
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.

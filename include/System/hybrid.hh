@@ -65,8 +65,8 @@ class Hybrid : public MMU
             }
 
             // TODO, enable this line!
-            std::shuffle(std::begin(free_frame_pool_by_technology[m]),
-                         std::end(free_frame_pool_by_technology[m]), rng);
+            // std::shuffle(std::begin(free_frame_pool_by_technology[m]),
+            //              std::end(free_frame_pool_by_technology[m]), rng);
             std::cout << "Total number of pages: "
                       << free_frame_pool_by_technology[m].size() << "\n\n";
         }

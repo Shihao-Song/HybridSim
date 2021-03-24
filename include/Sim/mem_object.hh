@@ -23,6 +23,9 @@ class MemObject
     virtual void setNextLevel(MemObject *_next_level) { next_level = _next_level; }
     virtual void setPrevLevel(MemObject *_prev_level) { prev_levels.push_back(_prev_level); }
 
+    virtual void drainPendingReqs() {}
+    virtual void outputMemContents() {}
+
     virtual void setId(int _id)
     {
         id = _id;
