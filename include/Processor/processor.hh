@@ -423,7 +423,7 @@ class Processor
     {
         if (phase_enabled && phase_end)
         {
-            std::cout << "Phase #" << cycles << "\n";
+            // std::cout << "Phase #" << cycles << "\n";
 
             // Step one - extract the current cache set info
             //     This is what attacker sees
@@ -432,13 +432,13 @@ class Processor
             if (svf_trace_dir.back() == '/') 
             { trace_fn = svf_trace_dir + trace_fn; }
             else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            std::cout << "    Generating attacker trace " << trace_fn
-                      << " ...\n";
+            // std::cout << "    Generating attacker trace " << trace_fn
+            //           << " ...\n";
             cores[0]->SVFGen(trace_fn);
 
             // Step two - drain all the caches and memory system
             //     This is the oracle trace
-            std::cout << "    Draining memory system...\n";
+            // std::cout << "    Draining memory system...\n";
             Tick fake_clk = cycles;
             while (true)
             {
@@ -461,15 +461,15 @@ class Processor
             if (svf_trace_dir.back() == '/') 
             { trace_fn = svf_trace_dir + trace_fn; }
             else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            std::cout << "    Generating oracle trace " << trace_fn
-                      << " ...\n";
+            // std::cout << "    Generating oracle trace " << trace_fn
+            //           << " ...\n";
             cores[0]->SVFGen(trace_fn);
 
             // Step three - re-initialize the cache for the next phase
             cores[0]->reInitDCache();
             shared_m_obj->reInitialize();
 
-            std::cout << "\n";
+            // std::cout << "\n";
             phase_end = false;
 
             num_phases++;
