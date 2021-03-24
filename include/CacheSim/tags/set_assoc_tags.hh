@@ -153,6 +153,23 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         std::cerr << std::endl;
     }
 
+    void outputAccessInfo(std::string &_fn) override
+    {
+        std::ofstream fd(_fn);
+        for (auto i = 0; i < sets.size(); i++)
+        {
+            bool accessed = false;
+            auto &set = sets[i];
+            for (auto way : set)
+            {
+                if (way->isValid()) { accessed = true; break; }
+            }
+            fd << accessed << " ";
+        }
+        fd << "\n";
+        fd.close();
+    }
+
   protected:
     void tagsInit() override
     {

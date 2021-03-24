@@ -53,6 +53,8 @@ class Tags
 
     virtual void debugPrint() {}
 
+    virtual void outputAccessInfo(std::string &_fn) {}
+
   protected:
 
     // Initialize tag

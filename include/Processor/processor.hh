@@ -96,9 +96,9 @@ class Processor
 	                !inst.ready_to_commit)
                     {
                         inst.ready_to_commit = true;
-                        std::cout << "  " 
-                                  << inst.target_paddr
-                                  << " resolved. \n";
+                        // std::cout << "  " 
+                        //           << inst.target_paddr
+                        //           << " resolved. \n";
                     }
                 }
 
@@ -310,6 +310,21 @@ class Processor
                             ": Number of instructions = " + std::to_string(retired));
         }
 
+        void SVFGen(std::string &_trace_fn)
+        {
+            d_cache->outputMemContents(_trace_fn);
+        }
+
+        bool doneDrainDCacheReqs()
+        {
+            if (d_cache->pendingRequests() == 0) { return true; }
+            else { return false; }
+        }
+
+	void drainDCacheReqs() { d_cache->tick(); }
+
+        void reInitDCache() { d_cache->reInitialize(); }
+
       private:
         // When evaluting branch predictors, MMU is allowed to be NULL.
         MMU *mmu = nullptr;
@@ -408,19 +423,56 @@ class Processor
     {
         if (phase_enabled && phase_end)
         {
-            std::cout << "\n" << cycles << "\n";
+            std::cout << "Phase #" << cycles << "\n";
 
             // Step one - extract the current cache set info
             //     This is what attacker sees
-            std::cout << "Generating attacker trace...\n";
+            std::string trace_fn = std::to_string(num_phases)
+                                   + ".attacker";
+            if (svf_trace_dir.back() == '/') 
+            { trace_fn = svf_trace_dir + trace_fn; }
+            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
+            std::cout << "    Generating attacker trace " << trace_fn
+                      << " ...\n";
+            cores[0]->SVFGen(trace_fn);
 
             // Step two - drain all the caches and memory system
             //     This is the oracle trace
-            std::cout << "Draining memory system...\n";
-            std::cout << "Generating oracle trace...\n";
+            std::cout << "    Draining memory system...\n";
+            Tick fake_clk = cycles;
+            while (true)
+            {
+                cores[0]->drainDCacheReqs();
+                if (fake_clk % nclks_to_tick_shared == 0)
+                {
+                    // Tick the shared
+                    shared_m_obj->tick();
+                }
+                fake_clk++;
+
+                if ((shared_m_obj->pendingRequests() == 0) && 
+                    (cores[0]->doneDrainDCacheReqs()))
+                {
+                    break;
+                }
+            }
+            trace_fn = std::to_string(num_phases)
+                                   + ".oracle";
+            if (svf_trace_dir.back() == '/') 
+            { trace_fn = svf_trace_dir + trace_fn; }
+            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
+            std::cout << "    Generating oracle trace " << trace_fn
+                      << " ...\n";
+            cores[0]->SVFGen(trace_fn);
+
+            // Step three - re-initialize the cache for the next phase
+            cores[0]->reInitDCache();
+            shared_m_obj->reInitialize();
 
             std::cout << "\n";
             phase_end = false;
+
+            num_phases++;
         }
 
         cycles++;

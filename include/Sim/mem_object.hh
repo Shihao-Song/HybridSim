@@ -24,7 +24,7 @@ class MemObject
     virtual void setPrevLevel(MemObject *_prev_level) { prev_levels.push_back(_prev_level); }
 
     virtual void drainPendingReqs() {}
-    virtual void outputMemContents() {}
+    virtual void outputMemContents(std::string &_fn) {}
 
     virtual void setId(int _id)
     {
