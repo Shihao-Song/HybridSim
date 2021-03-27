@@ -71,7 +71,27 @@ void prefetcherPatternsExtraction(std::string &trace,
 
     while (more_instrs)
     {
-    
+        if (instr.opr == Simulator::Instruction::Operation::LOAD ||
+            instr.opr == Simulator::Instruction::Operation::STORE)
+        {
+            Request req;
+
+            if (instr.opr == Simulator::Instruction::Operation::LOAD)
+            {
+                req.req_type = Request::Request_Type::READ;
+            }
+            else
+            {
+                req.req_type = Request::Request_Type::WRITE;
+            }
+
+            req.core_id = 0;
+            req.eip = instr.eip;
+            // Use virtual address here
+            req.addr = instr.target_vaddr;
+
+            std::cout << req.eip << " " << req.addr << "\n";
+        }
         more_instrs = cpu_trace.getInstruction(instr);
     }
 }
