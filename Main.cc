@@ -13,7 +13,7 @@ struct hybridCfgArgs
 };
 void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
-                                            int64_t num_instrs_per_phase,
+                                            int64_t num_clks_per_phase,
                                             std::string &stats_output_file,
                                             std::string &svf_trace_dir);
 
