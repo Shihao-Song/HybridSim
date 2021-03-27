@@ -3,6 +3,8 @@
 
 #include "Simulation.h"
 
+// Preparing for prefetcher framework
+
 struct hybridCfgArgs
 {
     hybridCfgArgs() {}
