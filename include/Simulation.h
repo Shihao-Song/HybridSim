@@ -42,7 +42,7 @@ struct ParseArgsRet
     std::vector<std::string> trace_lists;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
-    std::string svf_trace_dir;
+    std::string pref_patterns_output;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
@@ -111,14 +111,14 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> traces;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
-    std::string svf_trace_dir;
+    std::string pref_patterns_output;
 
     namespace po = boost::program_options;
-    po::options_description desc("Options"); 
+    po::options_description desc("Options");
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: hybrid, pref-eval")
+                 "Mode: hybrid, pref-patterns")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
@@ -129,8 +129,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                    "Number of clks per phase")
         ("stat_output", po::value<std::string>(&stats_output),
                         "Stats output file/Stats output")
-        ("svf_trace_dir", po::value<std::string>(&svf_trace_dir),
-                        "SVF traces directory");
+        ("pref_patterns_output", po::value<std::string>(&pref_patterns_output),
+                        "prefetcher patterns output file");
 
     po::variables_map vm;
 
@@ -160,7 +160,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         traces,
                         num_instrs_per_phase,
                         stats_output,
-                        svf_trace_dir};
+                        pref_patterns_output};
 }
 
 #endif

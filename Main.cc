@@ -5,47 +5,54 @@
 
 // Preparing for prefetcher framework
 
-struct hybridCfgArgs
+struct HybridCfgArgs
 {
-    hybridCfgArgs() {}
-    ~hybridCfgArgs() {}
+    HybridCfgArgs() {}
+    ~HybridCfgArgs() {}
 
     Config dram_cfg;
     Config pcm_cfg;
 };
-void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
-                                            std::vector<std::string> &trace_lists,
-                                            int64_t num_instrs_per_phase,
-                                            std::string &stats_output_file,
-                                            std::string &svf_trace_dir);
+
+void prefetcherPatternsExtraction(std::string &trace, 
+                                  std::string &pref_patterns_output);
+ 
+void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
+                                       std::vector<std::string> &trace_lists,
+                                       int64_t num_instrs_per_phase,
+                                       std::string &stats_output_file,
+                                       std::string &pref_patterns_output);
 
 int main(int argc, const char *argv[])
 {
-    // TODO, prepare for SVF integration
-
     auto [mode,
           dram_cfg_file,
           pcm_cfg_file,
           trace_lists,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           stats_output_file,
-          svf_trace_dir] = parse_args(argc, argv);
+          pref_patterns_output] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
     if (mode == "hybrid")
     {
-        hybridCfgArgs cfgs;
+        HybridCfgArgs cfgs;
 
         cfgs.dram_cfg.setCfgFile(dram_cfg_file);
         cfgs.pcm_cfg.setCfgFile(pcm_cfg_file);
 
         // For a Hybrid system, the first config file should be for DRAM and the second
         // one should be PCM.
-        Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
-                                               trace_lists,
-                                               num_instrs_per_phase,
-                                               stats_output_file,
-                                               svf_trace_dir);
+       hybridDRAMPCMFullSystemSimulation(cfgs,
+                                         trace_lists,
+                                         num_instrs_per_phase,
+                                         stats_output_file,
+                                         pref_patterns_output);
+    }
+    else if (mode == "pref-patterns")
+    {
+        assert(trace_lists.size() == 1);
+        prefetcherPatternsExtraction(trace_lists[0], pref_patterns_output);
     }
     else
     {
@@ -54,11 +61,26 @@ int main(int argc, const char *argv[])
     }
 }
 
-void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
-                                            std::vector<std::string> &trace_lists,
-                                            int64_t num_instrs_per_phase,
-                                            std::string &stats_output_file,
-                                            std::string &svf_trace_dir)
+void prefetcherPatternsExtraction(std::string &trace, 
+                                  std::string &pref_patterns_output)
+{
+    Simulator::Trace cpu_trace(trace);
+
+    Simulator::Instruction instr;
+    bool more_instrs = cpu_trace.getInstruction(instr);
+
+    while (more_instrs)
+    {
+    
+        more_instrs = cpu_trace.getInstruction(instr);
+    }
+}
+ 
+void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
+                                       std::vector<std::string> &trace_lists,
+                                       int64_t num_instrs_per_phase,
+                                       std::string &stats_output_file,
+                                       std::string &pref_patterns_output)
 {
     // TODO, for any shared caches, multiply their mshr and wb sizes to num_of_cores, please
     // see our example configuration files for more information.
@@ -118,7 +140,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
     
     processor->setMMU(mmu.get());
     processor->numClksPerPhase(num_instrs_per_phase);
-    processor->setSVFTraceDir(svf_trace_dir);
+    processor->setSVFTraceDir(pref_patterns_output);
 
     for (int i = 0; i < num_of_cores; i++) 
     {
