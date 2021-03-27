@@ -27,7 +27,7 @@ int main(int argc, const char *argv[])
           dram_cfg_file,
           pcm_cfg_file,
           trace_lists,
-          num_clks_per_phase, // # instructions for each phase, e.g., 10M, 100M...
+          num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           stats_output_file,
           svf_trace_dir] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
@@ -43,7 +43,7 @@ int main(int argc, const char *argv[])
         // one should be PCM.
         Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
                                                trace_lists,
-                                               num_clks_per_phase,
+                                               num_instrs_per_phase,
                                                stats_output_file,
                                                svf_trace_dir);
     }
@@ -56,7 +56,7 @@ int main(int argc, const char *argv[])
 
 void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
-                                            int64_t num_clks_per_phase,
+                                            int64_t num_instrs_per_phase,
                                             std::string &stats_output_file,
                                             std::string &svf_trace_dir)
 {
@@ -117,7 +117,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                                        trace_lists, DRAM_PCM.get()));
     
     processor->setMMU(mmu.get());
-    processor->numClksPerPhase(num_clks_per_phase);
+    processor->numClksPerPhase(num_instrs_per_phase);
     processor->setSVFTraceDir(svf_trace_dir);
 
     for (int i = 0; i < num_of_cores; i++) 

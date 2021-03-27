@@ -40,7 +40,7 @@ struct ParseArgsRet
     std::string dram_cfg_file;
     std::string pcm_cfg_file;
     std::vector<std::string> trace_lists;
-    int64_t num_clks_per_phase;
+    int64_t num_instrs_per_phase;
     std::string stats_output_file;
     std::string svf_trace_dir;
 };
@@ -109,7 +109,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::string dram_cfg_file = "N/A";
     std::string pcm_cfg_file = "N/A";
     std::vector<std::string> traces;
-    int64_t num_clks_per_phase = -1;
+    int64_t num_instrs_per_phase = -1;
     std::string stats_output;
     std::string svf_trace_dir;
 
@@ -118,14 +118,14 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: hybrid")
+                 "Mode: hybrid, pref-eval")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
                    "Configuration file for PCM (if hybrid system)")
         ("trace", po::value<std::vector<std::string>>(&traces),
                       "CPU trace or MEM trace")
-        ("num_clks_per_phase", po::value<int64_t>(&num_clks_per_phase),
+        ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of clks per phase")
         ("stat_output", po::value<std::string>(&stats_output),
                         "Stats output file/Stats output")
@@ -158,7 +158,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         dram_cfg_file,
                         pcm_cfg_file,
                         traces,
-                        num_clks_per_phase,
+                        num_instrs_per_phase,
                         stats_output,
                         svf_trace_dir};
 }
