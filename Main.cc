@@ -19,6 +19,8 @@ void prefetcherPatternsExtraction(std::string &trace,
  
 void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
                                        std::vector<std::string> &trace_lists,
+                                       std::vector<std::string> &pref_patterns,
+                                       std::string pattern_selection,
                                        int64_t num_instrs_per_phase,
                                        std::string &stats_output_file,
                                        std::string &pref_patterns_output);
@@ -29,6 +31,8 @@ int main(int argc, const char *argv[])
           dram_cfg_file,
           pcm_cfg_file,
           trace_lists,
+          pref_patterns,
+          pattern_selection,
           num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           stats_output_file,
           pref_patterns_output] = parse_args(argc, argv);
@@ -45,6 +49,8 @@ int main(int argc, const char *argv[])
         // one should be PCM.
        hybridDRAMPCMFullSystemSimulation(cfgs,
                                          trace_lists,
+                                         pref_patterns,
+                                         pattern_selection,
                                          num_instrs_per_phase,
                                          stats_output_file,
                                          pref_patterns_output);
@@ -106,6 +112,8 @@ void prefetcherPatternsExtraction(std::string &trace,
  
 void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
                                        std::vector<std::string> &trace_lists,
+                                       std::vector<std::string> &pref_patterns,
+                                       std::string pattern_selection,
                                        int64_t num_instrs_per_phase,
                                        std::string &stats_output_file,
                                        std::string &pref_patterns_output)
@@ -157,16 +165,14 @@ void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, dram_cfg, pcm_cfg));
+    mmu->setPrefPatterns(pref_patterns, pattern_selection);
     DRAM_PCM->setMMU(mmu.get());
     
     // Create Processor
     std::unique_ptr<Processor> processor(new Processor(pcm_cfg.on_chip_frequency,
                                                        pcm_cfg.off_chip_frequency,
                                                        trace_lists, DRAM_PCM.get()));
-    
     processor->setMMU(mmu.get());
-    processor->numClksPerPhase(num_instrs_per_phase);
-    processor->setSVFTraceDir(pref_patterns_output);
 
     for (int i = 0; i < num_of_cores; i++) 
     {

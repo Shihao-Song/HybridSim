@@ -395,22 +395,7 @@ class Processor
         // Re-initialize the shared memory object
         shared_m_obj->reInitialize();
     }
-
-    // Set number of instructions per execution phase, this helps us to better
-    // monitor program behavior.
-    void numClksPerPhase(int64_t _num_clks_per_phase)
-    {
-        if (_num_clks_per_phase <= 0) { phase_enabled = false; return; }
-
-        // Enable phase-phase execution
-        phase_enabled = true;
-        // Initialize phase_end (end of a phase) to FALSE
-        phase_end = false;
-
-        // Set the number of instructions per phase (remain constant)
-        num_clks_per_phase = _num_clks_per_phase;
-    }
-
+    
     void reStartTrace()
     {
         for (auto &core : cores)
@@ -421,69 +406,7 @@ class Processor
 
     void tick()
     {
-        if (phase_enabled && phase_end)
-        {
-            // std::cout << "Phase #" << cycles << "\n";
-
-            // Step one - extract the current cache set info
-            //     This is what attacker sees
-            std::string trace_fn = std::to_string(num_phases)
-                                   + ".attacker";
-            if (svf_trace_dir.back() == '/') 
-            { trace_fn = svf_trace_dir + trace_fn; }
-            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            // std::cout << "    Generating attacker trace " << trace_fn
-            //           << " ...\n";
-            cores[0]->SVFGen(trace_fn);
-
-            // Step two - drain all the caches and memory system
-            //     This is the oracle trace
-            // std::cout << "    Draining memory system...\n";
-            Tick fake_clk = cycles;
-            while (true)
-            {
-                cores[0]->drainDCacheReqs();
-                if (fake_clk % nclks_to_tick_shared == 0)
-                {
-                    // Tick the shared
-                    shared_m_obj->tick();
-                }
-                fake_clk++;
-
-                if ((shared_m_obj->pendingRequests() == 0) && 
-                    (cores[0]->doneDrainDCacheReqs()))
-                {
-                    break;
-                }
-            }
-            trace_fn = std::to_string(num_phases)
-                                   + ".oracle";
-            if (svf_trace_dir.back() == '/') 
-            { trace_fn = svf_trace_dir + trace_fn; }
-            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            // std::cout << "    Generating oracle trace " << trace_fn
-            //           << " ...\n";
-            cores[0]->SVFGen(trace_fn);
-
-            // Step three - re-initialize the cache for the next phase
-            cores[0]->reInitDCache();
-            shared_m_obj->reInitialize();
-
-            // std::cout << "\n";
-            phase_end = false;
-
-            num_phases++;
-        }
-
         cycles++;
-        if (phase_enabled)
-        {
-            if ((cycles > 0) && (cycles %  num_clks_per_phase == 0))
-            {
-                phase_end = true;
-            }
-        }
-
         // std::cout << cycles << "\n";
         for (auto &core : cores)
         {
@@ -546,30 +469,6 @@ class Processor
         for (auto &core : cores) { core->registerStats(stats); }
     }
 
-    void setSVFTraceDir(std::string &_svf_trace_dir)
-    {
-        svf_trace_dir = _svf_trace_dir;
-
-        if (!dirExists(svf_trace_dir.c_str()))
-        {
-            std::cerr << "Error: trace dir does not exits!\n";
-            exit(0);
-        }
-    }
-
-  protected:
-    int dirExists(const char *path)
-    {
-        struct stat info;
-
-        if(stat( path, &info ) != 0)
-            return 0;
-        else if(info.st_mode & S_IFDIR)
-            return 1;
-        else
-            return 0;
-    }
-
   private:
     Tick cycles;
 
@@ -578,15 +477,6 @@ class Processor
     MemObject *shared_m_obj;
 
     unsigned nclks_to_tick_shared;
-
-    // Phase analysis
-    std::string svf_trace_dir;
-
-    unsigned num_phases = 0;
-
-    uint64_t num_clks_per_phase;
-    bool phase_enabled = false;
-    bool phase_end = false;
 };
 }
 
