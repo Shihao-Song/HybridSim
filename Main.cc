@@ -61,9 +61,12 @@ int main(int argc, const char *argv[])
     }
 }
 
+#include "Processor/pref_eval.hh"
 void prefetcherPatternsExtraction(std::string &trace, 
                                   std::string &pref_patterns_output)
 {
+    Simulator::PrefEval prefetcher;
+
     Simulator::Trace cpu_trace(trace);
 
     Simulator::Instruction instr;
@@ -90,10 +93,15 @@ void prefetcherPatternsExtraction(std::string &trace,
             // Use virtual address here
             req.addr = instr.target_vaddr;
 
-            std::cout << req.eip << " " << req.addr << "\n";
+            prefetcher.send(req);
+            // std::cout << req.eip << " " << req.addr << "\n";
         }
         more_instrs = cpu_trace.getInstruction(instr);
     }
+
+    Stats stats;
+    prefetcher.registerStats(stats);
+    stats.outputStats(pref_patterns_output);
 }
  
 void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
@@ -102,8 +110,6 @@ void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
                                        std::string &stats_output_file,
                                        std::string &pref_patterns_output)
 {
-    // TODO, for any shared caches, multiply their mshr and wb sizes to num_of_cores, please
-    // see our example configuration files for more information.
     unsigned num_of_cores = trace_lists.size();
     Config &dram_cfg = cfgs.dram_cfg;
     Config &pcm_cfg = cfgs.pcm_cfg;

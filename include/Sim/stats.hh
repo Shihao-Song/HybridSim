@@ -15,9 +15,12 @@ class Stats
   public:
     Stats(){}
 
-    void registerStats(std::string printable)
+    void registerStats(std::string printable, bool new_line = true)
     {
-        printables.push_back(printable + "\n");
+        if (new_line)
+            printables.push_back(printable + "\n");
+        else
+            printables.push_back(printable);
     }
 
     void outputStats(std::string output)
