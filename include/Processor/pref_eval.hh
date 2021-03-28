@@ -133,7 +133,7 @@ class PrefEval : public MemObject
 
             for (unsigned i = 0; i < page_size / block_size; i++)
             {
-                if (acc_cnt[i] >= ceil((float)(page_info_sorted.size()) / 2.0))
+                if (acc_cnt[i] >= ceil((float)(page_info_sorted.size()) * 0.5))
                 { pattern_max[i] = true; }
             }
 
