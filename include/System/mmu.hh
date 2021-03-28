@@ -110,6 +110,16 @@ class MMU
         }
     }
 
+    virtual void setCoreCaches(std::vector<MemObject*> &_caches)
+    {
+        core_prefetchers.core_caches = _caches;
+    }
+
+    virtual void setPrefNum(unsigned _num) 
+    { 
+        core_prefetchers.pref_num = _num; 
+    }
+
     virtual void va2pa(Request &req)
     {
         Addr pa = mappers[req.core_id].va2pa(req.addr);
@@ -123,11 +133,13 @@ class MMU
     virtual void registerStats(Simulator::Stats &stats) {}
 
   protected:
-    std::vector<MemObject*> core_caches;
 
   protected:
     struct PrefPatterns
     {
+        std::vector<MemObject*> core_caches;
+        unsigned pref_num = 4;
+
         typedef std::unordered_map<Addr, std::vector<unsigned>> fti_to_pattern;
         std::vector<fti_to_pattern> patterns;
 
@@ -155,7 +167,27 @@ class MMU
             // std::cout << "\n";
         }
 
-        // TODO, add a function invoke();
+        void invoke(unsigned core_id,
+                    Addr fti,
+                    Addr page_id)
+        {
+            if (patterns.size() == 0) return;
+            auto pattern_iter = patterns[core_id].find(fti);
+            if (pattern_iter == patterns[core_id].end()) return;
+
+            auto &page_pattern = pattern_iter->second;
+            for (auto i = 0; i < page_pattern.size(); i++)
+            {
+                if (i == pref_num) break;
+
+                // TODO, warning hard-coded cacheline size
+                Addr prefetch_addr = (page_id << Mapper::va_page_shift)
+                                   | (page_pattern[i] * 64);
+                // std::cout << prefetch_addr << " ";
+                core_caches[core_id]->fetchAddr(prefetch_addr);
+            }
+	    // std::cout << "done \n";
+        }
     };
     PrefPatterns core_prefetchers;
     

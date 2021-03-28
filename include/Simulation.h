@@ -42,6 +42,7 @@ struct ParseArgsRet
     std::vector<std::string> trace_lists;
     std::vector<std::string> pref_patterns;
     std::string pattern_selection;
+    unsigned pref_num;
     int64_t num_instrs_per_phase;
     std::string stats_output_file;
     std::string pref_patterns_output;
@@ -113,6 +114,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> traces;
     std::vector<std::string> pref_patterns;
     std::string pattern_selection;
+    unsigned pref_num = 0;
     int64_t num_instrs_per_phase = -1;
     std::string stats_output;
     // float pref_coverage = 1.0;
@@ -134,6 +136,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                           "spatial patterns for the workload")
         ("pattern-selection", po::value<std::string>(&pattern_selection),
                               "i.e., AND, OR, MAX, NONE")
+        ("pref-num", po::value<unsigned>(&pref_num),
+                         "number of cachelines to prefetch")
         ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
                    "Number of instrs per phase")
         ("stat_output", po::value<std::string>(&stats_output),
@@ -171,6 +175,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         traces,
                         pref_patterns,
                         pattern_selection,
+                        pref_num,
                         num_instrs_per_phase,
                         stats_output,
                         pref_patterns_output};

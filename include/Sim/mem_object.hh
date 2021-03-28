@@ -26,6 +26,8 @@ class MemObject
     virtual void drainPendingReqs() {}
     virtual void outputMemContents(std::string &_fn) {}
 
+    virtual void fetchAddr(uint64_t _addr) {}
+
     virtual void setId(int _id)
     {
         id = _id;

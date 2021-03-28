@@ -83,7 +83,6 @@ class Cache : public Simulator::MemObject
         // std::cout << clk << ": " << "Core-" << id << "-" 
         //           << level_name << " is receiving an MSHR answer for "
         //           << "addr " << addr << ". \n";
-
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
         if (wb_queue->isFull()) { return false; }
@@ -473,6 +472,21 @@ class Cache : public Simulator::MemObject
     void outputMemContents(std::string &_fn) override
     {
         tags->outputAccessInfo(_fn);
+    }
+
+    void fetchAddr(uint64_t _addr) override
+    {
+        auto [wb_required, victim_addr] = tags->insertBlock(_addr, 
+                                          false,
+                                          clk);
+        if (wb_required)
+        {
+            wb_queue->allocate(victim_addr, clk);
+        }
+
+        if (boundary) return;
+
+        next_level->fetchAddr(_addr);
     }
 
     void registerStats(Simulator::Stats &stats) override

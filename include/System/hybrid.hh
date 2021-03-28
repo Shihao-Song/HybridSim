@@ -33,7 +33,7 @@ class Hybrid : public MMU
     std::vector<PageIDHelper> page_id_helpers_by_technology;
 
     // A pool of free physical pages, one for DRAM, one for PCM
-    std::vector<std::vector<Addr>> free_frame_pool_by_technology;
+    std::vector<Addr> free_frames;
     
     // A pool of used physical pages, one for DRAM, one for PCM
     std::vector<std::unordered_map<Addr,bool>> used_frame_pool_by_technology;
@@ -50,26 +50,28 @@ class Hybrid : public MMU
         page_id_helpers_by_technology.emplace_back(dram_cfg);
         page_id_helpers_by_technology.emplace_back(pcm_cfg);
 
-        free_frame_pool_by_technology.resize(int(Config::Memory_Node::MAX));
         used_frame_pool_by_technology.resize(int(Config::Memory_Node::MAX));
 
         // Construct all available pages
         auto rng = std::default_random_engine {};
+        Addr base = 0;
         for (int m = 0; m < int(Config::Memory_Node::MAX); m++)
         {
             // TODO, we hard-coded page as 4KB
             for (int i = 0; i < mem_size_in_gb[m] * 1024 * 1024 / 4; i++)
             {
                 // All available pages
-                free_frame_pool_by_technology[m].push_back(i);
+                Addr page_id = i + base; 
+                free_frames.push_back(page_id);
             }
-
-            // TODO, enable this line!
-            std::shuffle(std::begin(free_frame_pool_by_technology[m]),
-                         std::end(free_frame_pool_by_technology[m]), rng);
-            // std::cout << "Total number of pages: "
-            //           << free_frame_pool_by_technology[m].size() << "\n\n";
+            base += mem_size_in_gb[m] * 1024 * 1024 / 4;
         }
+        // TODO, enable this line!
+        std::shuffle(std::begin(free_frames),
+                     std::end(free_frames), rng);
+        // std::cout << "Total number of pages: "
+        //           << free_frames.size() << "\n\n";
+
         // exit(0);
     }
 
@@ -120,7 +122,6 @@ class Hybrid : public MMU
                 in_dram = false; in_pcm = true;
             }
 
-            auto &free_frames = free_frame_pool_by_technology[chosen_technology];
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
             // std::cout << "Size of free frames: " << free_frames.size() << "\n";
             // std::cout << "Size of used frames: " << used_frames.size() << "\n";
@@ -157,6 +158,8 @@ class Hybrid : public MMU
                                             in_pcm,
                                             num_of_reads,
                                             num_of_writes}});
+
+            core_prefetchers.invoke(core_id, req.eip, free_frame);
         }
     }
 
