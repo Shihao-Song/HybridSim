@@ -108,6 +108,7 @@ class Hybrid : public MMU
             bool in_dram, in_pcm;
             // Randomly determine which technology to be mapped
             int chosen_technology = 0;
+            /*
             if (int random_num = d_tech(e);
                 random_num <= mem_size_in_gb[int(Config::Memory_Node::DRAM)])
             {
@@ -121,6 +122,9 @@ class Hybrid : public MMU
                 // std::cout << "Mapped to PCM \n";
                 in_dram = false; in_pcm = true;
             }
+            */
+            chosen_technology = int(Config::Memory_Node::DRAM);
+            in_dram = true; in_pcm = false;
 
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
             // std::cout << "Size of free frames: " << free_frames.size() << "\n";

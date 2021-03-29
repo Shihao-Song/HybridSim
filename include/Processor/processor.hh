@@ -325,6 +325,8 @@ class Processor
 
         void reInitDCache() { d_cache->reInitialize(); }
 
+        uint64_t numInstrsRetired() { return retired; }
+
       private:
         // When evaluting branch predictors, MMU is allowed to be NULL.
         MMU *mmu = nullptr;
@@ -423,6 +425,9 @@ class Processor
 
     bool done()
     {
+        // TODO, quit if it reaches 100M instruction (for quick evaluation)
+        // if (cores[0]->numInstrsRetired() >= 100000000) return true;
+
         // (1) All the instructions are run-out
         for (auto &core : cores)
         {
