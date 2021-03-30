@@ -30,13 +30,13 @@ if __name__ == "__main__":
         out_fn = join("stats", workload.split(".")[0] + "." + pref + "." + pref_size + ".stats")
         # print(trace_fn, pattern_fn, out_fn)
 
-        if workload == "roms.cpu_trace":
-            repeat = 4
-        else:
-            repeat = 8
-
-        trace_list = ["--trace", trace_fn, "--pref-patterns", pattern_fn] * repeat
+        trace_list = ["--trace", trace_fn, "--pref-patterns", pattern_fn]
         # print(trace_list)
+
+        if pref == "NONE":
+            config = "configs/hybrid-dram-small.cfg"
+        else:
+            config = "configs/hybrid-dram-small-pref.cfg"
 
         calls = ["./HybridSim", "--mode", "hybrid", "--dram-config", "configs/hybrid-dram-small.cfg", "--pcm-config", "configs/hybrid-pcm.cfg"]
         calls = calls + trace_list
