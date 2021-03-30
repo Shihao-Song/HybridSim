@@ -219,10 +219,10 @@ class Processor
 
                     req.core_id = core_id;
                     req.eip = cur_inst.eip;
+                    req.v_addr = cur_inst.target_vaddr;
                     // Address translation
                     if (!cur_inst.already_translated)
                     {
-                        req.v_addr = cur_inst.target_vaddr;
                         req.addr = cur_inst.target_vaddr; // Assign virtual first
                         mmu->va2pa(req);
                         // Update the instruction with the translated physical address
