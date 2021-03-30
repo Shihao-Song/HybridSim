@@ -120,10 +120,10 @@ class BaseController
                   << "Row:" << req.addr_vec[int(Config::Decoding::Row)] << ","
                   << "Col:" << req.addr_vec[int(Config::Decoding::Col)] << ",";
 
-        std::cout << req.queue_arrival << ","
-                  << req.begin_exe << ","
-                  << req.end_exe << ","
-                  << (req.end_exe - req.begin_exe) << "\n";
+        std::cout << "Arri.:" << req.queue_arrival << ","
+                  << "Beg.:" << req.begin_exe << ","
+                  << "End:" << req.end_exe << ","
+                  << "Dur.:" << (req.end_exe - req.begin_exe) << "\n";
     }
 };
 

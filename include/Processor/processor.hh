@@ -222,6 +222,7 @@ class Processor
                     // Address translation
                     if (!cur_inst.already_translated)
                     {
+                        req.v_addr = cur_inst.target_vaddr;
                         req.addr = cur_inst.target_vaddr; // Assign virtual first
                         mmu->va2pa(req);
                         // Update the instruction with the translated physical address
@@ -250,6 +251,9 @@ class Processor
                         inserted++;
                         cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                         more_insts = trace.getInstruction(cur_inst);
+
+                        // TODO, hacking, invoke prefetcher here
+                        mmu->invokePrefetcher(req);
                     }
                     else
                     {
@@ -426,7 +430,7 @@ class Processor
     bool done()
     {
         // TODO, quit if it reaches 200M instruction (for quick evaluation)
-        if (cores[0]->numInstrsRetired() >= 200000000) return true;
+        // if (cores[0]->numInstrsRetired() >= 200000000) return true;
 
         // (1) All the instructions are run-out
         for (auto &core : cores)

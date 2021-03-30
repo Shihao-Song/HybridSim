@@ -17,6 +17,8 @@ class Hybrid : public MMU
         Addr page_id; // virtual page_id
         Addr re_alloc_page_id; // A page may be re-allocated to a different location
 
+        Addr fti; // PC that triggers the page access
+
         bool in_dram = false;
         bool in_pcm = false;
 
@@ -158,12 +160,11 @@ class Hybrid : public MMU
 
             pages.insert({virtual_page_id, {virtual_page_id, 
                                             free_frame,
+                                            req.eip,
                                             in_dram,
                                             in_pcm,
                                             num_of_reads,
                                             num_of_writes}});
-
-            core_prefetchers.invoke(core_id, req.eip, free_frame);
         }
     }
 
@@ -184,6 +185,53 @@ class Hybrid : public MMU
 
         std::cerr << "Invalid Page ID.\n";
         exit(0);
+    }
+
+    void invokePrefetcher(Request &req) override
+    {
+        auto &patterns = getPatterns();
+        if (patterns.size() == 0) return;
+
+        int core_id = req.core_id;
+        Addr va = req.v_addr;
+        Addr virtual_page_id = va >> Mapper::va_page_shift;
+
+        auto &pages = pages_by_cores[core_id];
+        auto p_iter = pages.find(virtual_page_id);
+        assert(p_iter != pages.end());
+
+        // Get the page signature
+        Addr fti = p_iter->second.fti;
+        // Get the page pattern
+        auto pattern_iter = patterns[core_id].find(fti);
+        // TODO, this is only true for current evaluation
+        assert(pattern_iter != patterns[core_id].end());
+
+        // Get the physical page id and offet
+        Addr physical_page_id = p_iter->second.re_alloc_page_id;
+        unsigned offset = (va & Mapper::va_page_mask & ~63 ) >> 6;
+
+        auto &page_pattern = pattern_iter->second;
+        unsigned num_fetched = 0;
+/*	
+        std::cout << "  EIP: " << req.eip << ", "
+                  << "Cur. Addr: " << req.addr << ", "
+                  << "Offset: " << offset << ", "
+                  << "FTI: " << fti << "\n";
+*/
+        for (auto i = offset + 1; i < page_pattern.size(); i++)
+	{
+            if (num_fetched == pref_num) break;
+
+            if (page_pattern[i] == 1)
+            {
+                Addr prefetch_addr = (physical_page_id << Mapper::va_page_shift) 
+                                     | i * 64;
+                // std::cout << "    Fetching: " << prefetch_addr << "\n";
+                core_caches[core_id]->fetchAddr(prefetch_addr);
+                num_fetched++; // TODO, only increment if not in cache
+            }
+	}
     }
 
     void registerStats(Simulator::Stats &stats)

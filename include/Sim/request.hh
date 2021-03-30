@@ -22,6 +22,7 @@ class Request
 
     bool mig = false; // If this is a migration request.
 
+    Addr v_addr;
     Addr addr; // The address we are trying to read or write
 
     // Size of data to be loaded (read) or stored (written)

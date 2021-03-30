@@ -99,7 +99,11 @@ class MMU
                 {
                     if (pattern_str[i] == '1')
                     {
-                        pos.push_back(i);
+                        pos.push_back(1);
+                    }
+                    else if (pattern_str[i] == '0')
+                    {
+                        pos.push_back(0);
                     }
                 }
 
@@ -112,12 +116,12 @@ class MMU
 
     virtual void setCoreCaches(std::vector<MemObject*> &_caches)
     {
-        core_prefetchers.core_caches = _caches;
+        core_caches = _caches;
     }
 
     virtual void setPrefNum(unsigned _num) 
     { 
-        core_prefetchers.pref_num = _num; 
+        pref_num = _num; 
     }
 
     virtual void va2pa(Request &req)
@@ -133,13 +137,11 @@ class MMU
     virtual void registerStats(Simulator::Stats &stats) {}
 
   protected:
+    std::vector<MemObject*> core_caches;
+    unsigned pref_num = 4;
 
-  protected:
     struct PrefPatterns
     {
-        std::vector<MemObject*> core_caches;
-        unsigned pref_num = 4;
-
         typedef std::unordered_map<Addr, std::vector<unsigned>> fti_to_pattern;
         std::vector<fti_to_pattern> patterns;
 
@@ -167,6 +169,7 @@ class MMU
             // std::cout << "\n";
         }
 
+        /*
         void invoke(unsigned core_id,
                     Addr fti,
                     Addr page_id)
@@ -188,9 +191,15 @@ class MMU
             }
 	    // std::cout << "done \n";
         }
+        */
     };
     PrefPatterns core_prefetchers;
     
+  protected:
+    auto& getPatterns() { return core_prefetchers.patterns; }
+
+  public:
+    virtual void invokePrefetcher(Request &req) {}
 
   protected:
     // TODO, need to do more testings.

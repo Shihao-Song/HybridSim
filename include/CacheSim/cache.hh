@@ -79,10 +79,14 @@ class Cache : public Simulator::MemObject
     bool mshrComplete(Request &req)
     {
         Addr addr = req.addr;
-
-        // std::cout << clk << ": " << "Core-" << id << "-" 
-        //           << level_name << " is receiving an MSHR answer for "
-        //           << "addr " << addr << ". \n";
+/*
+        if (level_name == "L1-D")
+        {
+        std::cout << clk << ": " << "Core-" << id << "-" 
+                  << level_name << " is receiving an MSHR answer for "
+                  << "addr " << addr << ". \n";
+        }
+*/
         // To insert a new block may cause a eviction, need to make sure the write-back
         // is not full.
         if (wb_queue->isFull()) { return false; }
@@ -361,6 +365,14 @@ class Cache : public Simulator::MemObject
 
                 wb_queue->deAllocate(aligned_addr);
 
+                auto [wb_required, victim_addr] = tags->insertBlock(aligned_addr,
+                                                                        true,
+                                                                        clk);
+                if (wb_required)
+                {
+                    wb_queue->allocate(victim_addr, clk);
+                }
+
                 return true;
             }
            
@@ -474,8 +486,42 @@ class Cache : public Simulator::MemObject
         tags->outputAccessInfo(_fn);
     }
 
-    void fetchAddr(uint64_t _addr) override
+    bool fetchAddr(uint64_t _addr) override
     {
+        bool inserted = false;
+
+        // Check one, in cache, do not insert
+        if (auto [hit, aligned_addr] = tags->accessBlock(_addr,
+                                       false,
+                                       clk);
+            hit)
+        {
+            // in cache, no need to insert
+            inserted = false;
+            return inserted;
+        }
+        else
+        {
+            if (mshr_queue->isInQueue(aligned_addr))
+            {
+                inserted = false;
+                return inserted;
+            }
+	    
+            if (wb_queue->isInQueue(aligned_addr))
+            {
+                // wb_queue->deAllocate(aligned_addr);
+                inserted = false;
+                return inserted;
+            }
+        }
+/*
+	// TODO, check in mshr, do not insert
+        std::cout << "      " << clk << ": " << "Core-" << id << "-" 
+                  << level_name << " is inserting "
+                  << "addr " << _addr << ". \n";
+*/
+        inserted = true; // not in cache, need to prefetch
         auto [wb_required, victim_addr] = tags->insertBlock(_addr, 
                                           false,
                                           clk);
@@ -484,9 +530,12 @@ class Cache : public Simulator::MemObject
             wb_queue->allocate(victim_addr, clk);
         }
 
-        if (boundary) return;
+        if (boundary) return inserted;
 
-        next_level->fetchAddr(_addr);
+        inserted |= next_level->fetchAddr(_addr);
+
+        // TODO, let not care about the return value for now.
+        return inserted;
     }
 
     void registerStats(Simulator::Stats &stats) override
