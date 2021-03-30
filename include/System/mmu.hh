@@ -199,7 +199,7 @@ class MMU
     auto& getPatterns() { return core_prefetchers.patterns; }
 
   public:
-    virtual void invokePrefetcher(Request &req) {}
+    virtual std::vector<Addr> invokePrefetcher(Request &req) {}
 
   protected:
     // TODO, need to do more testings.

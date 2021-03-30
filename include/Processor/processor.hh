@@ -252,8 +252,14 @@ class Processor
                         cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                         more_insts = trace.getInstruction(cur_inst);
 
-                        // TODO, hacking, invoke prefetcher here
-                        mmu->invokePrefetcher(req);
+                        auto pref_addr = mmu->invokePrefetcher(req);
+                        for (auto addr : pref_addr) 
+                        {
+                            // std::cout << cycles << ": prefetching: " << addr << "\n";
+                            Request pref_req(addr, Request::Request_Type::READ);
+                            pref_req.core_id = core_id;
+                            d_cache->send(pref_req);
+                        }
                     }
                     else
                     {
@@ -291,6 +297,8 @@ class Processor
             // return !more_insts && window.isEmpty();
             bool issuing_done = !more_insts && window.isEmpty();
 
+            return issuing_done;
+            /*
             bool cache_done = false;
             if (d_cache->pendingRequests() == 0)
             {
@@ -300,6 +308,7 @@ class Processor
             // std::cout << "issuing_done: " << issuing_done << "\n";
             // std::cout << "cache_done: " << cache_done << "\n";
 	    return issuing_done && cache_done;
+            */
         }
 
         uint64_t numLoads() { return num_loads; }
@@ -440,6 +449,9 @@ class Processor
                 return false;
             }
         }
+
+        return true;
+        /*
         // (2) All the memory requests including mshr requests, evictions 
         //     are finished.
         if (shared_m_obj->pendingRequests() != 0)
@@ -449,6 +461,7 @@ class Processor
         }
         // std::cout << "Shared is done.\n";
         return true;
+        */
     }
 
     Tick exeTime() const { return cycles; }

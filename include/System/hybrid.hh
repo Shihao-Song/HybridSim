@@ -69,8 +69,8 @@ class Hybrid : public MMU
             base += mem_size_in_gb[m] * 1024 * 1024 / 4;
         }
         // TODO, enable this line!
-        std::shuffle(std::begin(free_frames),
-                     std::end(free_frames), rng);
+        // std::shuffle(std::begin(free_frames),
+        //              std::end(free_frames), rng);
         // std::cout << "Total number of pages: "
         //           << free_frames.size() << "\n\n";
 
@@ -187,10 +187,12 @@ class Hybrid : public MMU
         exit(0);
     }
 
-    void invokePrefetcher(Request &req) override
+    std::vector<Addr> invokePrefetcher(Request &req) override
     {
+        std::vector<Addr> ret;
+
         auto &patterns = getPatterns();
-        if (patterns.size() == 0) return;
+        if (patterns.size() == 0) return ret;
 
         int core_id = req.core_id;
         Addr va = req.v_addr;
@@ -228,10 +230,13 @@ class Hybrid : public MMU
                 Addr prefetch_addr = (physical_page_id << Mapper::va_page_shift) 
                                      | i * 64;
                 // std::cout << "    Fetching: " << prefetch_addr << "\n";
-                core_caches[core_id]->fetchAddr(prefetch_addr);
+                // core_caches[core_id]->fetchAddr(prefetch_addr);
+                ret.push_back(prefetch_addr);
                 num_fetched++; // TODO, only increment if not in cache
             }
 	}
+
+	return ret;
     }
 
     void registerStats(Simulator::Stats &stats)
