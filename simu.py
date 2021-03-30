@@ -38,7 +38,7 @@ if __name__ == "__main__":
         trace_list = ["--trace", trace_fn, "--pref-patterns", pattern_fn] * repeat
         # print(trace_list)
 
-        calls = ["./HybridSim", "--mode", "hybrid", "--dram-config", "configs/hybrid-dram.cfg", "--pcm-config", "configs/hybrid-pcm.cfg"]
+        calls = ["./HybridSim", "--mode", "hybrid", "--dram-config", "configs/hybrid-dram-small.cfg", "--pcm-config", "configs/hybrid-pcm.cfg"]
         calls = calls + trace_list
         calls.append("--pattern-selection")
         calls.append(pref)

@@ -425,8 +425,8 @@ class Processor
 
     bool done()
     {
-        // TODO, quit if it reaches 100M instruction (for quick evaluation)
-        // if (cores[0]->numInstrsRetired() >= 100000000) return true;
+        // TODO, quit if it reaches 200M instruction (for quick evaluation)
+        if (cores[0]->numInstrsRetired() >= 200000000) return true;
 
         // (1) All the instructions are run-out
         for (auto &core : cores)
