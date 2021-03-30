@@ -38,7 +38,7 @@ if __name__ == "__main__":
         else:
             config = "configs/hybrid-dram-small-pref.cfg"
 
-        calls = ["./HybridSim", "--mode", "hybrid", "--dram-config", "configs/hybrid-dram-small.cfg", "--pcm-config", "configs/hybrid-pcm.cfg"]
+        calls = ["./HybridSim", "--mode", "hybrid", "--dram-config", config, "--pcm-config", "configs/hybrid-pcm.cfg"]
         calls = calls + trace_list
         calls.append("--pattern-selection")
         calls.append(pref)
