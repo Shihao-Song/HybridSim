@@ -34,9 +34,9 @@ if __name__ == "__main__":
         # print(trace_list)
 
         if pref == "NONE":
-            config = "configs/hybrid-dram-small.cfg"
+            config = "configs/hybrid-dram-small-2.cfg"
         else:
-            config = "configs/hybrid-dram-small-pref.cfg"
+            config = "configs/hybrid-dram-small-pref-2.cfg"
 
         calls = ["./HybridSim", "--mode", "hybrid", "--dram-config", config, "--pcm-config", "configs/hybrid-pcm.cfg"]
         calls = calls + trace_list
