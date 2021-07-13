@@ -77,7 +77,7 @@ class PrefEval : public MemObject
 
     void registerStats(Simulator::Stats &stats)
     {
-
+/*
         std::vector<First_Touch_Instr_Info> fti_sorted;
         for (auto [fti, fti_info] : fti_to_fti_info)
         {
@@ -88,11 +88,13 @@ class PrefEval : public MemObject
         unsigned print_fti_count = 0;
         for (auto &fti_info : fti_sorted)
         {
-            // std::cout << "\n";
-            // std::cout << "\n--------------------------------------\n";
+            // debug print begin
+            std::cout << "\n";
+            std::cout << "\n--------------------------------------\n";
             // if (print_fti_count == 10) break;
             // print_fti_count++;
             // std::cout << std::right << std::setw(18) << fti_info.eip << " ";
+            // debug print end
 
             auto pages_iter = fti_to_page_id.find(fti_info.eip);
             assert(pages_iter != fti_to_page_id.end());
@@ -137,7 +139,7 @@ class PrefEval : public MemObject
                 { pattern_max[i] = true; }
             }
 
-            /*
+            // debug print begin
             // unsigned print_page_count = 0;
             for (auto &page_info : page_info_sorted)
             {
@@ -151,20 +153,21 @@ class PrefEval : public MemObject
                 std::cout << std::right << std::setw(18) 
                           << fti_info.eip << " "
 
-                          << std::right << std::setw(18) 
-                          << page_info.page_id << " "
+                          // << std::right << std::setw(18) 
+                          // << page_info.page_id << " "
 
                           << std::right << accessed_blocks << " "
 
-                          << std::right << std::setw(18) 
-                          << page_info.num_of_reads << " "
+                          // << std::right << std::setw(18) 
+                          // << page_info.num_of_reads << " "
 
-                          << std::right << std::setw(18) 
-                          << page_info.num_of_writes << " "
+                          // << std::right << std::setw(18) 
+                          // << page_info.num_of_writes << " "
                           << "\n";
                 // print_page_count++;
             }
-            */
+            // debug print end
+
             std::string str_pattern_and = "";
             std::string str_pattern_or = "";
             std::string str_pattern_max = "";
@@ -189,19 +192,38 @@ class PrefEval : public MemObject
 //             std::cout << "\nAND Pattern: " << str_pattern_and << "\n";
 //             std::cout << " OR Pattern: " << str_pattern_or << "\n";
 //             std::cout << "MAX Pattern: " << str_pattern_max << "\n";
-/*	    std::string accessed_blocks = "";
-            for (auto acc : pattern)
-            {
-                if (acc) { accessed_blocks += "1"; }
-                else { accessed_blocks += "0"; }
-            }
 
-            std::cout << std::right << std::setw(18) 
-                      << fti_info.eip << " "
+//           std::string accessed_blocks = "";
+//           for (auto acc : pattern)
+//           {
+//               if (acc) { accessed_blocks += "1"; }
+//               else { accessed_blocks += "0"; }
+//           }
 
-                      << std::right << accessed_blocks << "\n";
-*/
+//           std::cout << std::right << std::setw(18) 
+//                     << fti_info.eip << " "
+
+//                     << std::right << accessed_blocks << "\n";
+
         }
+*/
+    }
+
+  protected:
+    bool first_acc = true;
+    Addr last_acc_page;
+    Addr last_fti;
+    bool offsets[page_size / block_size];
+
+    std::unordered_map<Addr,Addr> fti_lut;
+
+  protected:
+    std::ofstream runtime_out;
+
+  public:
+    void initRuntimePrint(std::string &_out)
+    {
+        runtime_out.open(_out);
     }
 
     bool send(Request &req) override
@@ -210,9 +232,52 @@ class PrefEval : public MemObject
         Addr eip = req.eip;
         Addr virtual_page_id = va >> va_page_shift;
         Addr virtual_block_offset = (va & va_page_mask) >> block_shift;
-        bool read_access = 1;
-        if (req.isWrite()) { read_access = 0; }
+        // bool read_access = 1;
+        // if (req.isWrite()) { read_access = 0; }
 
+	Addr fti = eip;
+        if (auto t_iter = fti_lut.find(virtual_page_id); 
+                t_iter != fti_lut.end())
+        {
+            fti = t_iter->second;
+        }
+        else
+        {
+            fti_lut.insert({virtual_page_id, eip});
+        }
+
+	if (first_acc)
+        {
+            first_acc = false;
+            last_fti = fti;
+            last_acc_page = virtual_page_id;
+            // Initialize offsets	    
+            for (auto &o : offsets) { o = false; }
+        }
+        else
+        {
+            if (last_acc_page != virtual_page_id)
+            {
+		runtime_out << last_fti << "," << last_acc_page << ",";
+                std::string accessed_blocks = "";
+                for (auto acc : offsets)
+                {
+                    if (acc) { accessed_blocks += "1"; }
+                    else { accessed_blocks += "0"; }
+                }
+		runtime_out << accessed_blocks << "\n";
+
+                for (auto &o : offsets) { o = false; }
+
+                last_acc_page = virtual_page_id;
+                last_fti = fti;
+            }
+        }
+
+        offsets[virtual_block_offset] = true;
+
+        return true;
+/*
         if (auto p_iter = page_id_to_page_info.find(virtual_page_id);
                 p_iter != page_id_to_page_info.end())
         {
@@ -304,6 +369,7 @@ class PrefEval : public MemObject
         //           << virtual_block_offset << "\n";
 
         return true;
+*/
     }
 };
 }

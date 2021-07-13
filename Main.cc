@@ -75,6 +75,7 @@ void prefetcherPatternsExtraction(std::string &trace,
                                   std::string &pref_patterns_output)
 {
     Simulator::PrefEval prefetcher;
+    prefetcher.initRuntimePrint(pref_patterns_output);
 
     Simulator::Trace cpu_trace(trace);
 
@@ -108,9 +109,9 @@ void prefetcherPatternsExtraction(std::string &trace,
         more_instrs = cpu_trace.getInstruction(instr);
     }
 
-    Stats stats;
-    prefetcher.registerStats(stats);
-    stats.outputStats(pref_patterns_output);
+    // Stats stats;
+    // prefetcher.registerStats(stats);
+    // stats.outputStats(pref_patterns_output);
 }
  
 void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
