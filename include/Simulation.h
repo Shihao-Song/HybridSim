@@ -40,13 +40,9 @@ struct ParseArgsRet
     std::string dram_cfg_file;
     std::string pcm_cfg_file;
     std::vector<std::string> trace_lists;
-    std::vector<std::string> pref_patterns;
-    std::string pattern_selection;
-    unsigned pref_num;
-    int64_t num_instrs_per_phase;
     std::string stats_output_file;
-    std::string pref_patterns_output;
 };
+
 ParseArgsRet parse_args(int argc, const char *argv[]);
 
 auto createMMU(int num_of_cores, Config &dram_cfg, Config &pcm_cfg)
@@ -112,40 +108,22 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::string dram_cfg_file = "N/A";
     std::string pcm_cfg_file = "N/A";
     std::vector<std::string> traces;
-    std::vector<std::string> pref_patterns;
-    std::string pattern_selection;
-    unsigned pref_num = 0;
-    int64_t num_instrs_per_phase = -1;
     std::string stats_output;
-    // float pref_coverage = 1.0;
-    std::string pref_patterns_output;
 
     namespace po = boost::program_options;
     po::options_description desc("Options");
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: hybrid, pref-patterns")
+                 "Mode: hybrid")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
                    "Configuration file for PCM (if hybrid system)")
         ("trace", po::value<std::vector<std::string>>(&traces),
                       "CPU trace or MEM trace")
-        ("pref-patterns", po::value<std::vector<std::string>>(&pref_patterns),
-                          "spatial patterns for the workload")
-        ("pattern-selection", po::value<std::string>(&pattern_selection),
-                              "i.e., AND, OR, MAX, NONE")
-        ("pref-num", po::value<unsigned>(&pref_num),
-                         "number of cachelines to prefetch")
-        ("num_instrs_per_phase", po::value<int64_t>(&num_instrs_per_phase),
-                   "Number of instrs per phase")
         ("stat_output", po::value<std::string>(&stats_output),
-                        "Stats output file/Stats output")
-//        ("pref_coverage", po::value<float>(&pref_coverage),
-//                          "Prefetcher spatial coverage, i.e., 0.5 of positions covered by all pages touch by the same signature")
-        ("pref_patterns_output", po::value<std::string>(&pref_patterns_output),
-                        "prefetcher patterns output file");
+                        "Stats output file/Stats output");
 
     po::variables_map vm;
 
@@ -173,12 +151,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         dram_cfg_file,
                         pcm_cfg_file,
                         traces,
-                        pref_patterns,
-                        pattern_selection,
-                        pref_num,
-                        num_instrs_per_phase,
-                        stats_output,
-                        pref_patterns_output};
+                        stats_output};
 }
 
 #endif

@@ -251,15 +251,6 @@ class Processor
                         inserted++;
                         cur_inst.opr = Instruction::Operation::MAX; // Re-initialize
                         more_insts = trace.getInstruction(cur_inst);
-
-                        auto pref_addr = mmu->invokePrefetcher(req);
-                        for (auto addr : pref_addr) 
-                        {
-                            // std::cout << cycles << ": prefetching: " << addr << "\n";
-                            Request pref_req(addr, Request::Request_Type::READ);
-                            pref_req.core_id = core_id;
-                            d_cache->send(pref_req);
-                        }
                     }
                     else
                     {

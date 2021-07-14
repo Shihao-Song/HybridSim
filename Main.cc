@@ -14,17 +14,9 @@ struct HybridCfgArgs
     Config pcm_cfg;
 };
 
-void prefetcherPatternsExtraction(std::string &trace, 
-                                  std::string &pref_patterns_output);
- 
 void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
                                        std::vector<std::string> &trace_lists,
-                                       std::vector<std::string> &pref_patterns,
-                                       std::string pattern_selection,
-                                       unsigned pref_num,
-                                       int64_t num_instrs_per_phase,
-                                       std::string &stats_output_file,
-                                       std::string &pref_patterns_output);
+                                       std::string &stats_output_file);
 
 int main(int argc, const char *argv[])
 {
@@ -32,12 +24,7 @@ int main(int argc, const char *argv[])
           dram_cfg_file,
           pcm_cfg_file,
           trace_lists,
-          pref_patterns,
-          pattern_selection,
-          pref_num,
-          num_instrs_per_phase, // # instructions for each phase, e.g., 10M, 100M...
-          stats_output_file,
-          pref_patterns_output] = parse_args(argc, argv);
+          stats_output_file] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
     if (mode == "hybrid")
@@ -51,17 +38,7 @@ int main(int argc, const char *argv[])
         // one should be PCM.
        hybridDRAMPCMFullSystemSimulation(cfgs,
                                          trace_lists,
-                                         pref_patterns,
-                                         pattern_selection,
-	                                 pref_num,
-                                         num_instrs_per_phase,
-                                         stats_output_file,
-                                         pref_patterns_output);
-    }
-    else if (mode == "pref-patterns")
-    {
-        assert(trace_lists.size() == 1);
-        prefetcherPatternsExtraction(trace_lists[0], pref_patterns_output);
+                                         stats_output_file);
     }
     else
     {
@@ -70,58 +47,9 @@ int main(int argc, const char *argv[])
     }
 }
 
-#include "Processor/pref_eval.hh"
-void prefetcherPatternsExtraction(std::string &trace, 
-                                  std::string &pref_patterns_output)
-{
-    Simulator::PrefEval prefetcher;
-    prefetcher.initRuntimePrint(pref_patterns_output);
-
-    Simulator::Trace cpu_trace(trace);
-
-    Simulator::Instruction instr;
-    bool more_instrs = cpu_trace.getInstruction(instr);
-
-    while (more_instrs)
-    {
-        if (instr.opr == Simulator::Instruction::Operation::LOAD ||
-            instr.opr == Simulator::Instruction::Operation::STORE)
-        {
-            Request req;
-
-            if (instr.opr == Simulator::Instruction::Operation::LOAD)
-            {
-                req.req_type = Request::Request_Type::READ;
-            }
-            else
-            {
-                req.req_type = Request::Request_Type::WRITE;
-            }
-
-            req.core_id = 0;
-            req.eip = instr.eip;
-            // Use virtual address here
-            req.addr = instr.target_vaddr;
-
-            prefetcher.send(req);
-            // std::cout << req.eip << " " << req.addr << "\n";
-        }
-        more_instrs = cpu_trace.getInstruction(instr);
-    }
-
-    // Stats stats;
-    // prefetcher.registerStats(stats);
-    // stats.outputStats(pref_patterns_output);
-}
- 
 void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
                                        std::vector<std::string> &trace_lists,
-                                       std::vector<std::string> &pref_patterns,
-                                       std::string pattern_selection,
-                                       unsigned pref_num,
-                                       int64_t num_instrs_per_phase,
-                                       std::string &stats_output_file,
-                                       std::string &pref_patterns_output)
+                                       std::string &stats_output_file)
 {
     unsigned num_of_cores = trace_lists.size();
     Config &dram_cfg = cfgs.dram_cfg;
@@ -170,14 +98,12 @@ void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
     // simulator.
     std::unique_ptr<System::MMU> mmu(createMMU(num_of_cores, dram_cfg, pcm_cfg));
-    mmu->setPrefPatterns(pref_patterns, pattern_selection);
     std::vector<MemObject*> core_caches;
     for (int i = 0; i < num_of_cores; i++)
     {
         core_caches.push_back(L1Ds[i].get());
     }
     mmu->setCoreCaches(core_caches);
-    mmu->setPrefNum(pref_num);
     DRAM_PCM->setMMU(mmu.get());
     
     // Create Processor
