@@ -68,6 +68,7 @@ class Hybrid : public MMU
             }
             base += mem_size_in_gb[m] * 1024 * 1024 / 4;
         }
+
         // TODO, enable this line!
         std::shuffle(std::begin(free_frames),
                      std::end(free_frames), rng);
