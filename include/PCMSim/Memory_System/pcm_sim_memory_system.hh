@@ -7,6 +7,7 @@
 #include "Sim/request.hh"
 
 #include "PCMSim/Controller/pcm_sim_controller.hh"
+#include "PCMSim/CP_Aware_Controller/laser.hh"
 
 #include <functional>
 #include <iostream>
@@ -183,6 +184,41 @@ class PCMSimMemorySystem : public Simulator::MemObject
             std::string access_latency = technology + "Access_Latency = " + 
                                    std::to_string(double(total_waiting_time) / 
                                                   double(total_reqs));
+
+            if constexpr (std::is_same<CP_Static, PCMController>::value ||
+                          std::is_same<LASER_1_Controller, PCMController>::value ||
+                          std::is_same<LASER_2_Controller, PCMController>::value)
+            {
+                if (m == int(Config::Memory_Node::PCM))
+                {
+                    uint64_t max_on_time = 0;
+                    uint64_t min_on_time = (uint64_t) - 1;
+                    float max_aging = 0.0;
+
+                    for (auto &ctrl : pcm_controllers)
+                    {
+                        max_on_time = (max_on_time < ctrl->max_on_time) ? ctrl->max_on_time 
+                                                                        : max_on_time;
+
+                        min_on_time = (min_on_time > ctrl->min_on_time) ? ctrl->min_on_time 
+                                                                        : min_on_time;
+
+                        max_aging = (max_aging < ctrl->max_aging) ? ctrl->max_aging
+                                                                  : max_aging;
+                    }
+
+                    std::string str_max_on = technology + "Max_On_Time = " + 
+                                             std::to_string(max_on_time);
+                    std::string str_min_on = technology + "Min_On_Time = " +
+                                             std::to_string(min_on_time);
+                    std::string str_max_aging = technology + "Max_Aging = " +
+                                             std::to_string(max_aging);
+
+                    stats.registerStats(str_max_on);
+                    stats.registerStats(str_min_on);
+                    stats.registerStats(str_max_aging);
+                }
+            }
             stats.registerStats(req_info);
             stats.registerStats(waiting_info);
             stats.registerStats(access_latency);
@@ -216,6 +252,11 @@ class PCMSimMemorySystem : public Simulator::MemObject
 
 typedef PCMSimMemorySystem<FCFSController> FCFS_PCMSimMemorySystem;
 typedef PCMSimMemorySystem<FRFCFSController> FR_FCFS_PCMSimMemorySystem;
+
+typedef PCMSimMemorySystem<CP_Static> CP_Static_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<LASER_1_Controller> LASER_1_PCMSimMemorySystem;
+typedef PCMSimMemorySystem<LASER_2_Controller> LASER_2_PCMSimMemorySystem;
+
 
 class PCMSimMemorySystemFactory
 {
@@ -251,6 +292,24 @@ class PCMSimMemorySystemFactory
         hybrid_factories["FR-FCFS"] = [](Config &dram_cfg, Config &pcm_cfg)
                     {
                         return std::make_unique<FR_FCFS_PCMSimMemorySystem>(dram_cfg,
+                            pcm_cfg);
+                    };
+	
+        hybrid_factories["HEBE"] = [](Config &dram_cfg, Config &pcm_cfg)
+                    {
+                        return std::make_unique<LASER_1_PCMSimMemorySystem>(dram_cfg,
+                            pcm_cfg);
+                    };
+	
+        hybrid_factories["HEBE-D"] = [](Config &dram_cfg, Config &pcm_cfg)
+                    {
+                        return std::make_unique<LASER_2_PCMSimMemorySystem>(dram_cfg,
+                            pcm_cfg);
+                    };
+
+        hybrid_factories["CP_Static"] = [](Config &dram_cfg, Config &pcm_cfg)
+                    {
+                        return std::make_unique<CP_Static_PCMSimMemorySystem>(dram_cfg,
                             pcm_cfg);
                     };
     }

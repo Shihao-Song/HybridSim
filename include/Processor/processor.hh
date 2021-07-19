@@ -285,6 +285,9 @@ class Processor
 
         bool done()
         {
+            // if (retired > 2500000) return true;
+            if (retired > 250000000) return true;
+
             // return !more_insts && window.isEmpty();
             bool issuing_done = !more_insts && window.isEmpty();
 

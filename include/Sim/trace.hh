@@ -37,7 +37,6 @@ class Trace
         {
             pending_instrs[0]->makeInstr(inst);
             pending_instrs.pop_front();
-
             return true;
         }
 

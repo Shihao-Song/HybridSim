@@ -39,6 +39,7 @@ class BaseController
 
     // One for read and one for write
     // This is a per-bank record on how many reads and writes left to a bank.
+    std::vector<std::vector<int>> num_reqs_to_banks[2];
 
   protected:
     Tick clk;
@@ -56,6 +57,20 @@ class BaseController
     {
         channel = std::make_unique<Array>(Config::Array_Level::Channel, cfg);
         channel->id = _id;
+
+        for (int k = 0; k < 2; k++)
+        {
+            num_reqs_to_banks[k].resize(num_of_ranks);
+            for (int i = 0; i < num_of_ranks; i++)
+            {
+                num_reqs_to_banks[k][i].resize(num_of_banks);
+
+                for (int j = 0; j < num_of_banks; j++)
+                {
+                    num_reqs_to_banks[k][i][j] = 0;
+                }
+            }
+        }
    }
     
     virtual ~BaseController()
@@ -250,6 +265,10 @@ class FCFSController : public BaseController
                         ++finished_requests;
                     }
 
+                    int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
+                    int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
+                    num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]--;
+
                     r_w_pending_queue.pop_front();
                 }
             }
@@ -261,6 +280,10 @@ class FCFSController : public BaseController
                     total_waiting_time += waiting_time;
                     ++finished_requests;
                 }
+
+                int rank_id = req.addr_vec[int(Config::Decoding::Rank)];
+                int bank_id = req.addr_vec[int(Config::Decoding::Bank)];
+                num_reqs_to_banks[int(req.req_type)][rank_id][bank_id]--;
 
                 r_w_pending_queue.pop_front();
             }

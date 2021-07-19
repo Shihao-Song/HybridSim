@@ -61,7 +61,7 @@ void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
     // Cache system
     std::vector<std::unique_ptr<MemObject>> L1Ds;
     std::vector<std::unique_ptr<MemObject>> L2s;
-    std::vector<std::unique_ptr<MemObject>> L3s;
+//    std::vector<std::unique_ptr<MemObject>> L3s;
     // Skylake cache system
     for (int i = 0; i < num_of_cores; i++)
     {
@@ -71,28 +71,31 @@ void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
 
         std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, 
                                                       Memories::L2_CACHE, 
-                                                      isNonLLC));
-
-        std::unique_ptr<MemObject> L3(createMemObject(pcm_cfg, 
-                                                      Memories::L3_CACHE,
+                                                      // isNonLLC));
                                                       isLLC));
+
+//        std::unique_ptr<MemObject> L3(createMemObject(pcm_cfg, 
+//                                                      Memories::L3_CACHE,
+//                                                      isLLC));
 
         L1_D->setId(i);
         L2->setId(i);
-        L3->setId(i);
+//        L3->setId(i);
 
-        L3->setBoundaryMemObject(); // Boundary memory object.
+//        L3->setBoundaryMemObject(); // Boundary memory object.
+        L2->setBoundaryMemObject(); // Boundary memory object.
 
         L1_D->setNextLevel(L2.get());
-        L2->setNextLevel(L3.get());
-        L3->setNextLevel(DRAM_PCM.get());
+        L2->setNextLevel(DRAM_PCM.get());
+//        L2->setNextLevel(L3.get());
+//        L3->setNextLevel(DRAM_PCM.get());
 
         L2->setPrevLevel(L1_D.get());
-        L3->setPrevLevel(L2.get());
+        // L3->setPrevLevel(L2.get());
 
         L1Ds.push_back(std::move(L1_D));
         L2s.push_back(std::move(L2));
-        L3s.push_back(std::move(L3));
+        // L3s.push_back(std::move(L3));
     }
 
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
@@ -136,10 +139,10 @@ void hybridDRAMPCMFullSystemSimulation(HybridCfgArgs &cfgs,
     {
         L2->registerStats(stats);
     }
-    for (auto &L3 : L3s)
-    {
-        L3->registerStats(stats);
-    }
+//    for (auto &L3 : L3s)
+//    {
+//        L3->registerStats(stats);
+//    }
 
     mmu->registerStats(stats);
     DRAM_PCM->registerStats(stats);

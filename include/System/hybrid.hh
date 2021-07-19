@@ -74,8 +74,6 @@ class Hybrid : public MMU
                      std::end(free_frames), rng);
         // std::cout << "Total number of pages: "
         //           << free_frames.size() << "\n\n";
-
-        // exit(0);
     }
 
     // Default: randomly map a virtual page to DRAM or PCM (segment is not considered)
@@ -126,8 +124,8 @@ class Hybrid : public MMU
                 in_dram = false; in_pcm = true;
             }
             
-            // chosen_technology = int(Config::Memory_Node::DRAM);
-            // in_dram = true; in_pcm = false;
+            chosen_technology = int(Config::Memory_Node::PCM);
+            in_dram = false; in_pcm = true;
 
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
             // std::cout << "Size of free frames: " << free_frames.size() << "\n";
