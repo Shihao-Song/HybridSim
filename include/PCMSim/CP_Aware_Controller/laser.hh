@@ -15,7 +15,7 @@ template<typename Scheduler>
 class LASER : public FCFSController
 {
   protected:
-    enum class CP_Type : int { RCP, WCP, MAX};
+    enum class CP_Type : int { RCP, WCP, MAX };
 
     const int back_logging_threshold = -16; // Only for critical reads
     
