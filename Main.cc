@@ -19,8 +19,6 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
 
 int main(int argc, const char *argv[])
 {
-    // TODO, prepare for SVF integration
-
     auto [mode,
           dram_cfg_file,
           pcm_cfg_file,
@@ -37,7 +35,6 @@ int main(int argc, const char *argv[])
         cfgs.dram_cfg.setCfgFile(dram_cfg_file);
         cfgs.pcm_cfg.setCfgFile(pcm_cfg_file);
 
-        // For a Hybrid system, the first config file should be for DRAM and the second
         // one should be PCM.
         Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
                                                trace_lists,
@@ -58,8 +55,6 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::string &stats_output_file,
                                             std::string &svf_trace_dir)
 {
-    // TODO, for any shared caches, multiply their mshr and wb sizes to num_of_cores, please
-    // see our example configuration files for more information.
     unsigned num_of_cores = trace_lists.size();
     Config &dram_cfg = cfgs.dram_cfg;
     Config &pcm_cfg = cfgs.pcm_cfg;
@@ -112,7 +107,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
     // Create Processor
     std::unique_ptr<Processor> processor(new Processor(pcm_cfg.on_chip_frequency,
                                                        pcm_cfg.off_chip_frequency,
-                                                       trace_lists, DRAM_PCM.get()));
+                                                       trace_lists, 
+                                                       DRAM_PCM.get()));
     
     processor->setMMU(mmu.get());
     processor->numClksPerPhase(num_clks_per_phase);

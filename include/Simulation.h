@@ -74,23 +74,33 @@ auto createMemObject(Config &cfg,
     {
         if (mem_type == Memories::L1_I_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1I, cfg, LLC);
+            return CacheSimulator::createCache(Config::Cache_Level::L1I, 
+                                               cfg, 
+                                               LLC);
         }
         else if (mem_type == Memories::L1_D_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L1D, cfg, LLC);
+            return CacheSimulator::createCache(Config::Cache_Level::L1D, 
+                                               cfg, 
+                                               LLC);
         }
         else if (mem_type == Memories::L2_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L2, cfg, LLC);
+            return CacheSimulator::createCache(Config::Cache_Level::L2, 
+                                               cfg, 
+                                               LLC);
         }
         else if (mem_type == Memories::L3_CACHE)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::L3, cfg, LLC);
+            return CacheSimulator::createCache(Config::Cache_Level::L3, 
+                                               cfg, 
+                                               LLC);
         }
         else if (mem_type == Memories::eDRAM)
         {
-            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, cfg, LLC);
+            return CacheSimulator::createCache(Config::Cache_Level::eDRAM, 
+                                               cfg, 
+                                               LLC);
         }
     }
 }
