@@ -14,7 +14,7 @@ struct hybridCfgArgs
 void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_clks_per_phase,
-                                            std::string &stats_output_file,
+                                            // std::string &stats_output_file,
                                             std::string &svf_trace_dir);
 
 int main(int argc, const char *argv[])
@@ -24,7 +24,7 @@ int main(int argc, const char *argv[])
           pcm_cfg_file,
           trace_lists,
           num_clks_per_phase, // # instructions for each phase, e.g., 10M, 100M...
-          stats_output_file,
+          // stats_output_file,
           svf_trace_dir] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
@@ -39,7 +39,7 @@ int main(int argc, const char *argv[])
         Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
                                                trace_lists,
                                                num_clks_per_phase,
-                                               stats_output_file,
+                                               // stats_output_file,
                                                svf_trace_dir);
     }
     else
@@ -52,7 +52,7 @@ int main(int argc, const char *argv[])
 void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_clks_per_phase,
-                                            std::string &stats_output_file,
+                                            // std::string &stats_output_file,
                                             std::string &svf_trace_dir)
 {
     unsigned num_of_cores = trace_lists.size();
@@ -126,6 +126,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
     std::cout << "\nSimulation Stage (Hybrid DRAM-PCM system)...\n\n";
     runCPUTrace(processor.get());
 
+    /*
     // Collecting Stats
     Stats stats;
 
@@ -151,4 +152,5 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
     DRAM_PCM->registerStats(stats);
     
     stats.outputStats(stats_output_file);
+    */
 }

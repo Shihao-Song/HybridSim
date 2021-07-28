@@ -41,7 +41,7 @@ struct ParseArgsRet
     std::string pcm_cfg_file;
     std::vector<std::string> trace_lists;
     int64_t num_clks_per_phase;
-    std::string stats_output_file;
+    // std::string stats_output_file;
     std::string svf_trace_dir;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
@@ -120,7 +120,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::string pcm_cfg_file = "N/A";
     std::vector<std::string> traces;
     int64_t num_clks_per_phase = -1;
-    std::string stats_output;
+    // std::string stats_output;
     std::string svf_trace_dir;
 
     namespace po = boost::program_options;
@@ -128,7 +128,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     desc.add_options() 
         ("help", "Print help messages")
         ("mode", po::value<std::string>(&mode),
-                 "Mode: hybrid")
+                 "Mode: hybrid, dram-only, pcm-only")
         ("dram-config", po::value<std::string>(&dram_cfg_file),
                    "Configuration file for DRAM (if hybrid system)")
         ("pcm-config", po::value<std::string>(&pcm_cfg_file),
@@ -137,8 +137,8 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                       "CPU trace or MEM trace")
         ("num_clks_per_phase", po::value<int64_t>(&num_clks_per_phase),
                    "Number of clks per phase")
-        ("stat_output", po::value<std::string>(&stats_output),
-                        "Stats output file/Stats output")
+        // ("stat_output", po::value<std::string>(&stats_output),
+        //                 "Stats output file/Stats output")
         ("svf_trace_dir", po::value<std::string>(&svf_trace_dir),
                         "SVF traces directory");
 
@@ -150,7 +150,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
  
         if (vm.count("help")) 
         { 
-            std::cout << "A CPU-trace driven PCM Simulator.\n" 
+            std::cout << "SVF Framework.\n" 
                       << desc << "\n"; 
             exit(0);
         } 
@@ -169,7 +169,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         pcm_cfg_file,
                         traces,
                         num_clks_per_phase,
-                        stats_output,
+                        // stats_output,
                         svf_trace_dir};
 }
 
