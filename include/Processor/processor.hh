@@ -90,7 +90,8 @@ class Processor
             return [this](Request &req)
             {
                 Addr addr = req.addr;
-                if (probe_stage)
+                if (probe_stage && 
+                    int(req.hitwhere) >= int(Request::Hitwhere::L2_Clean))
                 {
                     accessed_sets[(addr >> set_shift) & set_mask] = 1;
                 }
@@ -156,6 +157,16 @@ class Processor
             }
         }
         
+        void outputAccessInfo(std::string &_fn)
+        {
+            std::ofstream fd(_fn);
+            for (auto i = 0; i < num_sets; i++)
+            {
+                fd << accessed_sets[i] << " ";
+            }
+            fd << "\n";
+            fd.close();
+        }
     };
 
     class Core
@@ -361,9 +372,14 @@ class Processor
                             ": Number of instructions = " + std::to_string(retired));
         }
 
-        void SVFGen(std::string &_trace_fn)
+        void SVFOracle(std::string &_trace_fn)
         {
             d_cache->outputMemContents(_trace_fn);
+        }
+        
+	void SVFAttacker(std::string &_trace_fn)
+        {
+            window.outputAccessInfo(_trace_fn);
         }
 
         bool doneDrainDCacheReqs()
@@ -391,7 +407,15 @@ class Processor
             d_cache->resetVictimExe();
         }
 
-        bool prime()
+        void setVictimExe()
+        {
+            d_cache->setVictimExe();
+        }
+
+        void enablePP() { window.setProbeStage(); }
+        void disablePP() { window.resetProbeStage(); }
+
+        bool primeAndProbe()
         {
             if (d_cache != nullptr) { d_cache->tick(); }
             int num_window_done = window.retire();
@@ -431,7 +455,6 @@ class Processor
         {
             auto num_sets = trace.setPrimeProbeInfo(_level, cfg);
             window.setPrimeProbeInfo(_level, cfg);
-            // std::cout << num_sets << "\n";
         }
 
       private:
@@ -533,13 +556,36 @@ class Processor
         if (phase_enabled && (cycles %  num_clks_per_phase == 0))
         {
             // Initial prime stage
-            std::cerr << "initial prime stage. \n";
-            cores[0]->resetVictimExe();
+            // std::cerr << "initial prime stage. \n";
+            if (num_phases > 0)
+            {
+                // First of all, we want to extract the oracle traces
+                std::string trace_fn = std::to_string(num_phases)
+                                     + ".oracle";
+                if (svf_trace_dir.back() == '/') 
+                { trace_fn = svf_trace_dir + trace_fn; }
+                else { trace_fn = svf_trace_dir + "/" + trace_fn; }
+                cores[0]->SVFOracle(trace_fn);
+   
+                // Notify cache that we are in prime and probe stage
+                // The function also clears the information from previous
+                // stages
+                cores[0]->resetVictimExe();
+
+                // Now, we probe the stage
+                cores[0]->enablePP();
+            }
+            else
+            {
+                // We only prime the cache in the first stage
+                cores[0]->resetVictimExe();
+                cores[0]->disablePP();
+            }
 
             Tick fake_clk = cycles;
             while (true)
             {
-                bool cond = cores[0]->prime();
+                bool cond = cores[0]->primeAndProbe();
                 if (fake_clk % nclks_to_tick_shared == 0)
                 {
                     // Tick the shared
@@ -550,82 +596,32 @@ class Processor
                 if (!cond) break;
             }
 
-            std::string trace_fn = std::to_string(num_phases)
-                                   + ".attacker";
-            if (svf_trace_dir.back() == '/') 
-            { trace_fn = svf_trace_dir + trace_fn; }
-            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            // std::cout << "    Generating attacker trace " << trace_fn
-            //           << " ...\n";
-            cores[0]->SVFGen(trace_fn);
-            exit(0);
-
-            exit(0);
-        }
-
-        /*
-        if (phase_enabled && phase_end)
-        {
-            // std::cout << "Phase #" << cycles << "\n";
-
-            // Step one - extract the current cache set info
-            //     This is what attacker sees
-            std::string trace_fn = std::to_string(num_phases)
-                                   + ".attacker";
-            if (svf_trace_dir.back() == '/') 
-            { trace_fn = svf_trace_dir + trace_fn; }
-            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            // std::cout << "    Generating attacker trace " << trace_fn
-            //           << " ...\n";
-            cores[0]->SVFGen(trace_fn);
-
-            // Step two - drain all the caches and memory system
-            //     This is the oracle trace
-            // std::cout << "    Draining memory system...\n";
-            Tick fake_clk = cycles;
-            while (true)
+            if (num_phases > 0)
             {
-                cores[0]->drainDCacheReqs();
-                if (fake_clk % nclks_to_tick_shared == 0)
-                {
-                    // Tick the shared
-                    shared_m_obj->tick();
-                }
-                fake_clk++;
-
-                if ((shared_m_obj->pendingRequests() == 0) && 
-                    (cores[0]->doneDrainDCacheReqs()))
-                {
-                    break;
-                }
+                // Lastly, we extract the attacker
+                std::string trace_fn = std::to_string(num_phases)
+                                     + ".attacker";
+                if (svf_trace_dir.back() == '/') 
+                { trace_fn = svf_trace_dir + trace_fn; }
+                else { trace_fn = svf_trace_dir + "/" + trace_fn; }
+                cores[0]->SVFAttacker(trace_fn);
+   
+                // Now, we disable probe the stage
+                cores[0]->disablePP();
             }
-            trace_fn = std::to_string(num_phases)
-                                   + ".oracle";
-            if (svf_trace_dir.back() == '/') 
-            { trace_fn = svf_trace_dir + trace_fn; }
-            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
-            // std::cout << "    Generating oracle trace " << trace_fn
-            //           << " ...\n";
-            cores[0]->SVFGen(trace_fn);
 
-            // Step three - re-initialize the cache for the next phase
-            cores[0]->reInitDCache();
-            shared_m_obj->reInitialize();
-
-            // std::cout << "\n";
-            phase_end = false;
+            // Notify cache that we are out of prime and probe stage
+            cores[0]->setVictimExe();
 
             num_phases++;
+
+            if (num_phases > 2000)
+            {
+                exit(0);
+            }
         }
-        */
+
         cycles++;
-        // if (phase_enabled)
-        // {
-        //     if ((cycles > 0) && (cycles %  num_clks_per_phase == 0))
-        //     {
-        //         phase_end = true;
-        //     }
-        // }
 
         // std::cout << cycles << "\n";
         for (auto &core : cores)

@@ -474,7 +474,7 @@ class Cache : public Simulator::MemObject
     {
         if (svf_extr)
         {
-            std::cerr << level_name << " setVictimExe. \n";
+            // std::cerr << level_name << " setVictimExe. \n";
             tags->setVictimExe(); 
         }
 
@@ -488,7 +488,7 @@ class Cache : public Simulator::MemObject
     {
         if (svf_extr)
         {
-            std::cerr << level_name << " resetVictimExe. \n";
+            // std::cerr << level_name << " resetVictimExe. \n";
             tags->resetVictimExe(); 
         }
 
