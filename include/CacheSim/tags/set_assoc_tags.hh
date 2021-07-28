@@ -195,6 +195,11 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         fd.close();
     }
 
+    std::vector<bool> getAccessInfo() override
+    {
+        return accessed_sets;
+    }
+
   protected:
     void tagsInit() override
     {

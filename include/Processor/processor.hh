@@ -168,6 +168,8 @@ class Processor
             fd << "\n";
             fd.close();
         }
+
+        auto getAccessInfo() { return accessed_sets; }
     };
 
     class Core
@@ -377,11 +379,13 @@ class Processor
         {
             d_cache->outputMemContents(_trace_fn);
         }
-        
+        auto getOracleAccess() { return d_cache->getAccessInfo(); }
+
 	void SVFAttacker(std::string &_trace_fn)
         {
             window.outputAccessInfo(_trace_fn);
         }
+        auto getAttackerAccess() { return window.getAccessInfo(); }
 
         bool doneDrainDCacheReqs()
         {
@@ -451,11 +455,13 @@ class Processor
             return more_prime_probes; 
         }
 
-        void setPrimeProbeInfo(Config::Cache_Level _level,
+        auto setPrimeProbeInfo(Config::Cache_Level _level,
                                Config &cfg)
         {
             auto num_sets = trace.setPrimeProbeInfo(_level, cfg);
             window.setPrimeProbeInfo(_level, cfg);
+
+            return num_sets;
         }
 
       private:
@@ -556,7 +562,8 @@ class Processor
     {
         if (phase_enabled && (cycles %  num_clks_per_phase == 0))
         {
-            std::string oracle_fn;
+            std::vector<bool> o_trace;
+            std::vector<bool> a_trace;
             if (num_phases > 0)
             {
                 // First of all, we want to extract the oracle traces
@@ -566,7 +573,8 @@ class Processor
                 { trace_fn = svf_trace_dir + trace_fn; }
                 else { trace_fn = svf_trace_dir + "/" + trace_fn; }
                 cores[0]->SVFOracle(trace_fn);
-   
+                o_trace = cores[0]->getOracleAccess();
+
                 // Notify cache that we are in prime and probe stage
                 // The function also clears the information from previous
                 // stages
@@ -574,8 +582,6 @@ class Processor
 
                 // Now, we probe the stage
                 cores[0]->enablePP();
-
-                oracle_fn = trace_fn;
             }
             else
             {
@@ -598,7 +604,6 @@ class Processor
                 if (!cond) break;
             }
 
-            std::string attacker_fn;
             if (num_phases > 0)
             {
                 // Lastly, we extract the attacker
@@ -608,20 +613,38 @@ class Processor
                 { trace_fn = svf_trace_dir + trace_fn; }
                 else { trace_fn = svf_trace_dir + "/" + trace_fn; }
                 cores[0]->SVFAttacker(trace_fn);
-   
+                a_trace = cores[0]->getAttackerAccess();
+
                 // Now, we disable probe the stage
                 cores[0]->disablePP();
-
-                attacker_fn = trace_fn;
             }
 
             // Notify cache that we are out of prime and probe stage
             cores[0]->setVictimExe();
-            
+
+            // Calculate similarity
+            if (num_phases > 0)
+            {
+                unsigned diff = 0;
+                for (auto i = 0; i < o_trace.size(); i++)
+                {
+                    if (o_trace[i] != a_trace[i]) diff++;
+                }
+
+                if (diff > max_diff_sets) max_diff_sets = diff;
+                if (diff < min_diff_sets) min_diff_sets = diff;
+                total_diff += diff;
+            }
+
             num_phases++;
 
             if (num_phases > num_phases_limit)
             {
+                std::cerr << "\nCache size: " << num_sets << " sets\n";
+                std::cerr << "Max. diff between oracle and attacker: " << max_diff_sets << "\n";
+                std::cerr << "Min. diff between oracle and attacker: " << min_diff_sets << "\n";
+                std::cerr << "Avg. diff between oracle and attacker: " << (total_diff / num_phases_limit) << "\n";
+                
                 exit(0);
             }
         }
@@ -709,7 +732,7 @@ class Processor
 
         for (auto &core : cores)
         {
-            core->setPrimeProbeInfo(_level, cfg);
+            num_sets = core->setPrimeProbeInfo(_level, cfg);
         }
     }
 
@@ -740,6 +763,11 @@ class Processor
 
     unsigned num_phases = 0;
     unsigned num_phases_limit = 0;
+
+    unsigned num_sets;
+    unsigned max_diff_sets = 0;
+    unsigned min_diff_sets = (unsigned) - 1;
+    unsigned total_diff = 0;
 
     uint64_t num_clks_per_phase;
     bool phase_enabled = false;

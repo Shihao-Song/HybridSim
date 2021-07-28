@@ -25,6 +25,7 @@ class MemObject
 
     virtual void drainPendingReqs() {}
     virtual void outputMemContents(std::string &_fn) {}
+    virtual std::vector<bool> getAccessInfo() {}
 
     virtual void setId(int _id)
     {

@@ -61,6 +61,7 @@ class Tags
     virtual void debugPrint() {}
 
     virtual void outputAccessInfo(std::string &_fn) {}
+    virtual std::vector<bool> getAccessInfo() {}
 
   protected:
 

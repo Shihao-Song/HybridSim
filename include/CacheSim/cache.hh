@@ -511,6 +511,19 @@ class Cache : public Simulator::MemObject
         }
     }
 
+    std::vector<bool> getAccessInfo() override
+    {
+        if (svf_extr)
+        {
+            return tags->getAccessInfo();
+        }
+
+        if (!boundary)
+        {
+            return next_level->getAccessInfo();
+        }
+    }
+
     void registerStats(Simulator::Stats &stats) override
     {
         std::string registeree_name = level_name;
