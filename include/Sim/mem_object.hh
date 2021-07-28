@@ -52,6 +52,14 @@ class MemObject
     // bool inclusive = false; // Is the mem object inclusive? Default: non-inclusive.
 
   protected:
+    bool svf_extr = false;
+
+  public:
+    virtual void setSVFExtr() { svf_extr = true; }
+    virtual void setVictimExe() { return; }
+    virtual void resetVictimExe() { return; }
+
+  protected:
     System::MMU *mmu; // Give mem object access to MMU
 
     MemObject *next_level;

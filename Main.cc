@@ -94,6 +94,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
         L2->setPrevLevel(L1_D.get());
         L3->setPrevLevel(L2.get());
 
+        L1_D->setSVFExtr();
+
         L1Ds.push_back(std::move(L1_D));
         L2s.push_back(std::move(L2));
         L3s.push_back(std::move(L3));
@@ -117,6 +119,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
     for (int i = 0; i < num_of_cores; i++) 
     {
         processor->setDCache(i, L1Ds[i].get());
+        processor->setPrimeProbeInfo(Config::Cache_Level::L1D,
+                                     pcm_cfg);
     }
 
     std::cout << "\nSimulation Stage (Hybrid DRAM-PCM system)...\n\n";

@@ -35,6 +35,13 @@ class Tags
   protected:
     std::unique_ptr<T[]> blks; // All cache blocks
 
+  protected:
+    bool victim_exe_stage = false;
+
+  public:
+    virtual void setVictimExe() { victim_exe_stage = true; }
+    virtual void resetVictimExe() { victim_exe_stage = false; }
+
   public:
 
     // return val: <hit in cache?, the block is modified?, block-aligned address>

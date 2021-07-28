@@ -41,6 +41,9 @@ class SetWayAssocTags : public TagsWithSetWayBlk
 
     std::unique_ptr<P> policy;
 
+  protected:
+    std::vector<bool> accessed_sets;
+
   public:
     SetWayAssocTags(int level, Config &cfg)
         : TagsWithSetWayBlk(level, cfg),
@@ -50,11 +53,14 @@ class SetWayAssocTags : public TagsWithSetWayBlk
           set_mask(num_sets - 1),
           sets(num_sets),
           tag_shift(set_shift + log2(num_sets)),
-          policy(new P())
+          policy(new P()),
+          accessed_sets(num_sets)
     {
         for (uint32_t i = 0; i < num_sets; i++)
         {
             sets[i].resize(assoc);
+
+            accessed_sets[i] = 0;
         }
 
         tagsInit();
@@ -73,6 +79,11 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         // If there is hit, upgrade
         if (blk != nullptr)
         {
+            if (victim_exe_stage)
+            {
+                accessed_sets[blk->set] = 1;
+            }
+
             hit = true;
             policy->upgrade(blk, cur_clk);
 
@@ -81,10 +92,30 @@ class SetWayAssocTags : public TagsWithSetWayBlk
         return std::make_pair(hit, blk_aligned_addr);
     }
 
+    void setVictimExe() override 
+    {
+        victim_exe_stage = true; 
+    }
+
+    void resetVictimExe() override
+    {
+        for (auto i = 0; i < num_sets; i++)
+        {
+            accessed_sets[i] = 0;
+        }
+
+        victim_exe_stage = false; 
+    }
+
     std::pair<bool, Addr> insertBlock(Addr addr, bool modify, Tick cur_clk = 0) override
     {
         // Find a victim block 
         auto [wb_required, victim_addr, victim] = findVictim(addr); 
+
+        if (victim_exe_stage)
+        {
+            accessed_sets[victim->set] = 1;
+        }
 
         if (modify) { victim->setDirty(); }
         victim->insert(extractTag(addr));
@@ -156,15 +187,9 @@ class SetWayAssocTags : public TagsWithSetWayBlk
     void outputAccessInfo(std::string &_fn) override
     {
         std::ofstream fd(_fn);
-        for (auto i = 0; i < sets.size(); i++)
+        for (auto i = 0; i < num_sets; i++)
         {
-            bool accessed = false;
-            auto &set = sets[i];
-            for (auto way : set)
-            {
-                if (way->isValid()) { accessed = true; break; }
-            }
-            fd << accessed << " ";
+            fd << accessed_sets[i] << " ";
         }
         fd << "\n";
         fd.close();

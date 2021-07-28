@@ -5,6 +5,7 @@
 #include "Sim/mem_object.hh"
 #include "Sim/request.hh"
 #include "Sim/trace.hh"
+#include "Sim/config.hh"
 
 #include "System/mmu.hh"
 
@@ -27,6 +28,7 @@ typedef Simulator::Instruction Instruction;
 typedef Simulator::MemObject MemObject;
 typedef Simulator::Request Request;
 typedef Simulator::Trace Trace;
+typedef Simulator::Config Config;
 
 typedef System::MMU MMU;
 typedef System::MMU MMU;
@@ -88,6 +90,11 @@ class Processor
             return [this](Request &req)
             {
                 Addr addr = req.addr;
+                if (probe_stage)
+                {
+                    accessed_sets[(addr >> set_shift) & set_mask] = 1;
+                }
+
                 for (int i = 0; i < num_issues; i++)
                 {
                     Instruction &inst = pending_instructions[i];
@@ -106,6 +113,49 @@ class Processor
             };
         }
 
+      protected:
+        uint64_t block_size;
+        uint64_t num_sets;
+        uint64_t set_shift;
+        uint64_t set_mask;
+
+        std::vector<bool> accessed_sets;
+
+        bool probe_stage = false;
+
+      public:
+        void setPrimeProbeInfo(Config::Cache_Level _level,
+                               Config& cfg)
+        {
+            block_size = cfg.block_size;
+            auto size = cfg.caches[int(_level)].size * 1024;
+            auto assoc = cfg.caches[int(_level)].assoc;
+            num_sets = size / (block_size * assoc);
+            accessed_sets.resize(num_sets);
+            for (auto i = 0; i < num_sets; i++)
+            {
+                accessed_sets[i] = 0;
+            }
+
+            set_shift = log2(block_size);
+            set_mask = num_sets - 1;
+        }
+
+        void setProbeStage()
+        {
+            probe_stage = true;
+        }
+
+        void resetProbeStage()
+        {
+            probe_stage = false;
+
+            for (auto i = 0; i < num_sets; i++)
+            {
+                accessed_sets[i] = 0;
+            }
+        }
+        
     };
 
     class Core
@@ -220,18 +270,19 @@ class Processor
                     req.core_id = core_id;
                     req.eip = cur_inst.eip;
                     // Address translation
-                    if (!cur_inst.already_translated)
-                    {
+                    // if (!cur_inst.already_translated)
+                    // {
                         req.addr = cur_inst.target_vaddr; // Assign virtual first
-                        mmu->va2pa(req);
-                        // Update the instruction with the translated physical address
                         cur_inst.target_paddr = req.addr;
-                    }
-                    else
-                    {
+                    //     mmu->va2pa(req);
+                        // Update the instruction with the translated physical address
+                    //     cur_inst.target_paddr = req.addr;
+                    // }
+                    // else
+                    // {
                         // Already translated, no need to pass to mmu.
-                        req.addr = cur_inst.target_paddr;
-                    }
+                    //     req.addr = cur_inst.target_paddr;
+                    // }
 
                     // Align the address before sending to cache.
                     req.addr = req.addr & ~window.block_mask;
@@ -324,6 +375,64 @@ class Processor
 	void drainDCacheReqs() { d_cache->tick(); }
 
         void reInitDCache() { d_cache->reInitialize(); }
+
+      protected:
+        bool prime_stage = false;
+        std::vector<bool> accessed_sets;
+
+        Instruction prime_probe;
+        bool more_prime_probes;
+
+      public:
+        void resetVictimExe() 
+        {
+            more_prime_probes = trace.getPrimeProbeInstruction(prime_probe);
+
+            d_cache->resetVictimExe();
+        }
+
+        bool prime()
+        {
+            if (d_cache != nullptr) { d_cache->tick(); }
+            int num_window_done = window.retire();
+
+            int inserted = 0;
+
+            while (inserted < window.IPC && !window.isFull() && more_prime_probes)
+            {
+		assert(prime_probe.opr == Instruction::Operation::LOAD);
+
+                Request req; 
+                req.req_type = Request::Request_Type::READ;
+                req.callback = window.commit();
+                req.core_id = core_id;
+                req.addr = prime_probe.target_vaddr; // Assign virtual first
+
+                // Align the address before sending to cache.
+                req.addr = req.addr & ~window.block_mask;
+                if (d_cache->send(req))
+                {
+                    window.insert(prime_probe);
+                    inserted++;
+                    prime_probe.opr = Instruction::Operation::MAX; // Re-initialize
+                    more_prime_probes = trace.getPrimeProbeInstruction(prime_probe);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return more_prime_probes; 
+        }
+
+        void setPrimeProbeInfo(Config::Cache_Level _level,
+                               Config &cfg)
+        {
+            auto num_sets = trace.setPrimeProbeInfo(_level, cfg);
+            window.setPrimeProbeInfo(_level, cfg);
+            // std::cout << num_sets << "\n";
+        }
 
       private:
         // When evaluting branch predictors, MMU is allowed to be NULL.
@@ -421,6 +530,40 @@ class Processor
 
     void tick()
     {
+        if (phase_enabled && (cycles %  num_clks_per_phase == 0))
+        {
+            // Initial prime stage
+            std::cerr << "initial prime stage. \n";
+            cores[0]->resetVictimExe();
+
+            Tick fake_clk = cycles;
+            while (true)
+            {
+                bool cond = cores[0]->prime();
+                if (fake_clk % nclks_to_tick_shared == 0)
+                {
+                    // Tick the shared
+                    shared_m_obj->tick();
+                }
+                fake_clk++;
+
+                if (!cond) break;
+            }
+
+            std::string trace_fn = std::to_string(num_phases)
+                                   + ".attacker";
+            if (svf_trace_dir.back() == '/') 
+            { trace_fn = svf_trace_dir + trace_fn; }
+            else { trace_fn = svf_trace_dir + "/" + trace_fn; }
+            // std::cout << "    Generating attacker trace " << trace_fn
+            //           << " ...\n";
+            cores[0]->SVFGen(trace_fn);
+            exit(0);
+
+            exit(0);
+        }
+
+        /*
         if (phase_enabled && phase_end)
         {
             // std::cout << "Phase #" << cycles << "\n";
@@ -474,15 +617,15 @@ class Processor
 
             num_phases++;
         }
-
+        */
         cycles++;
-        if (phase_enabled)
-        {
-            if ((cycles > 0) && (cycles %  num_clks_per_phase == 0))
-            {
-                phase_end = true;
-            }
-        }
+        // if (phase_enabled)
+        // {
+        //     if ((cycles > 0) && (cycles %  num_clks_per_phase == 0))
+        //     {
+        //         phase_end = true;
+        //     }
+        // }
 
         // std::cout << cycles << "\n";
         for (auto &core : cores)
@@ -554,6 +697,15 @@ class Processor
         {
             std::cerr << "Error: trace dir does not exits!\n";
             exit(0);
+        }
+    }
+
+    void setPrimeProbeInfo(Config::Cache_Level _level,
+                           Config &cfg)
+    {
+        for (auto &core : cores)
+        {
+            core->setPrimeProbeInfo(_level, cfg);
         }
     }
 

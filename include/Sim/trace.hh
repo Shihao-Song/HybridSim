@@ -243,6 +243,40 @@ class Trace
         bra_ignored = true;
     }
 
+  protected:
+    unsigned block_size;
+    uint64_t size;
+
+    uint64_t base_addr = 0;
+
+  public:
+    bool getPrimeProbeInstruction(Instruction &inst)
+    {
+        inst.ready_to_commit = false;
+        inst.opr = Instruction::Operation::LOAD;
+        inst.target_vaddr = base_addr;
+        inst.target_paddr = base_addr;
+
+        if (base_addr < size)
+        {
+            // std::cout << "base: " << base_addr << "\n";
+            base_addr += block_size;
+            return true;
+        }
+        base_addr = 0;
+        return false;
+    }
+
+    uint64_t setPrimeProbeInfo(Config::Cache_Level _level,
+                               Config &cfg)
+    {
+        block_size = cfg.block_size;
+        size = cfg.caches[int(_level)].size * 1024;
+
+        // return number of sets;
+        return (size / (block_size * cfg.caches[int(_level)].assoc));
+    }
+
   private:
     struct InstrInfo
     {

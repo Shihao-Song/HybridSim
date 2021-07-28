@@ -80,7 +80,8 @@ class PCMSimMemorySystem : public Simulator::MemObject
     bool send(Request &req) override
     {
         // std::cout << req.addr  << "\n";
-        int memory_node = mmu->memoryNode(req);
+        // int memory_node = mmu->memoryNode(req);
+        int memory_node = int(Config::Memory_Node::DRAM); // Send all to DRAM
         if (memory_node == int(Config::Memory_Node::DRAM))
         {
             // std::cout << "In DRAM. \n";

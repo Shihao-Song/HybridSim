@@ -470,9 +470,45 @@ class Cache : public Simulator::MemObject
         }
     }
 
+    void setVictimExe()
+    {
+        if (svf_extr)
+        {
+            std::cerr << level_name << " setVictimExe. \n";
+            tags->setVictimExe(); 
+        }
+
+        if (!boundary)
+        {
+            next_level->setVictimExe();
+        }
+    }
+
+    void resetVictimExe()
+    {
+        if (svf_extr)
+        {
+            std::cerr << level_name << " resetVictimExe. \n";
+            tags->resetVictimExe(); 
+        }
+
+        if (!boundary)
+        {
+            next_level->resetVictimExe();
+        }
+    }
+
     void outputMemContents(std::string &_fn) override
     {
-        tags->outputAccessInfo(_fn);
+        if (svf_extr)
+        {
+            tags->outputAccessInfo(_fn);
+        }
+
+        if (!boundary)
+        {
+            next_level->outputMemContents(_fn);
+        }
     }
 
     void registerStats(Simulator::Stats &stats) override
