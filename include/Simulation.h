@@ -42,6 +42,7 @@ struct ParseArgsRet
     std::vector<std::string> trace_lists;
     int64_t num_clks_per_phase;
     // std::string stats_output_file;
+    unsigned num_phases;
     std::string svf_trace_dir;
 };
 ParseArgsRet parse_args(int argc, const char *argv[]);
@@ -121,25 +122,28 @@ ParseArgsRet parse_args(int argc, const char *argv[])
     std::vector<std::string> traces;
     int64_t num_clks_per_phase = -1;
     // std::string stats_output;
+    unsigned num_phases = 0;
     std::string svf_trace_dir;
 
     namespace po = boost::program_options;
     po::options_description desc("Options"); 
     desc.add_options() 
         ("help", "Print help messages")
-        ("mode", po::value<std::string>(&mode),
+        ("mode", po::value<std::string>(&mode)->required(),
                  "Mode: hybrid, dram-only, pcm-only")
-        ("dram-config", po::value<std::string>(&dram_cfg_file),
+        ("dram-config", po::value<std::string>(&dram_cfg_file)->required(),
                    "Configuration file for DRAM (if hybrid system)")
-        ("pcm-config", po::value<std::string>(&pcm_cfg_file),
+        ("pcm-config", po::value<std::string>(&pcm_cfg_file)->required(),
                    "Configuration file for PCM (if hybrid system)")
-        ("trace", po::value<std::vector<std::string>>(&traces),
+        ("trace", po::value<std::vector<std::string>>(&traces)->required(),
                       "CPU trace or MEM trace")
-        ("num_clks_per_phase", po::value<int64_t>(&num_clks_per_phase),
+        ("num_clks_per_phase", po::value<int64_t>(&num_clks_per_phase)->required(),
                    "Number of clks per phase")
+        ("num_phases",po::value<unsigned>(&num_phases)->required(),
+                      "Number of phases to execute")
         // ("stat_output", po::value<std::string>(&stats_output),
         //                 "Stats output file/Stats output")
-        ("svf_trace_dir", po::value<std::string>(&svf_trace_dir),
+        ("svf_trace_dir", po::value<std::string>(&svf_trace_dir)->required(),
                         "SVF traces directory");
 
     po::variables_map vm;
@@ -169,6 +173,7 @@ ParseArgsRet parse_args(int argc, const char *argv[])
                         pcm_cfg_file,
                         traces,
                         num_clks_per_phase,
+                        num_phases,
                         // stats_output,
                         svf_trace_dir};
 }

@@ -620,7 +620,7 @@ class Processor
             
             num_phases++;
 
-            if (num_phases > 10000)
+            if (num_phases > num_phases_limit)
             {
                 exit(0);
             }
@@ -702,8 +702,11 @@ class Processor
     }
 
     void setPrimeProbeInfo(Config::Cache_Level _level,
-                           Config &cfg)
+                           Config &cfg,
+                           unsigned _phases)
     {
+        num_phases_limit = _phases;
+
         for (auto &core : cores)
         {
             core->setPrimeProbeInfo(_level, cfg);
@@ -736,6 +739,7 @@ class Processor
     std::string svf_trace_dir;
 
     unsigned num_phases = 0;
+    unsigned num_phases_limit = 0;
 
     uint64_t num_clks_per_phase;
     bool phase_enabled = false;

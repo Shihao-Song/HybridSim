@@ -15,6 +15,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_clks_per_phase,
                                             // std::string &stats_output_file,
+                                            unsigned num_phases,
                                             std::string &svf_trace_dir);
 
 int main(int argc, const char *argv[])
@@ -25,6 +26,7 @@ int main(int argc, const char *argv[])
           trace_lists,
           num_clks_per_phase, // # instructions for each phase, e.g., 10M, 100M...
           // stats_output_file,
+          num_phases,
           svf_trace_dir] = parse_args(argc, argv);
     assert(trace_lists.size() != 0);
 
@@ -39,6 +41,7 @@ int main(int argc, const char *argv[])
         Hybrid_DRAM_PCM_Full_System_Simulation(cfgs,
                                                trace_lists,
                                                num_clks_per_phase,
+                                               num_phases,
                                                // stats_output_file,
                                                svf_trace_dir);
     }
@@ -53,6 +56,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
                                             std::vector<std::string> &trace_lists,
                                             int64_t num_clks_per_phase,
                                             // std::string &stats_output_file,
+                                            unsigned num_phases,
                                             std::string &svf_trace_dir)
 {
     unsigned num_of_cores = trace_lists.size();
@@ -120,7 +124,8 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
     {
         processor->setDCache(i, L1Ds[i].get());
         processor->setPrimeProbeInfo(Config::Cache_Level::L1D,
-                                     pcm_cfg);
+                                     pcm_cfg,
+                                     num_phases);
     }
 
     std::cout << "\nSimulation Stage (Hybrid DRAM-PCM system)...\n\n";
