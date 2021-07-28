@@ -557,6 +557,7 @@ class Processor
         {
             // Initial prime stage
             // std::cerr << "initial prime stage. \n";
+            std::string oracle_fn;
             if (num_phases > 0)
             {
                 // First of all, we want to extract the oracle traces
@@ -574,6 +575,8 @@ class Processor
 
                 // Now, we probe the stage
                 cores[0]->enablePP();
+
+                oracle_fn = trace_fn;
             }
             else
             {
@@ -596,6 +599,7 @@ class Processor
                 if (!cond) break;
             }
 
+            std::string attacker_fn;
             if (num_phases > 0)
             {
                 // Lastly, we extract the attacker
@@ -608,14 +612,16 @@ class Processor
    
                 // Now, we disable probe the stage
                 cores[0]->disablePP();
+
+                attacker_fn = trace_fn;
             }
 
             // Notify cache that we are out of prime and probe stage
             cores[0]->setVictimExe();
-
+            
             num_phases++;
 
-            if (num_phases > 2000)
+            if (num_phases > 10000)
             {
                 exit(0);
             }
