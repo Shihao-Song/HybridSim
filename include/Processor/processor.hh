@@ -129,6 +129,7 @@ class Processor
                                Config& cfg)
         {
             block_size = cfg.block_size;
+            block_mask = block_size - 1;
             auto size = cfg.caches[int(_level)].size * 1024;
             auto assoc = cfg.caches[int(_level)].assoc;
             num_sets = size / (block_size * assoc);
@@ -555,8 +556,6 @@ class Processor
     {
         if (phase_enabled && (cycles %  num_clks_per_phase == 0))
         {
-            // Initial prime stage
-            // std::cerr << "initial prime stage. \n";
             std::string oracle_fn;
             if (num_phases > 0)
             {
