@@ -625,6 +625,7 @@ class Processor
             // Calculate similarity
             if (num_phases > 0)
             {
+                assert(o_trace.size() == a_trace.size());
                 unsigned diff = 0;
                 for (auto i = 0; i < o_trace.size(); i++)
                 {
