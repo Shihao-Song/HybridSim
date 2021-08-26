@@ -68,15 +68,17 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
 
     // Cache system
     std::vector<std::unique_ptr<MemObject>> L1Ds;
-    std::vector<std::unique_ptr<MemObject>> L2s;
-    std::vector<std::unique_ptr<MemObject>> L3s;
+    // std::vector<std::unique_ptr<MemObject>> L2s;
+    // std::vector<std::unique_ptr<MemObject>> L3s;
     // Skylake cache system
     for (int i = 0; i < num_of_cores; i++)
     {
         std::unique_ptr<MemObject> L1_D(createMemObject(pcm_cfg,
                                                         Memories::L1_D_CACHE,
-                                                        isNonLLC));
+                                                        isLLC));
+                                                        // isNonLLC));
 
+        /*
         std::unique_ptr<MemObject> L2(createMemObject(pcm_cfg, 
                                                       Memories::L2_CACHE, 
                                                       isNonLLC));
@@ -84,8 +86,14 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
         std::unique_ptr<MemObject> L3(createMemObject(pcm_cfg, 
                                                       Memories::L3_CACHE,
                                                       isLLC));
+        */
 
         L1_D->setId(i);
+        L1_D->setBoundaryMemObject();
+        L1_D->setNextLevel(DRAM_PCM.get());
+        L1_D->setSVFExtr();
+        L1Ds.push_back(std::move(L1_D));
+        /*
         L2->setId(i);
         L3->setId(i);
 
@@ -103,6 +111,7 @@ void Hybrid_DRAM_PCM_Full_System_Simulation(hybridCfgArgs &cfgs,
         L1Ds.push_back(std::move(L1_D));
         L2s.push_back(std::move(L2));
         L3s.push_back(std::move(L3));
+        */
     }
 
     // Create MMU. We support an ML MMU. Intelligent MMU is the major focus of this
