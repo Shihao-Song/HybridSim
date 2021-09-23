@@ -123,9 +123,6 @@ class Hybrid : public MMU
                 // std::cout << "Mapped to PCM \n";
                 in_dram = false; in_pcm = true;
             }
-            
-            chosen_technology = int(Config::Memory_Node::PCM);
-            in_dram = false; in_pcm = true;
 
             auto &used_frames = used_frame_pool_by_technology[chosen_technology];
             // std::cout << "Size of free frames: " << free_frames.size() << "\n";
